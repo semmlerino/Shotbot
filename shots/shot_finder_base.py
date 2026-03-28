@@ -6,6 +6,8 @@ eliminating duplication between targeted and previous shot finders.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -22,6 +24,9 @@ from timeout_config import TimeoutConfig
 from type_definitions import Shot
 from utils import get_current_username
 from workers.process_pool_manager import CancellableSubprocess
+
+
+logger = logging.getLogger(__name__)
 
 
 class FindShotsKwargs(TypedDict, total=False):
@@ -90,7 +95,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         # Progress tracking is handled by ProgressReportingMixin
 
-        self.logger.info(
+        logger.info(
             f"{self.__class__.__name__} initialized for user: {self.username}"
         )
 
@@ -117,7 +122,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         # Validate shot is not empty
         if not result.shot:
-            self.logger.debug(f"Empty shot extracted from path {path}")
+            logger.debug(f"Empty shot extracted from path {path}")
             return None
 
         try:
@@ -128,7 +133,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
                 workspace_path=result.workspace_path,
             )
         except Exception as e:  # noqa: BLE001
-            self.logger.debug(f"Could not create Shot from path {path}: {e}")
+            logger.debug(f"Could not create Shot from path {path}: {e}")
             return None
 
     def _run_find_scan(self, search_path: Path, maxdepth: int) -> list[Shot]:
@@ -168,11 +173,11 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
             )
 
             if result.status == "cancelled":
-                self.logger.debug(f"Scan cancelled for path: {search_path}")
+                logger.debug(f"Scan cancelled for path: {search_path}")
                 return shots
 
             if result.status == "timeout":
-                self.logger.warning(f"Timeout scanning path: {search_path}")
+                logger.warning(f"Timeout scanning path: {search_path}")
                 return shots
 
             if result.returncode == 0:
@@ -184,7 +189,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
                         shots.append(shot)
 
         except Exception:
-            self.logger.exception(f"Error scanning path {search_path}")
+            logger.exception(f"Error scanning path {search_path}")
 
         return shots
 
@@ -246,7 +251,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
                 shot.shot,
             )
         except Exception as e:  # noqa: BLE001
-            self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
+            logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
             return None
 
     def filter_approved_shots(
@@ -272,7 +277,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
             if (shot.show, shot.sequence, shot.shot) not in active_ids
         ]
 
-        self.logger.info(
+        logger.info(
             f"Filtered {len(all_user_shots)} user shots to "
             f"{len(approved_shots)} approved shots"
         )

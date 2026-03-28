@@ -110,7 +110,7 @@ class TestVersionExtraction:
         """Test that extraction logs appropriately."""
         obj = ConcreteVersionClass()
 
-        with patch.object(obj.logger, "debug") as mock_debug:
+        with patch("version_mixin.logger.debug") as mock_debug:
             version = obj._extract_version("file_v042.ma")
             assert version == 42
             mock_debug.assert_called_once()

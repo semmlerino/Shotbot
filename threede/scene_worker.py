@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from typing import TYPE_CHECKING, ClassVar, final
 
@@ -22,6 +24,9 @@ from threede.progress_tracker import ProgressCalculator, QtProgressReporter
 from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
 from utils import get_excluded_users
 from workers.thread_safe_worker import ThreadSafeWorker
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -159,11 +164,11 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         scenes_to_emit = scenes if scenes is not None else (self._all_scenes or [])
 
         if not scenes_to_emit:
-            self.logger.debug(
+            logger.debug(
                 "Worker finishing, emitting finished signal with empty list"
             )
         else:
-            self.logger.debug(
+            logger.debug(
                 f"Worker finishing, emitting finished signal with {len(scenes_to_emit)} scenes"
             )
 
@@ -215,7 +220,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             _ = self._progress_reporter.progress_update.connect(
                 self._handle_progress_update, Qt.ConnectionType.QueuedConnection
             )
-            self.logger.debug(
+            logger.debug(
                 "Progress reporter created and connected in worker thread"
             )
 
@@ -223,13 +228,13 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             self.worker_discovery_started.emit()
 
             if not self.shots:
-                self.logger.warning("No shots provided for 3DE scene discovery")
+                logger.warning("No shots provided for 3DE scene discovery")
                 _ = self._emit_finished_signal_once([])
                 return
 
             # Check for initial cancellation using base class method
             if self.should_stop():
-                self.logger.info("3DE scene discovery cancelled before starting")
+                logger.info("3DE scene discovery cancelled before starting")
                 _ = self._emit_finished_signal_once([])
                 return
 
@@ -238,19 +243,19 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
             # Final cancellation check
             if self.should_stop():
-                self.logger.info("3DE scene discovery cancelled during processing")
+                logger.info("3DE scene discovery cancelled during processing")
                 # Return partial results
                 _ = self._emit_finished_signal_once()
                 return
 
-            self.logger.info(
+            logger.info(
                 f"Enhanced 3DE scene discovery completed: {len(scenes)} scenes found",
             )
             # Emit final results
             _ = self._emit_finished_signal_once(scenes)
 
         except Exception as e:
-            self.logger.exception("Error in enhanced 3DE scene discovery worker")
+            logger.exception("Error in enhanced 3DE scene discovery worker")
             self.error.emit(str(e))
             # Re-raise to trigger worker_error signal from base class
             raise
@@ -265,7 +270,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             List of all discovered ThreeDEScene objects
 
         """
-        self.logger.info(
+        logger.info(
             "Discovering ALL 3DE scenes in shows using parallel file-first strategy"
         )
 
@@ -292,7 +297,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             return self.should_stop()
 
         # Use the new parallel file-first discovery
-        self.logger.info("Using parallel discovery with progress reporting")
+        logger.info("Using parallel discovery with progress reporting")
         all_scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
             self.user_shots,  # Used to determine which shows to search
             self.excluded_users,
@@ -302,13 +307,13 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Check for cancellation after scan
         if self.should_stop():
-            self.logger.info("3DE scene discovery cancelled during parallel scan")
+            logger.info("3DE scene discovery cancelled during parallel scan")
             return []
 
         # Keep ALL scenes from other users in the shows where user works
         other_scenes = all_scenes
 
-        self.logger.info(
+        logger.info(
             f"Found {len(all_scenes)} total scenes using parallel scan, keeping all {len(other_scenes)} scenes from other users",
         )
 

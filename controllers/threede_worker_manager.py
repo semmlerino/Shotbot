@@ -7,6 +7,8 @@ class and delegates all worker management through it.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from collections.abc import Callable
 from typing import TYPE_CHECKING, final
@@ -17,11 +19,13 @@ from PySide6.QtCore import (
 )
 
 # Runtime imports
-from logging_mixin import LoggingMixin
 from threede import ThreeDESceneWorker
 from timeout_config import TimeoutConfig
 from utils import safe_disconnect
 from workers.worker_host import WorkerHost
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -29,7 +33,7 @@ if TYPE_CHECKING:
 
 
 @final
-class ThreeDEWorkerManager(LoggingMixin):
+class ThreeDEWorkerManager:
     """Manages the lifecycle of a ThreeDESceneWorker.
 
     Owns the worker instance and the mutex that protects it.  The controller
@@ -198,7 +202,7 @@ class ThreeDEWorkerManager(LoggingMixin):
             self._on_discovery_error,  # pyright: ignore[reportAny]
             Qt.ConnectionType.QueuedConnection,
         )
-        self.logger.debug("Connected all worker signals to controller")
+        logger.debug("Connected all worker signals to controller")
 
     def _disconnect_worker_signals(self, worker: ThreeDESceneWorker) -> None:
         """Safely disconnect worker signals.
@@ -214,4 +218,4 @@ class ThreeDEWorkerManager(LoggingMixin):
             worker.discovery_finished,
             worker.error,
         )
-        self.logger.debug("Disconnected worker signals")
+        logger.debug("Disconnected worker signals")

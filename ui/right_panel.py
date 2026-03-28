@@ -12,6 +12,7 @@ interface for the main window to interact with.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any, final
 
 from PySide6.QtCore import Signal
@@ -26,6 +27,9 @@ from dcc.dcc_section_rv import RVSection
 from dcc.scene_file import FileType, SceneFile
 from shots.shot_file_finder import ShotFileFinder
 from ui.qt_widget_mixin import QtWidgetMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -206,7 +210,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
                 files_by_type = self._file_finder.find_all_files(shot)
                 self.set_files(files_by_type)
             except Exception:
-                self.logger.exception(f"Error discovering files for {shot.full_name}")
+                logger.exception(f"Error discovering files for {shot.full_name}")
                 self._clear_files()
                 self.status_message.emit("File discovery failed — see log for details")
 
@@ -272,10 +276,10 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
             rv_section = self._dcc_accordion.get_section("rv")
             if not isinstance(rv_section, RVSection):
-                self.logger.warning("RV section not found - cannot display sequences")
+                logger.warning("RV section not found - cannot display sequences")
                 return
 
-            self.logger.info(
+            logger.info(
                 f"Discovering RV sequences for shot: {shot.workspace_path}"
             )
 
@@ -287,12 +291,12 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             rv_section.set_playblast_sequences(playblasts)
             rv_section.set_render_sequences(renders)
 
-            self.logger.info(
+            logger.info(
                 f"RV discovery complete: {len(playblasts)} playblast(s), {len(renders)} render(s)"
             )
 
         except Exception:
-            self.logger.exception("Error discovering sequences for RV")
+            logger.exception("Error discovering sequences for RV")
 
     def _clear_rv_sequences(self) -> None:
         """Clear sequences from RV section."""

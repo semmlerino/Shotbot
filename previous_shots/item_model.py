@@ -6,6 +6,7 @@ extending BaseItemModel with integration to PreviousShotsModel for data updates.
 
 from __future__ import annotations
 
+import logging
 import warnings
 from typing import TYPE_CHECKING, ClassVar
 
@@ -14,6 +15,9 @@ from typing_extensions import override
 
 from ui.base_item_model import BaseItemModel
 from utils import safe_disconnect
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -86,7 +90,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Initialize with current shots
         self._update_from_underlying_model()
 
-        self.logger.debug("PreviousShotsItemModel initialized")
+        logger.debug("PreviousShotsItemModel initialized")
 
     # ============= Previous shots-specific custom roles =============
 
@@ -120,7 +124,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         """Update items from underlying model."""
         new_shots = self._underlying_model.get_shots()
         self.set_shots(new_shots)
-        self.logger.debug(f"Updated with {len(new_shots)} previous shots")
+        logger.debug(f"Updated with {len(new_shots)} previous shots")
 
     def refresh(self) -> None:
         """Trigger refresh of underlying model."""
@@ -160,4 +164,4 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Disconnect signals safely
         safe_disconnect(self.items_updated, self.shots_updated)
 
-        self.logger.debug("PreviousShotsItemModel cleanup complete")
+        logger.debug("PreviousShotsItemModel cleanup complete")

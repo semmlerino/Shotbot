@@ -7,6 +7,7 @@ all other reads bypass TTL for persistent incremental caching.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from datetime import timedelta
 from pathlib import Path
@@ -21,7 +22,9 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 from cache._json_store import file_lock, read_json_cache, write_json_cache
 from cache._merge import build_merge_lookups
 from cache.types import ShotMergeResult, get_shot_key, shot_to_dict
-from logging_mixin import LoggingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -31,7 +34,7 @@ DEFAULT_TTL_MINUTES = 30
 
 
 @final
-class ShotDataCache(LoggingMixin, QObject):
+class ShotDataCache(QObject):
     """Shot data caching with incremental merge support."""
 
     cache_updated = Signal()
@@ -157,7 +160,7 @@ class ShotDataCache(LoggingMixin, QObject):
         if success:
             self.cache_updated.emit()
         else:
-            self.logger.warning(
+            logger.warning(
                 f"Failed to write {cache_name} cache - data may not persist across restarts"
             )
 
@@ -232,13 +235,13 @@ class ShotDataCache(LoggingMixin, QObject):
 
         # Phase 5: Log and emit signals (outside lock - no shared state mutation)
         if write_success:
-            self.logger.info(
+            logger.info(
                 f"Migrated {len(to_migrate)} shots to Previous (total: {len(merged)} after dedup)"
             )
             # Emit specific signal (NOT generic cache_updated)
             self.shots_migrated.emit(to_migrate)
         else:
-            self.logger.error(
+            logger.error(
                 f"Failed to persist {len(to_migrate)} migrated shots to disk. Migration will be lost on restart."
             )
 
@@ -350,11 +353,11 @@ class ShotDataCache(LoggingMixin, QObject):
                     if extra_json.name not in _excluded:
                         extra_json.unlink()
 
-                self.logger.info("Shot cache cleared successfully")
+                logger.info("Shot cache cleared successfully")
                 self.cache_updated.emit()
 
             except Exception:
-                self.logger.exception("Failed to clear shot cache")
+                logger.exception("Failed to clear shot cache")
 
     def set_expiry_minutes(self, expiry_minutes: int) -> None:
         """Set cache expiry time.
@@ -364,7 +367,7 @@ class ShotDataCache(LoggingMixin, QObject):
 
         """
         self._cache_ttl = timedelta(minutes=expiry_minutes)
-        self.logger.debug(f"Cache TTL set to {expiry_minutes} minutes")
+        logger.debug(f"Cache TTL set to {expiry_minutes} minutes")
 
     def cache_files(self) -> list[Path]:
         """Return list of cache file paths managed by this cache.

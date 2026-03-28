@@ -10,6 +10,7 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,9 @@ from config import ThreadingConfig
 from paths import resolve_shows_root
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -58,7 +62,7 @@ class TargetedShotsFinder(ShotFinderBase):
             max_workers or ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS
         )
 
-        self.logger.debug(f"TargetedShotsFinder initialized for user: {self.username}")
+        logger.debug(f"TargetedShotsFinder initialized for user: {self.username}")
 
     # Progress methods are inherited from ShotFinderBase (ProgressReportingMixin):
     # - set_progress_callback()
@@ -77,10 +81,10 @@ class TargetedShotsFinder(ShotFinderBase):
 
         """
         shows = {shot.show for shot in active_shots}
-        self.logger.info(
+        logger.info(
             f"Extracted {len(shows)} unique shows from {len(active_shots)} active shots"
         )
-        self.logger.debug(f"Shows: {sorted(shows)}")
+        logger.debug(f"Shows: {sorted(shows)}")
         return shows
 
     def _scan_show_for_user(
@@ -92,11 +96,11 @@ class TargetedShotsFinder(ShotFinderBase):
         root = resolve_shows_root(shows_root)
         show_path = root / show_name / "shots"
         if not show_path.exists():
-            self.logger.debug(f"Shots directory does not exist: {show_path}")
+            logger.debug(f"Shots directory does not exist: {show_path}")
             return []
-        self.logger.debug(f"Scanning show {show_name}")
+        logger.debug(f"Scanning show {show_name}")
         shots = self._run_find_scan(show_path, maxdepth=4)
-        self.logger.debug(f"Found {len(shots)} shots in show {show_name}")
+        logger.debug(f"Found {len(shots)} shots in show {show_name}")
         return shots
 
     def find_user_shots_in_shows(
@@ -113,12 +117,12 @@ class TargetedShotsFinder(ShotFinderBase):
 
         """
         if not target_shows:
-            self.logger.warning("No target shows provided for search")
+            logger.warning("No target shows provided for search")
             return
 
         root = resolve_shows_root(shows_root)
         if not root.exists():
-            self.logger.warning(f"Shows root does not exist: {root}")
+            logger.warning(f"Shows root does not exist: {root}")
             return
 
         total_shows = len(target_shows)
@@ -162,9 +166,9 @@ class TargetedShotsFinder(ShotFinderBase):
                     yield from shots
 
                 except concurrent.futures.TimeoutError:
-                    self.logger.warning(f"Timeout processing {show}")
+                    logger.warning(f"Timeout processing {show}")
                 except Exception:
-                    self.logger.exception(f"Error processing {show}")
+                    logger.exception(f"Error processing {show}")
 
         self._report_progress(100, 100, "Targeted search complete")
 
@@ -195,10 +199,10 @@ class TargetedShotsFinder(ShotFinderBase):
         target_shows = self.extract_shows_from_active_shots(active_shots)
 
         if not target_shows:
-            self.logger.warning("No target shows found from active shots")
+            logger.warning("No target shows found from active shots")
             return []
 
-        self.logger.info(
+        logger.info(
             f"Using targeted search in {len(target_shows)} shows instead of scanning all shows"
         )
 
@@ -207,7 +211,7 @@ class TargetedShotsFinder(ShotFinderBase):
         all_user_shots = list(self.find_user_shots_in_shows(target_shows, root))
 
         if self._stop_requested:
-            self.logger.info("Targeted search stopped by user request")
+            logger.info("Targeted search stopped by user request")
             return []
 
         # Filter to get only approved shots using base class implementation
@@ -215,7 +219,7 @@ class TargetedShotsFinder(ShotFinderBase):
         approved_shots = self.filter_approved_shots(all_user_shots, active_shots)
 
         elapsed = time.time() - start_time
-        self.logger.info(
+        logger.info(
             f"Targeted search found {len(approved_shots)} approved shots "
             f"in {elapsed:.1f} seconds (was 60-120s with global search)"
         )
@@ -267,5 +271,5 @@ class TargetedShotsFinder(ShotFinderBase):
         # Use the main search method
         if shows_to_search:
             return list(self.find_user_shots_in_shows(shows_to_search, root_dir))
-        self.logger.warning("No target shows provided for search")
+        logger.warning("No target shows provided for search")
         return []

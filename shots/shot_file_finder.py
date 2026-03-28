@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from datetime import datetime
@@ -13,6 +14,9 @@ from discovery import MayaLatestFinder
 from threede import ThreeDELatestFinder
 from utils import get_current_username
 from version_mixin import VersionHandlingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 _CURRENT_USERNAME: str = get_current_username()
@@ -135,7 +139,7 @@ class ShotFileFinder(VersionHandlingMixin):
                     nuke_files.append(nuke_file)
 
         except (OSError, PermissionError):
-            self.logger.warning("Error scanning for Nuke files", exc_info=True)
+            logger.warning("Error scanning for Nuke files", exc_info=True)
             return []
 
         return self._paths_to_scene_files(nuke_files, FileType.NUKE)
@@ -175,7 +179,7 @@ class ShotFileFinder(VersionHandlingMixin):
                 scene_files.append(scene_file)
 
             except (OSError, PermissionError) as e:
-                self.logger.debug(f"Could not stat file {path}: {e}")
+                logger.debug(f"Could not stat file {path}: {e}")
                 continue
 
         # Sort by modification time, newest first

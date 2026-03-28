@@ -120,10 +120,9 @@ class TestFinderInitContract:
     """Contract: both finders share the same initialization guarantees."""
 
     def test_initialization(self, finder_adapter: FinderAdapter) -> None:
-        """Finder initializes and exposes logger and VERSION_PATTERN."""
+        """Finder initializes and exposes VERSION_PATTERN."""
         finder = finder_adapter.finder
         assert finder is not None
-        assert hasattr(finder, "logger")
         assert hasattr(finder, "VERSION_PATTERN")
 
     def test_has_version_pattern(self, finder_adapter: FinderAdapter) -> None:

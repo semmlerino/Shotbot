@@ -424,11 +424,8 @@ class TestSafeShutdown:
 
         worker = InstantWorker()
 
-        # Inject a mock logger via the cache attribute used by LoggingMixin.logger
-        mock_logger = MagicMock()
-        worker._contextual_logger = mock_logger  # type: ignore[attr-defined]
-
         with (
+            patch("workers.thread_safe_worker.logger") as mock_logger,
             patch.object(worker, "safe_stop", return_value=False),
             patch.object(worker, "is_zombie", return_value=True),
             patch.object(worker, "deleteLater") as mock_delete,

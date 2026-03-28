@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, final
 
-from logging_mixin import LoggingMixin
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -24,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @final
-class FilterCoordinator(LoggingMixin):
+class FilterCoordinator:
     """Coordinates filter, sort, and show-filter updates across grid views.
 
     Extracted from MainWindow to reduce its handler count.
@@ -68,7 +70,7 @@ class FilterCoordinator(LoggingMixin):
         self._status_bar.showMessage(
             f"{tab_label}: {filtered_count} of {total} ({filter_desc})", 2500
         )
-        self.logger.info(f"Applied {tab_label} show filter: {filter_desc}")
+        logger.info(f"Applied {tab_label} show filter: {filter_desc}")
 
     def apply_text_filter(
         self, proxy: ShotProxyModel | PreviousShotsProxyModel, tab_label: str, text: str
@@ -85,7 +87,7 @@ class FilterCoordinator(LoggingMixin):
             )
         else:
             self._status_bar.showMessage(f"{tab_label}: {total} shots", 2500)
-        self.logger.debug(
+        logger.debug(
             f"{tab_label} text filter: '{filter_text}' - {filtered_count} shots"
         )
 
@@ -95,7 +97,7 @@ class FilterCoordinator(LoggingMixin):
 
         shows = sorted(get_available_shows(self._previous_shots_model.get_shots()))
         self._previous_shots_grid.populate_show_filter(shows)
-        self.logger.debug("Previous shots updated, refreshed show filter")
+        logger.debug("Previous shots updated, refreshed show filter")
 
     def on_sort_order_changed(
         self,
@@ -110,7 +112,7 @@ class FilterCoordinator(LoggingMixin):
         elif settings_key == "threede_scenes":
             self._threede_proxy.set_sort_order(order)
         self._settings_manager.ui.set_sort_order(settings_key, order)
-        self.logger.info(f"{settings_key} sort order changed to: {order}")
+        logger.info(f"{settings_key} sort order changed to: {order}")
 
     def restore_sort_orders(self) -> None:
         """Restore sort order settings for each tab."""
@@ -118,10 +120,10 @@ class FilterCoordinator(LoggingMixin):
         self._threede_item_model.set_sort_order(threede_order)
         self._threede_proxy.set_sort_order(threede_order)
         self._threede_shot_grid.set_sort_order(threede_order)
-        self.logger.debug(f"Restored 3DE scenes sort order: {threede_order}")
+        logger.debug(f"Restored 3DE scenes sort order: {threede_order}")
 
         previous_order = self._settings_manager.ui.get_sort_order("previous_shots")
         self._previous_shots_item_model.set_sort_order(previous_order)
         self._previous_shots_proxy.set_sort_order(previous_order)
         self._previous_shots_grid.set_sort_order(previous_order)
-        self.logger.debug(f"Restored Previous Shots sort order: {previous_order}")
+        logger.debug(f"Restored Previous Shots sort order: {previous_order}")

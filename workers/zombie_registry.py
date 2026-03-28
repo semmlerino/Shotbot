@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     from workers.thread_safe_worker import ThreadSafeWorker
 
 
+logger = logging.getLogger(__name__)
+
 # Zombie age thresholds and cleanup interval (constants, never reassigned)
 _MAX_ZOMBIE_AGE_SECONDS: int = 60  # Log warning after 60s
 _ZOMBIE_TERMINATE_AGE_SECONDS: int = 300  # Force terminate after 5 min
@@ -78,12 +80,12 @@ def safe_terminate(worker: ThreadSafeWorker) -> None:
     state = worker.get_state()
 
     if state in [WorkerState.STOPPED, WorkerState.DELETED]:
-        worker.logger.debug(
+        logger.debug(
             f"Worker {id(worker)}: Already stopped, no termination needed"
         )
         return
 
-    worker.logger.warning(
+    logger.warning(
         f"Worker {id(worker)}: Requesting stop from state {state.name}"
     )
 
@@ -107,7 +109,7 @@ def safe_terminate(worker: ThreadSafeWorker) -> None:
         from timeout_config import TimeoutConfig
 
         if not worker.wait(TimeoutConfig.WORKER_GRACEFUL_STOP_MS):  # Initial timeout
-            worker.logger.warning(
+            logger.warning(
                 f"Worker {id(worker)}: Still running after {TimeoutConfig.WORKER_GRACEFUL_STOP_MS}ms, waiting longer...",
             )
 
@@ -127,7 +129,7 @@ def safe_terminate(worker: ThreadSafeWorker) -> None:
                     report,
                 )
 
-                worker.logger.error(
+                logger.error(
                     f"Worker {id(worker)}: Failed to stop gracefully after 5s total. "
                     "Thread will be abandoned (NOT terminated) to prevent crashes."
                 )
@@ -148,7 +150,7 @@ def safe_terminate(worker: ThreadSafeWorker) -> None:
                     _state.created_count += 1
                     zombie_count = len(_zombie_threads)
 
-                worker.logger.warning(
+                logger.warning(
                     f"Worker {id(worker)}: Added to zombie collection "
                     f"({zombie_count} total zombies). "
                     "Periodic cleanup will attempt recovery."
@@ -157,12 +159,12 @@ def safe_terminate(worker: ThreadSafeWorker) -> None:
                 # Thread actually stopped - NOW set state to STOPPED
                 with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]
                     worker._state = WorkerState.STOPPED  # type: ignore[reportPrivateUsage]
-                worker.logger.info(f"Worker {id(worker)}: Stopped after extended wait")
+                logger.info(f"Worker {id(worker)}: Stopped after extended wait")
         else:
             # Thread actually stopped - NOW set state to STOPPED
             with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]
                 worker._state = WorkerState.STOPPED  # type: ignore[reportPrivateUsage]
-            worker.logger.info(f"Worker {id(worker)}: Stopped gracefully")
+            logger.info(f"Worker {id(worker)}: Stopped gracefully")
     else:
         # Thread was already stopped - set state to STOPPED
         with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]

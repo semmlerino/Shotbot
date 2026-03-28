@@ -7,6 +7,7 @@ can be maintained in one place without duplicating code across views.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -15,6 +16,8 @@ from PySide6.QtWidgets import QApplication, QMenu
 
 from ui.icon_painter import create_icon
 
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QIcon
@@ -26,11 +29,9 @@ if TYPE_CHECKING:
 class GridContextMenuMixin:
     """Mixin that provides shared context menu helpers for BaseGridView subclasses.
 
-    This mixin assumes the host class also inherits from LoggingMixin so that
-    ``self.logger`` is available.  It is designed to be mixed in before QWidget
-    in the MRO, e.g.::
+    It is designed to be mixed in before QWidget in the MRO, e.g.::
 
-        class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
+        class BaseGridView(GridContextMenuMixin, QtWidgetMixin, QWidget):
             ...
 
     Host classes may optionally expose ``_command_launcher`` (a
@@ -138,7 +139,7 @@ class GridContextMenuMixin:
         clipboard = QApplication.clipboard()
         if clipboard:
             clipboard.setText(path)
-            self.logger.debug(f"Copied path to clipboard: {path}")  # type: ignore[attr-defined]
+            logger.debug(f"Copied path to clipboard: {path}")  # type: ignore[attr-defined]
 
     def _open_main_plate_in_rv(self, item: object) -> None:
         """Open the main plate in RV via the standard launch pipeline.
@@ -161,7 +162,7 @@ class GridContextMenuMixin:
         plate_path = find_main_plate(workspace_path)
 
         if plate_path is None:
-            self.logger.warning(f"No plate found for shot at {workspace_path}")  # type: ignore[attr-defined]
+            logger.warning(f"No plate found for shot at {workspace_path}")  # type: ignore[attr-defined]
             NotificationManager.error(
                 "No Plate Found", f"No plate found for shot at {workspace_path}"
             )
@@ -171,7 +172,7 @@ class GridContextMenuMixin:
             self, "_command_launcher", None
         )
         if command_launcher is None:
-            self.logger.error(  # type: ignore[attr-defined]
+            logger.error(  # type: ignore[attr-defined]
                 "Cannot open plate in RV: no CommandLauncher available on this view"
             )
             NotificationManager.error(
@@ -183,7 +184,7 @@ class GridContextMenuMixin:
         from launch.command_launcher import LaunchContext
         from launch.launch_request import LaunchRequest
 
-        self.logger.info(f"Opening plate in RV: {plate_path}")  # type: ignore[attr-defined]
+        logger.info(f"Opening plate in RV: {plate_path}")  # type: ignore[attr-defined]
         _ = command_launcher.launch(
             LaunchRequest(
                 app_name="rv",
@@ -206,10 +207,10 @@ class GridContextMenuMixin:
         from workers.runnable_tracker import FolderOpenerWorker
 
         if not path:
-            self.logger.error("No folder path provided")  # type: ignore[attr-defined]
+            logger.error("No folder path provided")  # type: ignore[attr-defined]
             return
         if not Path(path).exists():
-            self.logger.error(f"Folder path does not exist: {path}")  # type: ignore[attr-defined]
+            logger.error(f"Folder path does not exist: {path}")  # type: ignore[attr-defined]
             return
         worker = FolderOpenerWorker(path)
         _ = worker.signals.error.connect(
@@ -221,7 +222,7 @@ class GridContextMenuMixin:
             Qt.ConnectionType.QueuedConnection,
         )
         QThreadPool.globalInstance().start(worker)
-        self.logger.info(f"Opening folder: {path}")  # type: ignore[attr-defined]
+        logger.info(f"Opening folder: {path}")  # type: ignore[attr-defined]
 
     def _on_folder_open_error(self, error_msg: str) -> None:
         """Handle folder open error.
@@ -230,11 +231,11 @@ class GridContextMenuMixin:
             error_msg: Error message from the worker
 
         """
-        self.logger.error(f"Failed to open folder: {error_msg}")  # type: ignore[attr-defined]
+        logger.error(f"Failed to open folder: {error_msg}")  # type: ignore[attr-defined]
 
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
-        self.logger.debug("Folder opened successfully")  # type: ignore[attr-defined]
+        logger.debug("Folder opened successfully")  # type: ignore[attr-defined]
 
     def _edit_note(self, workspace_path: str, display_name: str) -> None:
         """Open a dialog to edit a note for a shot or scene.
@@ -262,7 +263,7 @@ class GridContextMenuMixin:
         )
         if ok:
             notes_manager.set_note_by_path(workspace_path, new_note)
-            self.logger.debug(f"Note updated for: {display_name}")  # type: ignore[attr-defined]
+            logger.debug(f"Note updated for: {display_name}")  # type: ignore[attr-defined]
 
     def _build_shot_standard_actions(
         self,

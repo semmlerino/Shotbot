@@ -1,14 +1,10 @@
-"""Logging utilities to eliminate code duplication and standardize logging across the codebase.
+"""Logging utilities for standardized logging across the codebase.
 
 This module provides:
-- LoggingMixin: A mixin class that provides standardized logging setup
 - ContextualLogger: Enhanced logger with structured context support
 - Thread-safe context management for structured logging
-
-Usage:
-    class MyClass(LoggingMixin):
-        def my_method(self):
-            self.logger.info("This will use proper logger hierarchy")
+- get_module_logger: Convenience function for module-level loggers
+- log_context: Context manager for temporary logging context
 """
 
 from __future__ import annotations
@@ -18,7 +14,7 @@ import logging
 import threading
 from collections.abc import MutableMapping
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 # Third-party imports
 from typing_extensions import override
@@ -95,49 +91,6 @@ class ContextualLogger(logging.LoggerAdapter):  # type: ignore[type-arg]
 
         """
         yield from _manage_log_context(**kwargs)
-
-
-class LoggingMixin:
-    """Mixin class providing standardized logging setup.
-
-    This mixin eliminates the need for manual logger setup in each class.
-    Instead of:
-        logger = logging.getLogger(__name__)
-
-    Simply inherit from LoggingMixin:
-        class MyClass(LoggingMixin):
-            def my_method(self):
-                self.logger.info("Message")
-
-    The logger will automatically use the proper hierarchy:
-    module_name.ClassName
-    """
-
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        """Initialize LoggingMixin and continue MRO chain.
-
-        This ensures proper multiple inheritance with Qt classes.
-        """
-        super().__init__(*args, **kwargs)
-
-    @property
-    def logger(self) -> ContextualLogger:
-        """Get the logger for this class with contextual support.
-
-        Returns:
-            ContextualLogger instance with proper naming hierarchy
-
-        """
-        # Create logger name using module + class name for proper hierarchy
-        logger_name = f"{self.__class__.__module__}.{self.__class__.__name__}"
-        base_logger = logging.getLogger(logger_name)
-
-        # Cache the contextual logger on the instance to avoid recreating
-        cache_attr = "_contextual_logger"
-        if not hasattr(self, cache_attr):
-            setattr(self, cache_attr, ContextualLogger(base_logger))
-
-        return cast("ContextualLogger", getattr(self, cache_attr))
 
 
 # Convenience function for setting up module-level logging

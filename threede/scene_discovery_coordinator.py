@@ -9,12 +9,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, final
 
-
-_logger = logging.getLogger(__name__)
-
 # Local application imports
-from logging_mixin import LoggingMixin
+from logging_mixin import ContextualLogger
 from timeout_config import TimeoutConfig
+
+
+logger = ContextualLogger(logging.getLogger(__name__))
 
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 @final
-class SceneDiscoveryCoordinator(LoggingMixin):
+class SceneDiscoveryCoordinator:
     """Main coordinator for scene discovery.
 
     Orchestrates the extracted components (FileSystemScanner, SceneParser) to
@@ -63,7 +63,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             "errors": 0,
         }
 
-        self.logger.info("Initialized SceneDiscoveryCoordinator")
+        logger.info("Initialized SceneDiscoveryCoordinator")
 
     # ------------------------------------------------------------------
     # Private strategy implementations
@@ -93,13 +93,13 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             # Check user directory
             user_dir = shot_path / "user"
             if user_dir.exists():
-                self.logger.debug(f"Scanning user directory: {user_dir}")
+                logger.debug(f"Scanning user directory: {user_dir}")
 
                 # Use progressive discovery for efficiency
                 file_pairs = self.scanner.find_3de_files_progressive(
                     user_dir, excluded_users
                 )
-                self.logger.debug(f"Found {len(file_pairs)} .3de files")
+                logger.debug(f"Found {len(file_pairs)} .3de files")
 
                 # Convert file pairs to ThreeDEScene objects
                 for username, threede_file in file_pairs:
@@ -127,7 +127,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                         scenes.append(scene)
 
                     except Exception:  # noqa: BLE001
-                        self.logger.warning(
+                        logger.warning(
                             f"Error processing {threede_file}", exc_info=True
                         )
                         continue
@@ -135,18 +135,18 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             # Also scan publish directory
             publish_dir = shot_path / "publish"
             if publish_dir.exists():
-                self.logger.debug(f"Scanning publish directory: {publish_dir}")
+                logger.debug(f"Scanning publish directory: {publish_dir}")
                 publish_scenes = self._scan_publish_directory(
                     publish_dir, show, sequence, shot, shot_workspace_path
                 )
                 scenes.extend(publish_scenes)
 
-            self.logger.info(
+            logger.info(
                 f"Found {len(scenes)} total scenes for {show}/{sequence}/{shot}"
             )
 
         except Exception:
-            self.logger.exception(f"Error finding scenes for {show}/{sequence}/{shot}")
+            logger.exception(f"Error finding scenes for {show}/{sequence}/{shot}")
 
         return scenes
 
@@ -193,13 +193,13 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                     scenes.append(scene)
 
                 except Exception as e:  # noqa: BLE001
-                    self.logger.debug(
+                    logger.debug(
                         f"Error processing published file {threede_file}: {e}"
                     )
                     continue
 
         except Exception as e:  # noqa: BLE001
-            self.logger.debug(f"Error scanning publish directory: {e}")
+            logger.debug(f"Error scanning publish directory: {e}")
 
         return scenes
 
@@ -233,7 +233,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             if not self._validate_shot_input(shot_workspace_path, show, sequence, shot):
                 return []
 
-            with self.logger.context(
+            with logger.context(
                 operation="scene_discovery", shot=f"{show}/{sequence}/{shot}"
             ):
                 # Progressive strategy delegates single-shot discovery to local
@@ -244,16 +244,16 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             valid_scenes = self._validate_and_filter_scenes(scenes)
 
             self.stats["scenes_discovered"] += len(valid_scenes)
-            self.logger.info(
+            logger.info(
                 f"Discovered {len(valid_scenes)} scenes for {show}/{sequence}/{shot}"
             )
-            self.logger.info("find_scenes_for_shot completed in %.3fs", time.monotonic() - _t)
+            logger.info("find_scenes_for_shot completed in %.3fs", time.monotonic() - _t)
 
             return valid_scenes
 
         except Exception as e:  # noqa: BLE001
             self.stats["errors"] += 1
-            self.logger.error(
+            logger.error(
                 f"Error discovering scenes for {show}/{sequence}/{shot}: {e}"
             )
             return []
@@ -268,11 +268,11 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         from utils import ValidationUtils
 
         if not ValidationUtils.validate_shot_components(show, sequence, shot):
-            self.logger.warning("Invalid shot components provided")
+            logger.warning("Invalid shot components provided")
             return False
 
         if not shot_workspace_path:
-            self.logger.warning("Empty shot workspace path provided")
+            logger.warning("Empty shot workspace path provided")
             return False
 
         return True
@@ -287,7 +287,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             if self._is_valid_scene(scene):
                 valid_scenes.append(scene)
             else:
-                self.logger.debug(f"Filtered out invalid scene: {scene.scene_path}")
+                logger.debug(f"Filtered out invalid scene: {scene.scene_path}")
 
         return valid_scenes
 
@@ -386,7 +386,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                 shows_root, show, excluded_users
             )
         except Exception:
-            _logger.exception("Error scanning show %s", show)
+            logger.exception("Error scanning show %s", show)
             return show_scenes
 
         for i, (scene_path, show_name, seq, shot, user, plate) in enumerate(
@@ -498,7 +498,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                     shows_completed += 1
 
                 except Exception:
-                    _logger.exception("Error processing show %s", show)
+                    logger.exception("Error processing show %s", show)
                     shows_completed += 1
 
         except Exception:

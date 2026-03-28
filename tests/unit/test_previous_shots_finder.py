@@ -129,12 +129,11 @@ class TestPreviousShotsFinder:
     def test_finder_initialization_default_user(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test finder initialization with default user from environment."""
-        # Disable mock mode to test actual USER env var behavior
+        """Test finder initialization with default user from getpass."""
+        # Disable mock mode to test actual username behavior
         monkeypatch.delenv("SHOTBOT_MOCK", raising=False)
 
-        # Set test user in environment (monkeypatch auto-restores after test)
-        monkeypatch.setenv("USER", "envuser")
+        monkeypatch.setattr("getpass.getuser", lambda: "envuser")
         finder = PreviousShotsFinder()
         assert finder.username == "envuser"
 

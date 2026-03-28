@@ -20,6 +20,9 @@ from __future__ import annotations
 
 # Standard library imports
 import functools
+
+# Standard library imports (continued)
+import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
@@ -33,8 +36,11 @@ from PySide6.QtCore import (
     QThread,
 )
 
+
+logger = logging.getLogger(__name__)
+
+
 # Local application imports
-from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
@@ -63,7 +69,7 @@ def require_main_thread(func: Callable[..., T]) -> Callable[..., T]:
     return wrapper
 
 
-class QtWidgetMixin(LoggingMixin):
+class QtWidgetMixin:
     """Mixin for common Qt widget functionality.
 
     Provides:
@@ -117,7 +123,7 @@ class QtWidgetMixin(LoggingMixin):
         if hasattr(self, "_geometry_key") and hasattr(self, "saveGeometry"):
             settings = QSettings()
             settings.setValue(f"{self._geometry_key}/geometry", self.saveGeometry())
-            self.logger.debug(f"Saved window geometry for {self._geometry_key}")
+            logger.debug(f"Saved window geometry for {self._geometry_key}")
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle close event with cleanup."""

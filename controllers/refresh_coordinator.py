@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, ClassVar, final
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from ui.tab_constants import TAB_MY_SHOTS, TAB_OTHER_3DE, TAB_PREVIOUS
 
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from protocols import RefreshCoordinatorMainWindowProtocol
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @final
-class RefreshCoordinator(QObject, LoggingMixin):
+class RefreshCoordinator(QObject):
     """Orchestrates refresh operations across different tabs in MainWindow.
 
     This class extracts the refresh coordination logic from MainWindow,
@@ -45,7 +47,6 @@ class RefreshCoordinator(QObject, LoggingMixin):
 
         """
         super().__init__()
-        LoggingMixin.__init__(self)
         self.main_window: RefreshCoordinatorMainWindowProtocol = main_window
         # Two-layer refresh guard:
         # 1. Timer-based debounce: prevents rapid-fire display refreshes when
@@ -59,7 +60,7 @@ class RefreshCoordinator(QObject, LoggingMixin):
         self._refresh_debounce_timer.setSingleShot(True)
         self._refresh_debounce_timer.setInterval(500)  # ms, was 0.5s
         self._shots_refresh_in_progress: bool = False
-        self.logger.debug("RefreshCoordinator initialized")
+        logger.debug("RefreshCoordinator initialized")
 
     def setup_signals(self) -> None:
         """Wire shot model signals to this coordinator's handlers.
@@ -129,7 +130,7 @@ class RefreshCoordinator(QObject, LoggingMixin):
             shots: List of loaded Shot objects
 
         """
-        self.logger.info(f"Shots loaded signal received: {len(shots)} shots")
+        logger.info(f"Shots loaded signal received: {len(shots)} shots")
         self.refresh_shot_display()
         self.main_window.update_status(f"Loaded {len(shots)} shots")
         NotificationManager.info(f"{len(shots)} shots loaded")
@@ -141,7 +142,7 @@ class RefreshCoordinator(QObject, LoggingMixin):
             shots: List of updated Shot objects
 
         """
-        self.logger.info(f"Shots changed signal received: {len(shots)} shots")
+        logger.info(f"Shots changed signal received: {len(shots)} shots")
         self.refresh_shot_display()
         self.main_window.update_status(f"Shot list updated: {len(shots)} shots")
         NotificationManager.success(f"Refreshed {len(shots)} shots")
@@ -171,12 +172,12 @@ class RefreshCoordinator(QObject, LoggingMixin):
         if success:
             if has_changes:
                 # UI update already handled by shots_changed signal
-                self.logger.debug("Refresh completed with changes")
+                logger.debug("Refresh completed with changes")
             else:
                 shot_count = len(self.main_window.shot_model.shots)
                 self.main_window.update_status(f"{shot_count} shots (no changes)")
                 NotificationManager.info(f"{shot_count} shots (no changes)")
-                self.logger.debug("Refresh completed without changes")
+                logger.debug("Refresh completed without changes")
 
             # Restore last selected shot if available
             last_shot_name = self.main_window.last_selected_shot_name
@@ -207,12 +208,12 @@ class RefreshCoordinator(QObject, LoggingMixin):
 
         """
         if shots:  # Only refresh if we actually have shots
-            self.logger.info(
+            logger.info(
                 f"Triggering previous shots refresh after loading {len(shots)} active shots"
             )
             _ = self.main_window.previous_shots_model.refresh_shots()
         else:
-            self.logger.debug("No active shots loaded, skipping previous shots refresh")
+            logger.debug("No active shots loaded, skipping previous shots refresh")
 
     def refresh_shot_display(self) -> None:
         """Refresh the shot display (debounced).
@@ -226,7 +227,7 @@ class RefreshCoordinator(QObject, LoggingMixin):
             self._do_refresh_shot_display()
             self._refresh_debounce_timer.start()
         else:
-            self.logger.debug("Skipping duplicate refresh (debounce active)")
+            logger.debug("Skipping duplicate refresh (debounce active)")
 
     def _do_refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""

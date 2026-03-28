@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
-from logging_mixin import LoggingMixin
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @final
-class CacheCoordinator(LoggingMixin):
+class CacheCoordinator:
     """Coordinates cross-cutting cache operations across all sub-managers.
 
     Provides ``set_expiry()`` and ``shutdown()`` so callers don't need
@@ -49,7 +51,7 @@ class CacheCoordinator(LoggingMixin):
         """Set TTL on all caches that support it."""
         self.shot_cache.set_expiry_minutes(expiry_minutes)
         self.scene_disk_cache.set_expiry_minutes(expiry_minutes)
-        self.logger.debug(f"All cache TTLs set to {expiry_minutes} minutes")
+        logger.debug(f"All cache TTLs set to {expiry_minutes} minutes")
 
     def shutdown(self) -> None:
         """Shutdown all sub-managers (no-op)."""

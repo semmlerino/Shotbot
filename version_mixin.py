@@ -9,6 +9,7 @@ from __future__ import annotations
 
 # Standard library imports
 import itertools
+import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -16,14 +17,16 @@ from re import Pattern
 from typing import ClassVar
 
 # Local application imports
-from logging_mixin import LoggingMixin
 from utils import get_current_username
+
+
+logger = logging.getLogger(__name__)
 
 
 _CURRENT_USERNAME: str = get_current_username()
 
 
-class VersionHandlingMixin(LoggingMixin):
+class VersionHandlingMixin:
     """Mixin to add version extraction and sorting capabilities.
 
     This mixin provides:
@@ -83,7 +86,7 @@ class VersionHandlingMixin(LoggingMixin):
         match = pattern.search(path_str)
         if match:
             version = int(match.group(1))
-            self.logger.debug(f"Extracted version {version} from {Path(path).name}")
+            logger.debug(f"Extracted version {version} from {Path(path).name}")
             return version
 
         # Try fallback patterns if configured
@@ -96,7 +99,7 @@ class VersionHandlingMixin(LoggingMixin):
                         f"Extracted version {version} from {Path(path).name} "
                         "using fallback pattern"
                     )
-                    self.logger.debug(msg)
+                    logger.debug(msg)
                     return version
 
         return None
@@ -125,14 +128,14 @@ class VersionHandlingMixin(LoggingMixin):
                 versioned_files.append((file, version))
 
         if not versioned_files:
-            self.logger.debug("No versioned files found")
+            logger.debug("No versioned files found")
             return None
 
         # Sort by version (ascending) and get the last one
         versioned_files.sort(key=lambda x: x[1])
         latest_file, latest_version = versioned_files[-1]
 
-        self.logger.info(
+        logger.info(
             f"Found latest version: {latest_file.name} (v{latest_version:03d})"
         )
         return latest_file
@@ -171,7 +174,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         for user_dir in user_base.iterdir():
             if cancel_flag and cancel_flag():
-                self.logger.debug("Scene file collection cancelled")
+                logger.debug("Scene file collection cancelled")
                 return None
 
             if not user_dir.is_dir():
@@ -187,7 +190,7 @@ class VersionHandlingMixin(LoggingMixin):
             globs = (scene_base.glob(pattern) for pattern in glob_patterns)
             for scene_file in itertools.chain.from_iterable(globs):
                 if cancel_flag and cancel_flag():
-                    self.logger.debug("Scene file collection cancelled")
+                    logger.debug("Scene file collection cancelled")
                     return None
                 collected.append(scene_file)
 
@@ -237,7 +240,7 @@ class VersionHandlingMixin(LoggingMixin):
             f"Sorted {len(versioned)} versioned and "
             f"{len(unversioned)} unversioned files"
         )
-        self.logger.debug(msg)
+        logger.debug(msg)
 
         return sorted_files
 
@@ -267,7 +270,7 @@ class VersionHandlingMixin(LoggingMixin):
                 max_version = version
 
         next_version = max_version + 1
-        self.logger.debug(f"Next available version: {next_version:03d}")
+        logger.debug(f"Next available version: {next_version:03d}")
         return next_version
 
     def _format_version_string(self, version: int, padding: int = 3) -> str:

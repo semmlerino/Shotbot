@@ -19,6 +19,8 @@ separation of concerns and easier testing.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from typing import TYPE_CHECKING, cast, final
 
@@ -31,7 +33,9 @@ from PySide6.QtWidgets import (  # QWidget used in cast()
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -40,7 +44,7 @@ if TYPE_CHECKING:
 
 
 @final
-class SettingsController(LoggingMixin):
+class SettingsController:
     """Controller for managing all settings-related functionality.
 
     This controller encapsulates all settings operations that were previously
@@ -65,7 +69,7 @@ class SettingsController(LoggingMixin):
         # MainWindow implements both SettingsTarget and QWidget protocols
         # Cast through object first to satisfy type checker
         self._window_widget: QWidget = cast("QWidget", cast("object", self.window))
-        self.logger.debug("SettingsController initialized")
+        logger.debug("SettingsController initialized")
 
     def load_settings(self) -> None:
         """Load settings from settings manager."""
@@ -75,7 +79,7 @@ class SettingsController(LoggingMixin):
             if not geometry.isEmpty():
                 _ = self.window.restoreGeometry(geometry)
         except Exception:
-            self.logger.exception("Error restoring window geometry")
+            logger.exception("Error restoring window geometry")
             default_size = self.window.settings_manager.window.get_window_size()
             self.window.resize(default_size.width(), default_size.height())
 
@@ -85,7 +89,7 @@ class SettingsController(LoggingMixin):
             if not state.isEmpty():
                 _ = self.window.restoreState(state)
         except Exception:
-            self.logger.exception("Error restoring window state")
+            logger.exception("Error restoring window state")
 
         # Splitter
         try:
@@ -95,14 +99,14 @@ class SettingsController(LoggingMixin):
             if not main_splitter_state.isEmpty():
                 _ = self.window.restore_splitter_state(main_splitter_state)
         except Exception:
-            self.logger.exception("Error restoring splitter state")
+            logger.exception("Error restoring splitter state")
 
         # Maximized state
         try:
             if self.window.settings_manager.window.is_window_maximized():
                 self.window.showMaximized()
         except Exception:
-            self.logger.exception("Error restoring maximized state")
+            logger.exception("Error restoring maximized state")
 
         # Tab index
         try:
@@ -110,22 +114,22 @@ class SettingsController(LoggingMixin):
                 self.window.settings_manager.window.get_current_tab()
             )
         except Exception:
-            self.logger.exception("Error restoring tab index")
+            logger.exception("Error restoring tab index")
 
         # Thumbnail size
         try:
             thumbnail_size = self.window.settings_manager.ui.get_thumbnail_size()
             self.window.set_thumbnail_size(thumbnail_size)
         except Exception:
-            self.logger.exception("Error restoring thumbnail size")
+            logger.exception("Error restoring thumbnail size")
 
         # Cache settings
         try:
             self.apply_cache_settings()
         except Exception:
-            self.logger.exception("Error applying cache settings")
+            logger.exception("Error applying cache settings")
 
-        self.logger.info("Settings loaded")
+        logger.info("Settings loaded")
 
     def save_settings(self) -> None:
         """Save settings to settings manager."""
@@ -159,10 +163,10 @@ class SettingsController(LoggingMixin):
             # Sync to disk
             self.window.settings_manager.sync()
 
-            self.logger.info("Settings saved successfully")
+            logger.info("Settings saved successfully")
 
         except Exception:
-            self.logger.exception("Error saving settings")
+            logger.exception("Error saving settings")
 
     def apply_cache_settings(self) -> None:
         """Apply cache settings from settings manager."""
@@ -173,10 +177,10 @@ class SettingsController(LoggingMixin):
             )
             self.window.cache_coordinator.set_expiry_minutes(expiry_minutes)
 
-            self.logger.debug("Cache settings applied")
+            logger.debug("Cache settings applied")
 
         except Exception:
-            self.logger.exception("Error applying cache settings")
+            logger.exception("Error applying cache settings")
 
     def show_preferences(self) -> None:
         """Show the preferences dialog."""
@@ -206,7 +210,7 @@ class SettingsController(LoggingMixin):
         thumbnail_size = self.window.settings_manager.ui.get_thumbnail_size()
         self.window.set_thumbnail_size(thumbnail_size)
 
-        self.logger.info("Settings applied successfully")
+        logger.info("Settings applied successfully")
 
     def import_settings(self) -> None:
         """Import settings from file."""
@@ -275,4 +279,4 @@ class SettingsController(LoggingMixin):
             # Reset splitter
             self.window.reset_splitter_sizes([840, 360])  # 70/30 split
 
-            self.logger.info("Layout reset to defaults")
+            logger.info("Layout reset to defaults")

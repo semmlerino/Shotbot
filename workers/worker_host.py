@@ -8,7 +8,7 @@ mutex-guarded worker lifecycle pattern shared across the codebase:
 
 Usage example::
 
-    class MyManager(LoggingMixin):
+    class MyManager():
         def __init__(self) -> None:
             self._host: WorkerHost[MyWorker] = WorkerHost()
 
@@ -40,9 +40,13 @@ that mutex as *shared_mutex*::
 
 from __future__ import annotations
 
+import logging
 from typing import Generic, TypeVar
 
 from PySide6.QtCore import QMutex, QMutexLocker
+
+
+logger = logging.getLogger(__name__)
 
 
 W = TypeVar("W")

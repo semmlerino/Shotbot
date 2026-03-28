@@ -27,18 +27,18 @@ from PySide6.QtGui import QImage, QPixmap
 
 from cache.thumbnail_cache import ThumbnailCacheLoader
 from config import Config
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 from protocols import SceneDataProtocol
 
 
-_logger = get_module_logger(__name__)
+logger = get_module_logger(__name__)
 
 T = TypeVar("T", bound=SceneDataProtocol)
 
 LoadingState = Literal["idle", "loading", "loaded", "failed"]
 
 
-class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
+class ThumbnailLoader(QObject, Generic[T]):
     """Owns all thumbnail state and async loading logic.
 
     Receives callable injections so it has no direct reference to the model.
@@ -165,7 +165,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         visible_range = self._get_visible_range()
 
         if visible_range == self._last_visible_range:
-            self.logger.debug(
+            logger.debug(
                 f"load_visible_thumbnails: range unchanged ({visible_range[0]}-{visible_range[1]}), skipping"
             )
             return
@@ -182,7 +182,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         end = min(len(items), visible_end + buffer_size)
 
         if items:
-            self.logger.debug(
+            logger.debug(
                 f"do_load_visible_thumbnails: checking {end - start} items (range {start}-{end}, total items: {len(items)})"
             )
 
@@ -203,7 +203,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
                 items_to_load.append((row, item))
 
         for row, item in items_to_load:
-            self.logger.debug(
+            logger.debug(
                 f"Starting thumbnail load for item {row}: {item.full_name}"
             )
             self._load_thumbnail_async(row, item)
@@ -324,7 +324,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
             with QMutexLocker(self._cache_mutex):
                 self._thumbnail_cache[item.full_name] = pixmap.toImage()
                 self._loading_states[item.full_name] = "loaded"
-            self.logger.debug(f"Loaded thumbnail for {item.full_name} from cache")
+            logger.debug(f"Loaded thumbnail for {item.full_name} from cache")
 
             self._schedule_data_changed(
                 row,
@@ -336,7 +336,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
             )
             self.thumbnail_ready.emit(row)
         else:
-            self.logger.warning(
+            logger.warning(
                 f"Failed to load cached thumbnail pixmap from {cached_path}"
             )
             with QMutexLocker(self._cache_mutex):

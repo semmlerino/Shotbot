@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from config import Config
-from logging_mixin import LoggingMixin
 
 
-class NukeLaunchHandler(LoggingMixin):
+logger = logging.getLogger(__name__)
+
+
+class NukeLaunchHandler:
     """Handles all Nuke-specific launching logic.
 
     This class provides centralized Nuke launching functionality used by CommandLauncher.
@@ -35,7 +38,7 @@ class NukeLaunchHandler(LoggingMixin):
             Config.NUKE_SKIP_PROBLEMATIC_PLUGINS
             and Config.NUKE_PROBLEMATIC_PLUGIN_PATHS
         ):
-            self.logger.info(
+            logger.info(
                 f"Setting up runtime filter for {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
                 f"plugin paths in NUKE_PATH"
             )
@@ -57,7 +60,7 @@ class NukeLaunchHandler(LoggingMixin):
             )
 
             env_exports.append(filter_command)
-            self.logger.debug(f"Generated runtime NUKE_PATH filter: {filter_command}")
+            logger.debug(f"Generated runtime NUKE_PATH filter: {filter_command}")
 
         # Set fallback OCIO configuration if the default one might be problematic
         if Config.NUKE_OCIO_FALLBACK_CONFIG:
@@ -65,11 +68,11 @@ class NukeLaunchHandler(LoggingMixin):
             fallback_config = Config.NUKE_OCIO_FALLBACK_CONFIG
             if Path(fallback_config).exists():
                 env_exports.append(f'export OCIO="{fallback_config}"')
-                self.logger.info(f"Using fallback OCIO config: {fallback_config}")
+                logger.info(f"Using fallback OCIO config: {fallback_config}")
             else:
                 # Unset OCIO to use Nuke's built-in default
                 env_exports.append("unset OCIO")
-                self.logger.info("Unsetting OCIO to use Nuke's built-in configuration")
+                logger.info("Unsetting OCIO to use Nuke's built-in configuration")
 
         # Additional stability environment variables
         env_exports.extend(
@@ -83,7 +86,7 @@ class NukeLaunchHandler(LoggingMixin):
 
         if env_exports:
             env_string = " && ".join(env_exports)
-            self.logger.debug(f"Generated Nuke environment fixes: {env_string}")
+            logger.debug(f"Generated Nuke environment fixes: {env_string}")
             return env_string + " && "
 
         return ""

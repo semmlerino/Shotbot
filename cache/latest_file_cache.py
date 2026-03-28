@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import final
@@ -10,7 +11,9 @@ from typing_extensions import TypedDict
 
 from cache._json_store import atomic_json_write
 from cache.types import LatestFileCacheResult
-from logging_mixin import LoggingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 LATEST_FILES_TTL_MINUTES = 5
@@ -25,7 +28,7 @@ class _LatestFileCacheEntry(TypedDict):
 
 
 @final
-class LatestFileCache(LoggingMixin):
+class LatestFileCache:
     """Latest Maya/3DE file path cache with TTL."""
 
     def __init__(self, cache_dir: Path) -> None:
@@ -54,9 +57,9 @@ class LatestFileCache(LoggingMixin):
 
             _ = self._write_latest_files_cache(cache_data)
         if file_path:
-            self.logger.debug(f"Cached latest {file_type} file: {file_path.name}")
+            logger.debug(f"Cached latest {file_type} file: {file_path.name}")
         else:
-            self.logger.debug(f"Cached 'not found' for {file_type} in {workspace_path}")
+            logger.debug(f"Cached 'not found' for {file_type} in {workspace_path}")
 
     def get_latest_file_cache_result(
         self, workspace_path: str, file_type: str
@@ -89,16 +92,16 @@ class LatestFileCache(LoggingMixin):
         cached_at = entry.get("cached_at", 0.0)
         age = datetime.now(tz=UTC).timestamp() - cached_at
         if age > ttl_seconds:
-            self.logger.debug(f"Latest file cache expired for {key}")
+            logger.debug(f"Latest file cache expired for {key}")
             return LatestFileCacheResult("miss")
 
         # Within TTL — check the cached value
         if path_str:
             cached_path = Path(path_str)
             if cached_path.exists():
-                self.logger.debug(f"Latest file cache hit: {cached_path.name}")
+                logger.debug(f"Latest file cache hit: {cached_path.name}")
                 return LatestFileCacheResult("hit", cached_path)
-            self.logger.debug(f"Cached file no longer exists: {path_str}")
+            logger.debug(f"Cached file no longer exists: {path_str}")
             return LatestFileCacheResult("miss")
 
         # path is None -> confirmed "not found" within TTL
@@ -116,7 +119,7 @@ class LatestFileCache(LoggingMixin):
             # Clear entire cache
             if self.latest_files_cache_file.exists():
                 self.latest_files_cache_file.unlink()
-                self.logger.debug("Cleared all latest files cache")
+                logger.debug("Cleared all latest files cache")
         else:
             # Clear only entries for this workspace
             cache_data = self._read_latest_files_cache()
@@ -127,7 +130,7 @@ class LatestFileCache(LoggingMixin):
                 for key in keys_to_remove:
                     del cache_data[key]
                 _ = self._write_latest_files_cache(cache_data)
-                self.logger.debug(
+                logger.debug(
                     f"Cleared latest files cache for workspace: {workspace_path}"
                 )
 
@@ -148,7 +151,7 @@ class LatestFileCache(LoggingMixin):
                 return data  # type: ignore[return-value]
             return None
         except Exception:
-            self.logger.exception("Failed to read latest files cache")
+            logger.exception("Failed to read latest files cache")
             return None
 
     def _write_latest_files_cache(
@@ -168,7 +171,7 @@ class LatestFileCache(LoggingMixin):
             atomic_json_write(self.latest_files_cache_file, data, indent=2, fsync=False)
             return True
         except Exception:
-            self.logger.exception("Failed to write latest files cache")
+            logger.exception("Failed to write latest files cache")
             return False
 
     def cache_files(self) -> list[Path]:

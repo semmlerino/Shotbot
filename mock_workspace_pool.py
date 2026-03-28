@@ -7,15 +7,20 @@ just like the real 'ws -sg' command would.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from pathlib import Path
 from typing import cast
 
+
+logger = logging.getLogger(__name__)
+
+
 # Local application imports
-from logging_mixin import LoggingMixin
 
 
-class MockWorkspacePool(LoggingMixin):
+class MockWorkspacePool:
     """Mock ProcessPool that simulates real workspace commands."""
 
     def __init__(self, demo_shots_path: Path | None = None) -> None:
@@ -59,7 +64,7 @@ class MockWorkspacePool(LoggingMixin):
         shows_dir = self.shows_root
 
         if not shows_dir.exists():
-            self.logger.warning(f"Shows directory not found: {shows_dir}")
+            logger.warning(f"Shows directory not found: {shows_dir}")
             return
 
         # Scan each show
@@ -101,7 +106,7 @@ class MockWorkspacePool(LoggingMixin):
                     workspace_path = f"{self.shows_root_for_parser}/{show_name}/shots/{seq_name}/{shot_name}"
                     self.shots.append(f"workspace {workspace_path}")
 
-        self.logger.info(f"Loaded {len(self.shots)} shots from mock filesystem")
+        logger.info(f"Loaded {len(self.shots)} shots from mock filesystem")
 
     def set_shots_from_demo(self, demo_shots: list[dict[str, str]]) -> None:
         """Set shots from demo data.
@@ -121,7 +126,7 @@ class MockWorkspacePool(LoggingMixin):
             )
             self.shots.append(f"workspace {workspace_path}")
 
-        self.logger.info(f"Loaded {len(self.shots)} demo shots")
+        logger.info(f"Loaded {len(self.shots)} demo shots")
 
     def execute_workspace_command(
         self,

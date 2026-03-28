@@ -11,9 +11,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from logging_mixin import LoggingMixin
+from logging_mixin import get_module_logger
 from managers._keyed_list_store import KeyedListStore
 from managers._shot_key import key_from_workspace_path, shot_key
+
+
+logger = get_module_logger(__name__)
 
 
 if TYPE_CHECKING:
@@ -24,7 +27,7 @@ if TYPE_CHECKING:
 PINNED_SHOTS_CACHE_KEY = "pinned_shots"
 
 
-class ShotPinManager(LoggingMixin):
+class ShotPinManager:
     """Manages pinned shot tracking and persistence.
 
     Tracks shots by composite key (show, sequence, shot) to handle
@@ -43,7 +46,7 @@ class ShotPinManager(LoggingMixin):
 
         """
         super().__init__()
-        self._store = KeyedListStore(cache_dir, PINNED_SHOTS_CACHE_KEY, self.logger)
+        self._store = KeyedListStore(cache_dir, PINNED_SHOTS_CACHE_KEY, logger)
 
     def pin_shot(self, shot: Shot) -> None:
         """Pin a shot (adds to front of list).
@@ -57,9 +60,9 @@ class ShotPinManager(LoggingMixin):
         key = shot_key(shot)
 
         if self._store.contains(key):
-            self.logger.debug(f"Moving pinned shot to front: {shot.full_name}")
+            logger.debug(f"Moving pinned shot to front: {shot.full_name}")
         else:
-            self.logger.info(f"Pinning shot: {shot.full_name}")
+            logger.info(f"Pinning shot: {shot.full_name}")
 
         self._store.add_front(key)
         self._store.save()
@@ -74,7 +77,7 @@ class ShotPinManager(LoggingMixin):
         key = shot_key(shot)
 
         if self._store.remove(key):
-            self.logger.info(f"Unpinned shot: {shot.full_name}")
+            logger.info(f"Unpinned shot: {shot.full_name}")
             self._store.save()
 
     def is_pinned(self, shot: Shot) -> bool:
@@ -103,7 +106,7 @@ class ShotPinManager(LoggingMixin):
         """
         key = key_from_workspace_path(workspace_path)
         if key is None:
-            self.logger.warning(f"Could not parse workspace path: {workspace_path}")
+            logger.warning(f"Could not parse workspace path: {workspace_path}")
         return self._store.contains(key) if key else False
 
     def pin_by_path(self, workspace_path: str) -> None:
@@ -115,14 +118,14 @@ class ShotPinManager(LoggingMixin):
         """
         key = key_from_workspace_path(workspace_path)
         if key is None:
-            self.logger.warning(f"Could not parse workspace path: {workspace_path}")
+            logger.warning(f"Could not parse workspace path: {workspace_path}")
         if not key:
             return
 
         if self._store.contains(key):
-            self.logger.debug(f"Moving pinned shot to front: {workspace_path}")
+            logger.debug(f"Moving pinned shot to front: {workspace_path}")
         else:
-            self.logger.info(f"Pinning shot: {workspace_path}")
+            logger.info(f"Pinning shot: {workspace_path}")
 
         self._store.add_front(key)
         self._store.save()
@@ -136,12 +139,12 @@ class ShotPinManager(LoggingMixin):
         """
         key = key_from_workspace_path(workspace_path)
         if key is None:
-            self.logger.warning(f"Could not parse workspace path: {workspace_path}")
+            logger.warning(f"Could not parse workspace path: {workspace_path}")
         if not key:
             return
 
         if self._store.remove(key):
-            self.logger.info(f"Unpinned shot: {workspace_path}")
+            logger.info(f"Unpinned shot: {workspace_path}")
             self._store.save()
 
     def get_pin_order(self, shot: Shot) -> int:
@@ -169,4 +172,4 @@ class ShotPinManager(LoggingMixin):
         """Clear all pinned shots."""
         self._store.clear()
         self._store.save()
-        self.logger.info("Cleared all pinned shots")
+        logger.info("Cleared all pinned shots")

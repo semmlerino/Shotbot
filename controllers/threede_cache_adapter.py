@@ -6,10 +6,13 @@ Extracted from ThreeDEController to isolate cache I/O from orchestration logic.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, final
 
-from logging_mixin import LoggingMixin
 from type_definitions import ThreeDEScene
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -18,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @final
-class ThreeDECacheAdapter(LoggingMixin):
+class ThreeDECacheAdapter:
     """Handles loading and saving 3DE scenes to/from the persistent disk cache.
 
     Decouples cache I/O from the controller's orchestration logic.
@@ -61,10 +64,10 @@ class ThreeDECacheAdapter(LoggingMixin):
             try:
                 scenes.append(ThreeDEScene.from_dict(scene_data))
             except (KeyError, TypeError, ValueError) as e:
-                self.logger.debug(f"Skipping invalid cached 3DE scene: {e}")
+                logger.debug(f"Skipping invalid cached 3DE scene: {e}")
 
         if scenes:
-            self.logger.info(
+            logger.info(
                 f"Loaded {len(scenes)} cached 3DE scenes "
                 "(scanning for updates in background)"
             )
@@ -84,4 +87,4 @@ class ThreeDECacheAdapter(LoggingMixin):
                 self._threede_scene_model.to_dict(),
             )
         except Exception:  # noqa: BLE001
-            self.logger.warning("Failed to cache 3DE scenes", exc_info=True)
+            logger.warning("Failed to cache 3DE scenes", exc_info=True)

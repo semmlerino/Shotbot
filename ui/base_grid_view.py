@@ -35,7 +35,6 @@ from typing_extensions import override
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin
 from ui.grid_context_menu_mixin import GridContextMenuMixin
 from ui.qt_widget_mixin import QtWidgetMixin
 from ui.scrub_bridge import ScrubPreviewBridge
@@ -60,7 +59,12 @@ class HasAvailableShows(Protocol):
 
 
 # Runtime imports (not just type checking)
+import logging
+
 from PySide6.QtGui import QAction, QCloseEvent, QKeyEvent, QKeySequence
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -74,7 +78,7 @@ if TYPE_CHECKING:
     from ui.sort_button_bar import SortButtonBar
 
 
-class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
+class BaseGridView(GridContextMenuMixin, QtWidgetMixin, QWidget):
     """Base class for grid views with common functionality.
 
     This base class provides:
@@ -134,7 +138,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         # Setup visibility/update mechanism
         self._setup_visibility_tracking()
 
-        self.logger.debug(f"{self.__class__.__name__} initialized")
+        logger.debug(f"{self.__class__.__name__} initialized")
 
     def _setup_base_ui(self) -> None:
         """Set up the base user interface components."""
@@ -295,7 +299,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
             on_scrub_started=self._on_scrub_started,
             on_scrub_ended=self._on_scrub_ended,
         )
-        self.logger.debug("Scrub preview system initialized")
+        logger.debug("Scrub preview system initialized")
 
     def _setup_launch_shortcuts(self) -> None:
         """Set up QAction-based keyboard shortcuts for app launching.
@@ -337,7 +341,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
             index: Model index where scrub started
 
         """
-        self.logger.debug(f"Scrub started on row {index.row()}")
+        logger.debug(f"Scrub started on row {index.row()}")
 
     def _on_scrub_ended(self, index: QModelIndex) -> None:
         """Handle scrub preview ended.
@@ -346,7 +350,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
             index: Model index where scrub ended
 
         """
-        self.logger.debug(f"Scrub ended on row {index.row()}")
+        logger.debug(f"Scrub ended on row {index.row()}")
         # Ensure item is repainted to show normal thumbnail
         if index.isValid():
             self.list_view.update(index)
@@ -428,7 +432,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         # Force view update
         self.list_view.viewport().update()
 
-        self.logger.debug(f"Thumbnail size changed to {size}px")
+        logger.debug(f"Thumbnail size changed to {size}px")
 
     def _on_show_filter_changed(self, show_text: str) -> None:
         """Handle show filter change.
@@ -440,7 +444,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         # Convert "All Shows" to empty string for the signal
         show_filter = "" if show_text == "All Shows" else show_text
         self.show_filter_requested.emit(show_filter)
-        self.logger.info(f"Show filter requested: {show_text}")
+        logger.info(f"Show filter requested: {show_text}")
 
     def _on_text_filter_changed(self, text: str) -> None:
         """Handle text filter change for real-time search.
@@ -450,7 +454,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
 
         """
         self.text_filter_requested.emit(text)
-        self.logger.debug(f"Text filter changed: '{text}'")
+        logger.debug(f"Text filter changed: '{text}'")
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
@@ -560,7 +564,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         """
         # Handle case where subclass passes a protocol object
         if not isinstance(shows, list):
-            self.logger.debug(
+            logger.debug(
                 f"populate_show_filter received {type(shows).__name__}, not a list; skipping"
             )
             return  # Subclass will extract shows and call super()
@@ -580,7 +584,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
 
             show_count = len(shows)
             show_word = "show" if show_count == 1 else "shows"
-            self.logger.debug(f"Populated show filter with {show_count} {show_word}")
+            logger.debug(f"Populated show filter with {show_count} {show_word}")
         finally:
             # Re-enable signals
             _ = self.show_combo.blockSignals(False)

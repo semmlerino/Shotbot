@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 import time
 from pathlib import Path
@@ -18,6 +20,9 @@ from type_definitions import Shot
 from ui.base_shot_model import BaseShotModel
 from utils import safe_disconnect
 from workers.worker_host import WorkerHost
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -72,7 +77,7 @@ class PreviousShotsModel(BaseShotModel):
         # self.shots is populated here via our overridden _load_from_cache()
         self.shots = self._load_previous_shots_from_cache()
 
-        self.logger.debug("PreviousShotsModel initialized")
+        logger.debug("PreviousShotsModel initialized")
 
         # Connect directly to cache migration events (bypasses MainWindow relay)
         if hasattr(self.cache_manager, "shots_migrated"):
@@ -129,7 +134,7 @@ class PreviousShotsModel(BaseShotModel):
             # Convert to Shot objects using from_dict() to preserve discovered_at
             shots = [Shot.from_dict(s) for s in shots_by_key.values()]
 
-            self.logger.info(
+            logger.info(
                 f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
                 f"= {len(shots)} total (after dedup)"
             )
@@ -137,7 +142,7 @@ class PreviousShotsModel(BaseShotModel):
             return shots
 
         except Exception:
-            self.logger.exception("Error loading previous shots from cache")
+            logger.exception("Error loading previous shots from cache")
             return []
 
     # =========================================================================
@@ -180,7 +185,7 @@ class PreviousShotsModel(BaseShotModel):
         """
         with QMutexLocker(self._scan_lock):
             self._is_scanning = False
-            self.logger.debug("Reset scanning flag")
+            logger.debug("Reset scanning flag")
 
     # Auto-refresh removed for persistent incremental caching
     # Previous shots now use a persistent cache that accumulates over time
@@ -202,13 +207,13 @@ class PreviousShotsModel(BaseShotModel):
             return
 
         # Phase 2: Stop, wait, and cleanup OUTSIDE lock (avoids UI freeze)
-        self.logger.debug("Safely cleaning up worker thread")
+        logger.debug("Safely cleaning up worker thread")
 
         # Disconnect all signals to prevent late emissions
         safe_disconnect(worker.scan_finished, worker.worker_error, worker.scan_progress)
 
         worker.safe_shutdown()
-        self.logger.debug("Worker thread cleanup completed")
+        logger.debug("Worker thread cleanup completed")
 
     @override
     def refresh_shots(self, force_fresh: bool = False) -> bool:  # type: ignore[override]
@@ -228,7 +233,7 @@ class PreviousShotsModel(BaseShotModel):
         # Check and acquire lock atomically
         with QMutexLocker(self._scan_lock):
             if self._is_scanning:
-                self.logger.debug("Already scanning for previous shots")
+                logger.debug("Already scanning for previous shots")
                 return False
             self._is_scanning = True
 
@@ -240,7 +245,7 @@ class PreviousShotsModel(BaseShotModel):
         try:
             # Stop any existing worker
             if self._worker_host.has_worker:
-                self.logger.debug("Stopping existing worker before starting new scan")
+                logger.debug("Stopping existing worker before starting new scan")
                 self._cleanup_worker_safely()
 
             # Get active shots from the main model
@@ -271,13 +276,13 @@ class PreviousShotsModel(BaseShotModel):
             self._worker_host.store(worker)
 
             # Start worker thread
-            self.logger.info("Starting previous shots scan in background thread")
+            logger.info("Starting previous shots scan in background thread")
             worker.start()
 
             return True
 
         except Exception:
-            self.logger.exception("Error starting previous shots scan")
+            logger.exception("Error starting previous shots scan")
             # Reset flag on error (worker not started)
             self._reset_scanning_flag()
             self.scan_finished.emit()
@@ -300,7 +305,7 @@ class PreviousShotsModel(BaseShotModel):
         if not migrated_shots:
             return
 
-        self.logger.info(
+        logger.info(
             f"{len(migrated_shots)} shots migrated to Previous Shots cache"
         )
 
@@ -316,13 +321,13 @@ class PreviousShotsModel(BaseShotModel):
         ]
 
         if not new_shots:
-            self.logger.debug("All migrated shots already present — cache unchanged")
+            logger.debug("All migrated shots already present — cache unchanged")
             return
 
         self.shots.extend(new_shots)
         self._save_to_cache()
         self.shots_updated.emit()
-        self.logger.info(
+        logger.info(
             f"Merged {len(new_shots)} migrated shots "
             f"(total: {len(self.shots)} shots)"
         )
@@ -380,15 +385,15 @@ class PreviousShotsModel(BaseShotModel):
                 self.shots.extend(new_shots)
                 self._save_to_cache()
                 self.shots_updated.emit()
-                self.logger.info(
+                logger.info(
                     f"Added {len(new_shots)} new shots to cache "
                     f"(total: {len(self.shots)} shots)"
                 )
             else:
-                self.logger.debug("No new shots found - cache unchanged")
+                logger.debug("No new shots found - cache unchanged")
 
         except Exception:
-            self.logger.exception("Error processing scan results")
+            logger.exception("Error processing scan results")
         finally:
             # Reset scanning flag using helper method
             self._reset_scanning_flag()
@@ -403,7 +408,7 @@ class PreviousShotsModel(BaseShotModel):
             error_msg: Error message from worker.
 
         """
-        self.logger.error(f"Previous shots scan error: {error_msg}")
+        logger.error(f"Previous shots scan error: {error_msg}")
         # Reset scanning flag using helper method
         self._reset_scanning_flag()
         # Use centralized cleanup
@@ -472,25 +477,25 @@ class PreviousShotsModel(BaseShotModel):
             cache_data: list[ShotDict] = [s.to_dict() for s in self.shots]
             # Use the correct method: cache_previous_shots()
             self.cache_manager.cache_previous_shots(cache_data)
-            self.logger.debug(
+            logger.debug(
                 f"Saved {len(self.shots)} previous shots to cache"
             )
         except Exception:
-            self.logger.exception("Error saving previous shots to cache")
+            logger.exception("Error saving previous shots to cache")
 
     def clear_cache(self) -> None:
         """Clear the cached previous shots."""
         try:
             self.cache_manager.clear_previous_shots_cache()
-            self.logger.info("Cleared previous shots cache")
+            logger.info("Cleared previous shots cache")
         except Exception:
-            self.logger.exception("Error clearing previous shots cache")
+            logger.exception("Error clearing previous shots cache")
 
     def cleanup(self) -> None:
         """Clean up resources and stop worker thread."""
         import warnings
 
-        self.logger.debug("PreviousShotsModel cleanup initiated")
+        logger.debug("PreviousShotsModel cleanup initiated")
         # Disconnect cache migration signal (only if it was connected)
         if hasattr(self.cache_manager, "shots_migrated"):
             with warnings.catch_warnings():
@@ -502,7 +507,7 @@ class PreviousShotsModel(BaseShotModel):
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
         self._cleanup_worker_safely()  # Use centralized cleanup
-        self.logger.debug("PreviousShotsModel cleanup completed")
+        logger.debug("PreviousShotsModel cleanup completed")
 
     def is_scanning(self) -> bool:
         """Check if currently scanning for shots.

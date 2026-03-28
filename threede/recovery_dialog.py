@@ -6,6 +6,8 @@ recover them to the next available version number.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from collections import defaultdict
 from pathlib import Path
@@ -27,7 +29,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from logging_mixin import LoggingMixin
 from threede.recovery import CrashFileInfo
 
 # Local application imports
@@ -35,8 +36,11 @@ from ui.design_system import design_system
 from ui.qt_widget_mixin import QtWidgetMixin
 
 
+logger = logging.getLogger(__name__)
+
+
 @final
-class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: ignore[reportIncompatibleMethodOverride]
+class ThreeDERecoveryDialog(QDialog, QtWidgetMixin):  # pyright: ignore[reportIncompatibleMethodOverride]
     """Dialog for recovering 3DE crash files.
 
     Displays a list of detected crash files with details:
@@ -82,7 +86,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         self._setup_ui()
         self._connect_signals()
 
-        self.logger.info(
+        logger.info(
             f"Recovery dialog opened with {len(crash_files)} crash file(s)"
         )
 
@@ -255,7 +259,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
                 crash_list = self._crash_groups[base_name]
                 self.selected_crash = crash_list[0]
                 self.recover_button.setEnabled(True)
-                self.logger.debug(
+                logger.debug(
                     f"Selected crash: {self.selected_crash.crash_path.name}"
                 )
                 return
@@ -267,10 +271,10 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
     def _on_recover(self) -> None:
         """Handle recover button click."""
         if not self.selected_crash:
-            self.logger.warning("Recover button clicked with no crash selected")
+            logger.warning("Recover button clicked with no crash selected")
             return
 
-        self.logger.info(
+        logger.info(
             f"Recovery requested: {self.selected_crash.crash_path.name} → {self.selected_crash.recovery_name}"
         )
 
@@ -291,7 +295,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
 
 
 @final
-class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: ignore[reportIncompatibleMethodOverride]
+class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin):  # pyright: ignore[reportIncompatibleMethodOverride]
     """Dialog showing recovery operation results.
 
     Displays success/failure message after recovery attempt.

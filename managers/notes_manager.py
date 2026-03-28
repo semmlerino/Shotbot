@@ -8,15 +8,18 @@ This module provides NotesManager which handles:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QTimer
 
 from cache import atomic_json_write
-from logging_mixin import LoggingMixin
 from managers._json_helpers import load_validated_json
 from managers._shot_key import key_from_workspace_path, shot_key
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -27,7 +30,7 @@ if TYPE_CHECKING:
 SHOT_NOTES_CACHE_KEY = "shot_notes"
 
 
-class NotesManager(LoggingMixin, QObject):
+class NotesManager(QObject):
     """Manages per-shot notes tracking and persistence.
 
     Tracks notes by composite key (show, sequence, shot) to handle
@@ -68,7 +71,7 @@ class NotesManager(LoggingMixin, QObject):
         """Load notes from cache."""
         cache_file = self._cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
 
-        data = load_validated_json(cache_file, dict, {}, self.logger)
+        data = load_validated_json(cache_file, dict, {}, logger)
 
         # Parse keys from "show|sequence|shot" format
         self._notes_by_key = {}
@@ -81,7 +84,7 @@ class NotesManager(LoggingMixin, QObject):
                 if note_text.strip():  # Only store non-empty notes
                     self._notes_by_key[key] = note_text
 
-        self.logger.info(f"Loaded {len(self._notes_by_key)} shot notes from cache")
+        logger.info(f"Loaded {len(self._notes_by_key)} shot notes from cache")
 
     def _schedule_save(self) -> None:
         """Schedule a debounced save."""
@@ -112,9 +115,9 @@ class NotesManager(LoggingMixin, QObject):
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
             atomic_json_write(cache_file, data, indent=2, fsync=False)
-            self.logger.debug(f"Saved {len(self._notes_by_key)} shot notes to cache")
+            logger.debug(f"Saved {len(self._notes_by_key)} shot notes to cache")
         except OSError:
-            self.logger.exception("Failed to save shot notes")
+            logger.exception("Failed to save shot notes")
 
     def flush(self) -> None:
         """Force immediate save (call on app shutdown).
@@ -189,7 +192,7 @@ class NotesManager(LoggingMixin, QObject):
         """
         key = key_from_workspace_path(workspace_path)
         if key is None:
-            _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
+            _ = logger.warning(f"Could not parse workspace path: {workspace_path}")
         if not key:
             return False
         note = self._notes_by_key.get(key, "")
@@ -207,7 +210,7 @@ class NotesManager(LoggingMixin, QObject):
         """
         key = key_from_workspace_path(workspace_path)
         if key is None:
-            _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
+            _ = logger.warning(f"Could not parse workspace path: {workspace_path}")
         if not key:
             return ""
         return self._notes_by_key.get(key, "")
@@ -222,7 +225,7 @@ class NotesManager(LoggingMixin, QObject):
         """
         key = key_from_workspace_path(workspace_path)
         if key is None:
-            _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
+            _ = logger.warning(f"Could not parse workspace path: {workspace_path}")
         if not key:
             return
 
@@ -249,4 +252,4 @@ class NotesManager(LoggingMixin, QObject):
         """Clear all notes."""
         self._notes_by_key.clear()
         self._schedule_save()
-        _ = self.logger.info("Cleared all shot notes")
+        _ = logger.info("Cleared all shot notes")

@@ -37,14 +37,13 @@ from typing_extensions import override
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 from protocols import SceneDataProtocol
 from qt_abc_meta import QABCMeta
 from ui.qt_widget_mixin import require_main_thread
 
 
-# Module-level logger for non-LoggingMixin classes in this module
-_logger = get_module_logger(__name__)
+logger = get_module_logger(__name__)
 
 # Type variable for the data items (Shot or ThreeDEScene)
 T = TypeVar("T", bound=SceneDataProtocol)
@@ -97,7 +96,7 @@ class BaseItemRole(IntEnum):
 
 
 class BaseItemModel(
-    ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass=QABCMeta
+    ABC, QAbstractListModel, Generic[T], metaclass=QABCMeta
 ):
     """Base Qt Model implementation for item data.
 
@@ -167,7 +166,7 @@ class BaseItemModel(
         _ = self._thumbnail_loader.data_changed.connect(self._on_thumbnail_data_changed)
         _ = self._thumbnail_loader.thumbnail_ready.connect(self.thumbnail_loaded)
 
-        self.logger.info(
+        logger.info(
             f"{self.__class__.__name__} initialized with Model/View architecture"
         )
 
@@ -456,7 +455,7 @@ class BaseItemModel(
             preserved = new_cache_size
             evicted = old_cache_size - new_cache_size
 
-            self.logger.info(
+            logger.info(
                 f"Model updated: {len(items)} items, thumbnails: {preserved} preserved, {evicted} evicted"
             )
 
@@ -474,7 +473,7 @@ class BaseItemModel(
             initial_load_count = min(self._INITIAL_LOAD_COUNT, len(self._items))
             self._visible_end = initial_load_count - 1
             # Schedule immediate thumbnail load for initial visible items only
-            self.logger.debug(
+            logger.debug(
                 f"Scheduling thumbnail load timer for {initial_load_count} items (total: {len(self._items)})"
             )
             QTimer.singleShot(
@@ -616,7 +615,7 @@ class BaseItemModel(
 
         """
         if order not in ("name", "date"):
-            self.logger.warning(f"Invalid sort order '{order}', ignoring")
+            logger.warning(f"Invalid sort order '{order}', ignoring")
             return
 
         if self._sort_order == order:
@@ -629,7 +628,7 @@ class BaseItemModel(
             self.layoutAboutToBeChanged.emit()
             self._items = self._apply_sort(self._items)
             self.layoutChanged.emit()
-            self.logger.info(f"Re-sorted {len(self._items)} items by {order}")
+            logger.info(f"Re-sorted {len(self._items)} items by {order}")
 
     def get_sort_order(self) -> str:
         """Get the current sort order.

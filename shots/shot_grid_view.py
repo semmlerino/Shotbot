@@ -7,6 +7,8 @@ and proper Model/View integration.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from typing import TYPE_CHECKING, cast, final
 
@@ -32,6 +34,9 @@ from type_definitions import Shot
 # Local application imports
 from ui.base_item_model import BaseItemRole
 from ui.base_shot_grid_view import BaseShotGridView
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -99,7 +104,7 @@ class ShotGridView(BaseShotGridView):
         if model:
             self.set_model(model, proxy)
 
-        self.logger.debug("ShotGridView initialized")
+        logger.debug("ShotGridView initialized")
 
     @override
     def _create_delegate(self) -> BaseThumbnailDelegate:
@@ -217,7 +222,7 @@ class ShotGridView(BaseShotGridView):
             super().populate_show_filter(show_list)
             show_count = len(show_list)
             show_word = "show" if show_count == 1 else "shows"
-            self.logger.info(f"Populated show filter with {show_count} {show_word}")
+            logger.info(f"Populated show filter with {show_count} {show_word}")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_model_updated(self) -> None:  # pyright: ignore[reportUnusedFunction]

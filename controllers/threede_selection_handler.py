@@ -6,14 +6,17 @@ tab-activation, crash-recovery, and filter-delegation logic.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import Slot
 
 from config import Config
-from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from type_definitions import Shot, ThreeDEScene
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -25,7 +28,7 @@ if TYPE_CHECKING:
 
 
 @final
-class ThreeDESelectionHandler(LoggingMixin):
+class ThreeDESelectionHandler:
     """Handles scene selection, double-click, tab, crash recovery and filters.
 
     Owns all user-interaction handlers that were previously inline on
@@ -65,7 +68,7 @@ class ThreeDESelectionHandler(LoggingMixin):
         _ = grid.recover_crashes_requested.connect(self.on_recover_crashes_clicked)  # pyright: ignore[reportAny]
         _ = grid.show_filter_requested.connect(self.on_show_filter_requested)  # pyright: ignore[reportAny]
         _ = grid.artist_filter_requested.connect(self.on_artist_filter_requested)  # pyright: ignore[reportAny]
-        self.logger.debug("ThreeDESelectionHandler signals connected")
+        logger.debug("ThreeDESelectionHandler signals connected")
 
     # ============================================================================
     # Scene Interaction Slots
@@ -74,8 +77,8 @@ class ThreeDESelectionHandler(LoggingMixin):
     @Slot(object)  # pyright: ignore[reportAny]
     def on_scene_selected(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene selection."""
-        self.logger.info("ThreeDESelectionHandler.on_scene_selected() signal received")
-        self.logger.info(f"   Scene: {scene.full_name} (user: {scene.user})")
+        logger.info("ThreeDESelectionHandler.on_scene_selected() signal received")
+        logger.info(f"   Scene: {scene.full_name} (user: {scene.user})")
 
         # Create a Shot object from the scene for compatibility with right panel
         shot = Shot(
@@ -100,7 +103,7 @@ class ThreeDESelectionHandler(LoggingMixin):
         """Handle 3DE scene double click — launch 3DE with the scene."""
         from launch.launch_request import LaunchRequest
 
-        self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
+        logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
         _ = self._command_launcher.launch(LaunchRequest(app_name="3de", scene=scene))
 
     @Slot(int)  # pyright: ignore[reportAny]
@@ -134,7 +137,7 @@ class ThreeDESelectionHandler(LoggingMixin):
             return
 
         workspace_path = scene.workspace_path
-        self.logger.info(f"Scanning for crash files in: {workspace_path}")
+        logger.info(f"Scanning for crash files in: {workspace_path}")
 
         from controllers.crash_recovery import execute_crash_recovery
 
@@ -154,11 +157,11 @@ class ThreeDESelectionHandler(LoggingMixin):
         """Handle show filter requests from 3DE grid."""
         filter_show = show.strip() if show else None
         self._window.threede_proxy.set_show_filter(filter_show)
-        self.logger.debug(f"3DE show filter applied: {filter_show!r}")
+        logger.debug(f"3DE show filter applied: {filter_show!r}")
 
     @Slot(str)  # pyright: ignore[reportAny]
     def on_artist_filter_requested(self, artist: str) -> None:
         """Handle artist filter requests from 3DE grid."""
         filter_artist = artist.strip() if artist else None
         self._window.threede_proxy.set_artist_filter(filter_artist)
-        self.logger.debug(f"3DE artist filter applied: {filter_artist!r}")
+        logger.debug(f"3DE artist filter applied: {filter_artist!r}")

@@ -6,6 +6,7 @@ extending BaseItemModel with shot-specific behavior.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, Signal
@@ -13,6 +14,9 @@ from typing_extensions import override
 
 from ui.base_item_model import BaseItemModel
 from utils import safe_disconnect
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -60,7 +64,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
         # Connect generic items_updated to shot-specific signal
         _ = self.items_updated.connect(self.shots_updated)
 
-        self.logger.debug("ShotItemModel initialized")
+        logger.debug("ShotItemModel initialized")
 
     # ============= Shot-specific custom roles =============
 
@@ -133,4 +137,4 @@ class ShotItemModel(BaseItemModel["Shot"]):
         # Disconnect signals safely
         safe_disconnect(self.items_updated, self.shots_updated)
 
-        self.logger.debug("ShotItemModel cleanup complete")
+        logger.debug("ShotItemModel cleanup complete")

@@ -10,14 +10,17 @@ that run before DCC application launches. Responsible for:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, Qt, Signal
 
 from launch.latest_file_finder_worker import LatestFileFinderWorker
-from logging_mixin import LoggingMixin
 from timeout_config import TimeoutConfig
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -26,7 +29,7 @@ if TYPE_CHECKING:
     from type_definitions import Shot
 
 
-class FileSearchCoordinator(LoggingMixin, QObject):
+class FileSearchCoordinator(QObject):
     """Coordinates async file searches for latest DCC scene files.
 
     Owns the LatestFileFinderWorker lifecycle and the pending launch state that
@@ -123,7 +126,7 @@ class FileSearchCoordinator(LoggingMixin, QObject):
 
         self.launch_pending.emit()
         self._pending_worker.start()
-        self.logger.debug("Started async file search for %s", pending_launch.app_name)
+        logger.debug("Started async file search for %s", pending_launch.app_name)
 
     def cancel_pending_search(self) -> None:
         """Cancel any in-progress background file search."""
@@ -135,7 +138,7 @@ class FileSearchCoordinator(LoggingMixin, QObject):
             self._pending_worker = None
             self._clear_pending_state()
             self.launch_ready.emit()
-            self.logger.debug("Cancelled pending file search")
+            logger.debug("Cancelled pending file search")
 
     # -----------------------------------------------------------------------
     # Internal helpers
@@ -158,7 +161,7 @@ class FileSearchCoordinator(LoggingMixin, QObject):
 
         """
         if self._pending_worker is None:
-            self.logger.warning("Async search complete but no pending worker")
+            logger.warning("Async search complete but no pending worker")
             return
 
         # Collect results before cleanup
@@ -186,7 +189,7 @@ class FileSearchCoordinator(LoggingMixin, QObject):
             self._clear_pending_state()
             self.search_result_ready.emit(pending, maya_result, threede_result)
         else:
-            self.logger.warning("Async file search failed or was cancelled")
+            logger.warning("Async file search failed or was cancelled")
             self._clear_pending_state()
 
     def _store_results_in_cache(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import Qt, Signal
@@ -23,6 +24,9 @@ from dcc.scene_file import FILE_TYPE_COLORS, FileType, SceneFile
 from shots.shot_file_finder import ShotFileFinder
 from ui.design_system import design_system, lighten_color
 from ui.qt_widget_mixin import QtWidgetMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -506,7 +510,7 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
                 section.set_files(files)
 
         except Exception:
-            self.logger.exception(f"Error discovering files for {shot.full_name}")
+            logger.exception(f"Error discovering files for {shot.full_name}")
             self._clear_all()
 
     def _clear_all(self) -> None:

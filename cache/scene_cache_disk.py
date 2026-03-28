@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -10,7 +11,9 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 from cache._json_store import read_json_cache, write_json_cache
 from cache._merge import build_merge_lookups
 from cache.types import SceneMergeResult, get_scene_key, scene_to_dict
-from logging_mixin import LoggingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -20,7 +23,7 @@ DEFAULT_TTL_MINUTES = 30
 
 
 @final
-class SceneDiskCache(LoggingMixin, QObject):
+class SceneDiskCache(QObject):
     """3DE scene disk persistence with incremental merge."""
 
     cache_updated = Signal()
@@ -97,7 +100,7 @@ class SceneDiskCache(LoggingMixin, QObject):
         if success:
             self.cache_updated.emit()
         else:
-            self.logger.warning(
+            logger.warning(
                 "Failed to write 3DE scenes cache - data may not persist across restarts"
             )
 
@@ -196,13 +199,13 @@ class SceneDiskCache(LoggingMixin, QObject):
 
         """
         self._cache_ttl = timedelta(minutes=expiry_minutes)
-        self.logger.debug(f"SceneDiskCache TTL set to {expiry_minutes} minutes")
+        logger.debug(f"SceneDiskCache TTL set to {expiry_minutes} minutes")
 
     def clear_cache(self) -> None:
         """Delete the 3DE scenes cache file."""
         if self.threede_cache_file.exists():
             self.threede_cache_file.unlink()
-            self.logger.debug("Cleared 3DE scenes cache")
+            logger.debug("Cleared 3DE scenes cache")
 
     def cache_files(self) -> list[Path]:
         """Return list of cache file paths managed by this cache.

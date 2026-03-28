@@ -81,7 +81,6 @@ from typing_extensions import override
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from timeout_config import TimeoutConfig
 from ui.design_system import design_system
@@ -96,7 +95,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
+class SettingsDialog(QDialog, QtWidgetMixin):
     """Comprehensive settings dialog with tabbed interface."""
 
     # Signals
@@ -186,7 +185,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Connect signals
         self.connect_signals()
 
-        self.logger.debug("Settings dialog initialized")
+        logger.debug("Settings dialog initialized")
 
     def setup_ui(self) -> None:
         """Setup the user interface."""
@@ -849,7 +848,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
                     )
                 self.settings_manager.launch.set_custom_launchers(launchers)
         except json.JSONDecodeError:
-            self.logger.warning(
+            logger.warning(
                 "Invalid custom launchers JSON, keeping existing settings"
             )
 
@@ -860,7 +859,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Sync settings to disk
         self.settings_manager.sync()
 
-        self.logger.info("Settings saved successfully")
+        logger.info("Settings saved successfully")
         NotificationManager.success(
             "Settings saved", timeout=TimeoutConfig.NOTIFICATION_SETTINGS_MS
         )

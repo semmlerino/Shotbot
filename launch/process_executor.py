@@ -206,13 +206,13 @@ class ProcessExecutor(QObject):
 
         """
         if terminal is None:
-            self.logger.warning(
+            logger.warning(
                 f"No terminal available, launching {app_name} in headless mode. "
                 "If app prompts for input, it may hang."
             )
             self.headless_launch_warning.emit(app_name)
         else:
-            self.logger.info(f"Launching {app_name} in new {terminal} terminal")
+            logger.info(f"Launching {app_name} in new {terminal} terminal")
 
         # Log SGTK-related environment variables for debugging file dialog issues
         self._log_sgtk_env_vars()
@@ -258,13 +258,13 @@ class ProcessExecutor(QObject):
             return process
 
         except FileNotFoundError:
-            self.logger.exception(f"Failed to launch {app_name}: executable not found")
+            logger.exception(f"Failed to launch {app_name}: executable not found")
             return None
         except PermissionError:
-            self.logger.exception(f"Failed to launch {app_name}: permission denied")
+            logger.exception(f"Failed to launch {app_name}: permission denied")
             return None
         except OSError:
-            self.logger.exception(f"Failed to launch {app_name}")
+            logger.exception(f"Failed to launch {app_name}")
             return None
 
     def verify_spawn(self, process: subprocess.Popen[bytes], app_name: str) -> None:
@@ -299,7 +299,7 @@ class ProcessExecutor(QObject):
             self.launch_crash_detected.emit(app_name)
         else:
             # Process spawned successfully
-            self.logger.debug(
+            logger.debug(
                 f"{app_name} process spawned successfully (PID {process.pid})"
             )
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
@@ -339,7 +339,7 @@ class ProcessExecutor(QObject):
         self._spawned_processes = still_running
 
         if reaped_count > 0:
-            self.logger.debug(
+            logger.debug(
                 f"Reaped {reaped_count} finished processes, {len(still_running)} still running"
             )
 
@@ -381,7 +381,7 @@ class ProcessExecutor(QObject):
                 pass  # Timer may already be deleted
         self._pending_timers.clear()
         if not sys.is_finalizing():
-            self.logger.debug("ProcessExecutor cleanup completed")
+            logger.debug("ProcessExecutor cleanup completed")
 
     def start_app_verification(
         self,
@@ -409,11 +409,11 @@ class ProcessExecutor(QObject):
 
         """
         if not self.config.LAUNCH_VERIFICATION_ENABLED:
-            self.logger.debug("Launch verification disabled")
+            logger.debug("Launch verification disabled")
             return
 
         if not self.is_gui_app(app_name):
-            self.logger.debug(f"{app_name} is not a GUI app, skipping verification")
+            logger.debug(f"{app_name} is not a GUI app, skipping verification")
             return
 
         if timeout_sec is None:
@@ -468,7 +468,7 @@ class ProcessExecutor(QObject):
         while time.monotonic() - start_time < timeout_sec:
             # Check shutdown flag - exit cleanly if ProcessExecutor is being deleted
             if self._shutdown_flag.is_set():
-                self.logger.debug(
+                logger.debug(
                     f"Verification thread for {app_name} exiting due to shutdown"
                 )
                 return
@@ -489,7 +489,7 @@ class ProcessExecutor(QObject):
                         if any(name in proc_name for name in search_names):
                             if create_time >= cutoff_time:
                                 found_pid: int = proc_pid or 0
-                                self.logger.info(
+                                logger.info(
                                     f"Verified {app_name} process (PID: {found_pid})"
                                 )
                                 # Check shutdown before emitting signal
@@ -508,7 +508,7 @@ class ProcessExecutor(QObject):
                     ):
                         continue
             except Exception:  # noqa: BLE001
-                self.logger.warning("Error scanning processes", exc_info=True)
+                logger.warning("Error scanning processes", exc_info=True)
 
             time.sleep(poll_interval_sec)
 
@@ -517,7 +517,7 @@ class ProcessExecutor(QObject):
         if self._shutdown_flag.is_set():
             return
 
-        self.logger.warning(
+        logger.warning(
             f"{app_name} process not found after {timeout_sec}s verification"
         )
         QTimer.singleShot(0, lambda: self._emit_timeout(app_name))

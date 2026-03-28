@@ -269,7 +269,7 @@ class TestFindUserShotsInShows:
         """Test finding with no target shows."""
         finder = TargetedShotsFinder()
 
-        with patch.object(finder.logger, "warning") as mock_warning:
+        with patch("shots.targeted_shot_finder.logger.warning") as mock_warning:
             shots = list(finder.find_user_shots_in_shows(set(), None))
 
             assert shots == []
@@ -343,7 +343,7 @@ class TestFindApprovedShotsTargeted:
 
         with (
             patch.object(finder, "extract_shows_from_active_shots", return_value=set()),
-            patch.object(finder.logger, "warning") as mock_warning,
+            patch("shots.targeted_shot_finder.logger.warning") as mock_warning,
         ):
             approved = finder.find_approved_shots_targeted(active_shots)
 
@@ -360,7 +360,7 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),
         ]
 
-        with patch.object(finder.logger, "info") as mock_info:
+        with patch("shots.targeted_shot_finder.logger.info") as mock_info:
             approved = finder.find_approved_shots_targeted(active_shots)
 
             assert approved == []
@@ -513,7 +513,7 @@ class TestEdgeCases:
 
             with (
                 patch("concurrent.futures.as_completed", return_value=[mock_future]),
-                patch.object(finder.logger, "warning") as mock_warning,
+                patch("shots.targeted_shot_finder.logger.warning") as mock_warning,
             ):
                 list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
@@ -534,7 +534,7 @@ class TestEdgeCases:
 
             with (
                 patch("concurrent.futures.as_completed", return_value=[mock_future]),
-                patch.object(finder.logger, "exception") as mock_exception,
+                patch("shots.targeted_shot_finder.logger.exception") as mock_exception,
             ):
                 list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 

@@ -143,15 +143,18 @@ class TestCopyPathToClipboard:
         process_qt_events()
         assert clipboard.text() == "/path/two"
 
-    def test_copy_path_to_clipboard_logs_debug(self) -> None:
+    def test_copy_path_to_clipboard_logs_debug(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """_copy_path_to_clipboard logs debug message."""
-        consumer = _MixinConsumer()
-        consumer.logger.debug = MagicMock()
+        import ui.grid_context_menu_mixin as gcm
 
+        mock_debug = MagicMock()
+        monkeypatch.setattr(gcm.logger, "debug", mock_debug)
+
+        consumer = _MixinConsumer()
         consumer._copy_path_to_clipboard("/test/path")
 
-        consumer.logger.debug.assert_called_once()
-        call_args = consumer.logger.debug.call_args[0][0]
+        mock_debug.assert_called_once()
+        call_args = mock_debug.call_args[0][0]
         assert "Copied path to clipboard" in call_args
         assert "/test/path" in call_args
 

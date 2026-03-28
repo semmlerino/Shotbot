@@ -6,6 +6,7 @@ holding all logic that is duplicated between them.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Protocol, cast
 
@@ -24,6 +25,9 @@ from typing_extensions import override
 from ui.base_grid_view import BaseGridView
 from ui.base_item_model import BaseItemRole
 from workers.runnable_tracker import FolderOpenerWorker
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -117,7 +121,7 @@ class BaseShotGridView(BaseGridView):
         shot = cast("Shot | None", index.data(BaseItemRole.ObjectRole))
         if shot:
             self.shot_double_clicked.emit(shot)
-            self.logger.debug(f"Shot double-clicked: {shot.full_name}")
+            logger.debug(f"Shot double-clicked: {shot.full_name}")
 
     @Slot(QModelIndex, QModelIndex)  # pyright: ignore[reportAny]
     def _on_selection_changed(
@@ -150,10 +154,10 @@ class BaseShotGridView(BaseGridView):
         """Open the shot's workspace folder in system file manager (non-blocking)."""
         folder_path = shot.workspace_path
         if not folder_path:
-            self.logger.error(f"No workspace path for shot: {shot.full_name}")
+            logger.error(f"No workspace path for shot: {shot.full_name}")
             return
         if not Path(folder_path).exists():
-            self.logger.error(f"Workspace path does not exist: {folder_path}")
+            logger.error(f"Workspace path does not exist: {folder_path}")
             return
         worker = FolderOpenerWorker(folder_path)
         _ = worker.signals.error.connect(
@@ -165,17 +169,17 @@ class BaseShotGridView(BaseGridView):
             Qt.ConnectionType.QueuedConnection,
         )
         QThreadPool.globalInstance().start(worker)
-        self.logger.info(f"Opening folder: {folder_path}")
+        logger.info(f"Opening folder: {folder_path}")
 
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_folder_open_error(self, error_msg: str) -> None:
         """Handle folder open error."""
-        self.logger.error(f"Failed to open folder: {error_msg}")
+        logger.error(f"Failed to open folder: {error_msg}")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
-        self.logger.debug("Folder opened successfully")
+        logger.debug("Folder opened successfully")
 
     # ------------------------------------------------------------------
     # Pin manager
@@ -210,7 +214,7 @@ class BaseShotGridView(BaseGridView):
             )
         _ = model.shots_updated.connect(self._on_model_updated)  # type: ignore[union-attr]
         self._connect_model_extras(model)
-        self.logger.debug(f"Model set with {model.rowCount()} items")
+        logger.debug(f"Model set with {model.rowCount()} items")
 
     # ------------------------------------------------------------------
     # Context menu (shared structure)
@@ -292,7 +296,7 @@ class BaseShotGridView(BaseGridView):
         )
 
         _ = menu.exec(event.globalPos())
-        self.logger.debug(f"Context menu shown for shot: {shot.full_name}")
+        logger.debug(f"Context menu shown for shot: {shot.full_name}")
 
     # Subclasses must still implement _on_model_updated and _create_delegate.
 
@@ -373,4 +377,4 @@ class BaseShotGridView(BaseGridView):
         )
         if ok:
             self._notes_manager.set_note(shot, new_note)
-            self.logger.debug(f"Note updated for shot: {shot.full_name}")
+            logger.debug(f"Note updated for shot: {shot.full_name}")

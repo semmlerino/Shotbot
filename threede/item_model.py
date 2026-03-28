@@ -6,6 +6,7 @@ extending BaseItemModel with 3DE-specific behavior including loading states and 
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import QModelIndex, QObject, Signal
@@ -13,6 +14,9 @@ from typing_extensions import override
 
 from ui.base_item_model import BaseItemModel, BaseItemRole
 from utils import safe_disconnect
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -55,7 +59,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         # Connect generic items_updated to scene-specific signal
         _ = self.items_updated.connect(self.scenes_updated)
 
-        self.logger.debug("ThreeDEItemModel initialized")
+        logger.debug("ThreeDEItemModel initialized")
 
     # ============= Implement abstract methods =============
 
@@ -131,7 +135,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         """
         _ = reset  # Kept for API compat
         self.set_items(scenes)
-        self.logger.info(f"Set {len(scenes)} scenes in model")
+        logger.info(f"Set {len(scenes)} scenes in model")
 
     def get_scene(self, index: QModelIndex) -> ThreeDEScene | None:
         """Get scene at the given index.
@@ -212,7 +216,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             self.loading_finished,
         )
 
-        self.logger.debug("ThreeDEItemModel cleanup complete")
+        logger.debug("ThreeDEItemModel cleanup complete")
 
     @override
     def deleteLater(self) -> None:

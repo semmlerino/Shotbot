@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 import time
 from collections import deque
@@ -12,11 +14,13 @@ from PySide6.QtCore import QObject, Signal
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 @final
-class QtProgressReporter(LoggingMixin, QObject):
+class QtProgressReporter(QObject):
     """Simple Qt-based progress reporter for thread-safe signal emission.
 
     This class provides a clean way to emit progress signals from any thread,
@@ -34,7 +38,7 @@ class QtProgressReporter(LoggingMixin, QObject):
     def __init__(self) -> None:
         """Initialize the progress reporter."""
         super().__init__()
-        self.logger.debug("QtProgressReporter created in thread: %s", self.thread())
+        logger.debug("QtProgressReporter created in thread: %s", self.thread())
 
     def report_progress(self, files_found: int, status: str) -> None:
         """Report progress from any thread.
@@ -53,7 +57,7 @@ class QtProgressReporter(LoggingMixin, QObject):
 
 
 @final
-class ProgressCalculator(LoggingMixin):
+class ProgressCalculator:
     """Helper class for calculating progress and ETA during file scanning."""
 
     def __init__(self, smoothing_window: int | None = None) -> None:

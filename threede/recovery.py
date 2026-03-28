@@ -14,6 +14,8 @@ Example:
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 import os
 import re
@@ -24,6 +26,9 @@ from typing import ClassVar, NamedTuple
 # Local application imports
 from threede.latest_finder import ThreeDELatestFinder
 from version_mixin import VersionHandlingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 class CrashFileInfo(NamedTuple):
@@ -100,7 +105,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         """
         workspace = Path(workspace_path)
         if not workspace.exists():
-            self.logger.debug(f"Workspace does not exist: {workspace_path}")
+            logger.debug(f"Workspace does not exist: {workspace_path}")
             return []
 
         crash_files: list[CrashFileInfo] = []
@@ -155,14 +160,14 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
             )
 
             crash_files.append(info)
-            self.logger.debug(
+            logger.debug(
                 f"Found crash file: {crash_file.name} (v{current_version:03d} → v{next_version:03d})"
             )
 
         # Sort by modification time (newest first)
         crash_files.sort(key=lambda x: x.modification_time, reverse=True)
 
-        self.logger.info(f"Found {len(crash_files)} crash file(s) in {workspace_path}")
+        logger.info(f"Found {len(crash_files)} crash file(s) in {workspace_path}")
         return crash_files
 
     def get_latest_crash_file(
@@ -182,7 +187,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
             return None
 
         latest = crash_files[0]
-        self.logger.info(
+        logger.info(
             f"Latest crash file: {latest.crash_path.name} (modified: {latest.modification_time})"
         )
         return latest
@@ -222,13 +227,13 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
             raise FileExistsError(msg)
 
         # Rename crash file to recovery version
-        self.logger.info(
+        logger.info(
             f"Recovering crash file: {crash_path.name} → {recovery_path.name}"
         )
         _ = crash_path.rename(recovery_path)
 
         # Archive notification (actual archiving happens separately)
-        self.logger.info(f"Successfully recovered to: {recovery_path}")
+        logger.info(f"Successfully recovered to: {recovery_path}")
 
         return recovery_path
 
@@ -276,7 +281,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
         archive_path = crash_path.parent / archive_name
 
-        self.logger.info(f"Archiving crash file: {crash_path.name} → {archive_name}")
+        logger.info(f"Archiving crash file: {crash_path.name} → {archive_name}")
         _ = crash_path.rename(archive_path)
 
         return archive_path
@@ -317,7 +322,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
             raise FileExistsError(msg)
 
         # Step 1: Copy crash file to recovery version
-        self.logger.info(
+        logger.info(
             f"Recovering crash file: {crash_path.name} → {recovery_path.name}"
         )
         _ = shutil.copy2(crash_path, recovery_path)
@@ -329,7 +334,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         # Step 2: Archive the original crash file
         archived_path = self.archive_crash_file(crash_info)
 
-        self.logger.info(
+        logger.info(
             f"Recovery complete: {recovery_path.name}\nArchived: {archived_path.name}"
         )
 

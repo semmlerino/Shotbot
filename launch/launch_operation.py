@@ -26,7 +26,7 @@ from launch.command_builder import (
     wrap_for_background,
     wrap_with_rez,
 )
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 from managers.notification_manager import NotificationManager
 
 
@@ -42,7 +42,7 @@ logger = get_module_logger(__name__)
 
 
 @final
-class LaunchOperation(LoggingMixin):
+class LaunchOperation:
     """Execute a prepared launch once the command string is ready.
 
     Entry points in CommandLauncher build the DCC-specific command string,
@@ -167,7 +167,7 @@ class LaunchOperation(LoggingMixin):
         full_command = build_workspace_command(safe_workspace_path, app_command)
         full_command = add_logging(full_command, Config)
 
-        self.logger.debug(
+        logger.debug(
             "Constructed command for %s:\n  Command: %r\n  Length: %d chars\n  Workspace: %s%s",
             app_name,
             full_command,
@@ -207,7 +207,7 @@ class LaunchOperation(LoggingMixin):
             and self._settings_manager.launch.get_background_gui_apps()
         ):
             full_command = wrap_for_background(full_command)
-            self.logger.info(
+            logger.info(
                 "Backgrounding %s — terminal will close immediately", app_name
             )
 

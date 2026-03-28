@@ -13,6 +13,7 @@ from __future__ import annotations
 
 # Standard library imports
 import contextlib
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
@@ -26,8 +27,10 @@ from cachetools import TTLCache
 
 # Local application imports
 from exceptions import ThumbnailError
-from logging_mixin import LoggingMixin
 from workers.runnable_tracker import TrackedQRunnable
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -100,7 +103,7 @@ class ThumbnailCacheLoader(TrackedQRunnable):
 
 
 @final
-class ThumbnailCache(LoggingMixin):
+class ThumbnailCache:
     """Thumbnail caching with stat result TTL cache."""
 
     def __init__(
@@ -216,19 +219,19 @@ class ThumbnailCache(LoggingMixin):
         """
         try:
             self._pil_to_thumbnail(source, output)
-            self.logger.debug(f"Created thumbnail: {output}")
+            logger.debug(f"Created thumbnail: {output}")
             return output
         except Exception as e:
-            self.logger.debug(f"PIL thumbnail processing failed: {e}")
+            logger.debug(f"PIL thumbnail processing failed: {e}")
 
             # Try MOV fallback if PIL can't read the image (e.g., EXR files)
-            self.logger.debug(f"Attempting MOV fallback for {source.name}")
+            logger.debug(f"Attempting MOV fallback for {source.name}")
             fallback_result = self._try_mov_fallback(source, output)
             if fallback_result is not None:
                 return fallback_result
 
             # If MOV fallback didn't work, raise original error
-            self.logger.exception(
+            logger.exception(
                 "PIL thumbnail processing failed and MOV fallback unavailable"
             )
             msg = f"Failed to process thumbnail: {e}"
@@ -253,26 +256,26 @@ class ThumbnailCache(LoggingMixin):
 
         mov_path = self._mov_finder(source) if self._mov_finder is not None else None
         if not mov_path:
-            self.logger.debug(f"No MOV file found for fallback: {source}")
+            logger.debug(f"No MOV file found for fallback: {source}")
             return None
 
-        self.logger.debug(f"Found MOV file for fallback: {mov_path.name}")
+        logger.debug(f"Found MOV file for fallback: {mov_path.name}")
         extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)
 
         try:
             if not (extracted_frame and extracted_frame.exists()):
-                self.logger.debug("MOV frame extraction failed")
+                logger.debug("MOV frame extraction failed")
                 return None
 
-            self.logger.info(f"Successfully extracted frame from MOV: {mov_path.name}")
+            logger.info(f"Successfully extracted frame from MOV: {mov_path.name}")
 
             # Process the extracted JPEG frame
             try:
                 self._pil_to_thumbnail(extracted_frame, output)
-                self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
+                logger.debug(f"Created thumbnail from MOV fallback: {output}")
                 return output
             except Exception as fallback_error:  # noqa: BLE001
-                self.logger.error(
+                logger.error(
                     f"Failed to process MOV fallback frame: {fallback_error}"
                 )
                 return None
@@ -345,7 +348,7 @@ class ThumbnailCache(LoggingMixin):
         # Validate parameters (no lock needed)
         if not all([show, sequence, shot]):
             error_msg = "Missing required parameters for thumbnail caching"
-            self.logger.error(error_msg)
+            logger.error(error_msg)
             raise ThumbnailError(
                 error_msg,
                 details={
@@ -358,7 +361,7 @@ class ThumbnailCache(LoggingMixin):
 
         # Check source exists (no lock needed)
         if not source_path_obj.exists():
-            self.logger.warning(f"Source path does not exist: {source_path_obj}")
+            logger.warning(f"Source path does not exist: {source_path_obj}")
             return None
 
         # Compute paths (no lock needed)
@@ -370,7 +373,7 @@ class ThumbnailCache(LoggingMixin):
         if stat_result is not None:
             size, _ = stat_result
             if size > 0:
-                self.logger.debug(f"Using existing thumbnail: {output_path}")
+                logger.debug(f"Using existing thumbnail: {output_path}")
                 return output_path
 
         # Ensure directory exists (brief lock for thread safety)
@@ -378,14 +381,14 @@ class ThumbnailCache(LoggingMixin):
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
             except (PermissionError, OSError):
-                self.logger.exception("Failed to create cache directories")
+                logger.exception("Failed to create cache directories")
                 return None
 
         # Process thumbnail WITHOUT holding lock (I/O and CPU intensive)
         try:
             return self._process_standard_thumbnail(source_path_obj, output_path)
         except Exception:
-            self.logger.exception("Failed to process thumbnail")
+            logger.exception("Failed to process thumbnail")
             return None
 
     def cache_thumbnail_direct(
@@ -431,7 +434,7 @@ class ThumbnailCache(LoggingMixin):
             # Save to temp file (no lock needed - unique temp path per shot)
             if not image.save(str(temp_path), b"JPEG", THUMBNAIL_QUALITY):
                 temp_path.unlink(missing_ok=True)
-                self.logger.error(f"Failed to save QImage to: {output_path}")
+                logger.error(f"Failed to save QImage to: {output_path}")
                 return None
 
             # Atomic rename (no lock needed - atomic on POSIX)
@@ -441,14 +444,14 @@ class ThumbnailCache(LoggingMixin):
             with QMutexLocker(self._lock):
                 _ = self._stat_cache.pop(str(output_path), None)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
 
-            self.logger.debug(f"Cached QImage thumbnail: {output_path}")
+            logger.debug(f"Cached QImage thumbnail: {output_path}")
             return output_path
 
         except Exception:
             # Clean up temp file on any error
             with contextlib.suppress(OSError):
                 temp_path.unlink(missing_ok=True)
-            self.logger.exception("QImage thumbnail caching failed")
+            logger.exception("QImage thumbnail caching failed")
             return None
 
 

@@ -10,6 +10,8 @@ VFX Glossary:
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
@@ -42,6 +44,9 @@ from threede.grid_delegate import ThreeDEGridDelegate
 # Local application imports
 from ui.base_grid_view import BaseGridView
 from workers.runnable_tracker import FolderOpenerWorker
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -128,7 +133,7 @@ class ThreeDEGridView(BaseGridView):
         if model:
             self.set_model(model, proxy)
 
-        self.logger.debug("ThreeDEGridView initialized")
+        logger.debug("ThreeDEGridView initialized")
 
     @override
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:
@@ -302,7 +307,7 @@ class ThreeDEGridView(BaseGridView):
         """Handle artist filter change."""
         artist_filter = "" if artist_text == "All Artists" else artist_text
         self.artist_filter_requested.emit(artist_filter)
-        self.logger.info(f"Artist filter requested: {artist_text}")
+        logger.info(f"Artist filter requested: {artist_text}")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_scenes_updated(self) -> None:
@@ -390,7 +395,7 @@ class ThreeDEGridView(BaseGridView):
 
         """
         word = noun if count == 1 else f"{noun}s"
-        self.logger.info(f"Populated {noun} filter with {count} {word}")
+        logger.info(f"Populated {noun} filter with {count} {word}")
 
     @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def _on_item_clicked(self, index: QModelIndex) -> None:
@@ -564,7 +569,7 @@ class ThreeDEGridView(BaseGridView):
         """
         clipboard = QApplication.clipboard()
         clipboard.setText(str(scene.scene_path))
-        self.logger.info(f"Copied path to clipboard: {scene.scene_path}")
+        logger.info(f"Copied path to clipboard: {scene.scene_path}")
 
     def _pin_scene(self, scene: ThreeDEScene) -> None:
         """Pin a scene (by workspace path).
@@ -575,7 +580,7 @@ class ThreeDEGridView(BaseGridView):
         """
         if self._pin_manager:
             self._pin_manager.pin_by_path(scene.workspace_path)
-            self.logger.debug(f"Pinned scene: {scene.workspace_path}")
+            logger.debug(f"Pinned scene: {scene.workspace_path}")
 
     def _unpin_scene(self, scene: ThreeDEScene) -> None:
         """Unpin a scene (by workspace path).
@@ -586,7 +591,7 @@ class ThreeDEGridView(BaseGridView):
         """
         if self._pin_manager:
             self._pin_manager.unpin_by_path(scene.workspace_path)
-            self.logger.debug(f"Unpinned scene: {scene.workspace_path}")
+            logger.debug(f"Unpinned scene: {scene.workspace_path}")
 
     def _setup_return_shortcut(self) -> None:
         """Set up Return/Enter QAction for scene launch."""

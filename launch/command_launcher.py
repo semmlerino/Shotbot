@@ -27,6 +27,7 @@ from __future__ import annotations
 
 # Standard library imports
 import enum
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -52,10 +53,12 @@ from launch.environment_manager import EnvironmentManager
 from launch.file_search_coordinator import FileSearchCoordinator
 from launch.launch_operation import LaunchOperation
 from launch.process_executor import ProcessExecutor
-from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.settings_manager import SettingsManager
 from nuke import NukeLaunchHandler, SimpleNukeLauncher
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -120,7 +123,7 @@ class LaunchPhase(enum.Enum):
 
 
 @final
-class CommandLauncher(LoggingMixin, QObject):
+class CommandLauncher(QObject):
     """Handles launching applications in shot context.
 
     This class uses dependency injection for better testability and following SOLID principles.
@@ -394,7 +397,7 @@ class CommandLauncher(LoggingMixin, QObject):
         """
         # Reset timeout counter on success - terminal is working
         self._consecutive_timeout_count = 0
-        self.logger.debug(f"App {app_name} verified with PID {pid}")
+        logger.debug(f"App {app_name} verified with PID {pid}")
 
     def _on_headless_launch_warning(self, app_name: str) -> None:
         """Handle headless launch warning from ProcessExecutor."""
@@ -467,7 +470,7 @@ class CommandLauncher(LoggingMixin, QObject):
         threede: Path | None = threede_result  # type: ignore[assignment]
 
         if launch is None:
-            self.logger.error("Missing pending state after async search")
+            logger.error("Missing pending state after async search")
             self._set_phase(LaunchPhase.IDLE)
             return
 
@@ -671,7 +674,7 @@ class CommandLauncher(LoggingMixin, QObject):
         try:
             safe_file_path = validate_path(str(file_path))
             command = handler.build_file_command(command, safe_file_path)
-            self.logger.debug(
+            logger.debug(
                 f"launch: app={app_name}, file_path={file_path}, "
                 f"safe_file_path={safe_file_path}, command={command}"
             )
@@ -684,7 +687,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         if handler.needs_sgtk_file_to_open():
             sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
-            self.logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
+            logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
         else:
             sgtk_export = ""
 
@@ -744,7 +747,7 @@ class CommandLauncher(LoggingMixin, QObject):
         }
         expected_hook = hook_files.get(app_name)
         if expected_hook and not (scripts_dir / expected_hook).exists():
-            self.logger.warning(
+            logger.warning(
                 "Expected hook script %s not found in %s — "
                 "%s may launch without SGTK context",
                 expected_hook,
@@ -756,9 +759,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
     def _emit_error(self, error: str) -> None:
         """Log an error with timestamp."""
-        self.logger.error(error)
+        logger.error(error)
 
     def _set_phase(self, phase: LaunchPhase) -> None:
         """Set the launch phase and log the transition."""
         self._phase = phase
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
+        logger.debug("LaunchPhase: %s", self._phase.value)

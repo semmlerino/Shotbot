@@ -16,17 +16,21 @@ if TYPE_CHECKING:
     from type_definitions import PerformanceMetricsDict, RefreshResult, Shot
 
 # Local application imports
-from logging_mixin import LoggingMixin
+import logging
+
 from qt_abc_meta import QABCMeta
 from shots.shot_parser import OptimizedShotParser
 from utils import ValidationUtils
 from workers.process_pool_manager import ProcessPoolManager
 
 
+logger = logging.getLogger(__name__)
+
+
 # Import RefreshResult from type_definitions to avoid circular imports
 
 
-class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
+class BaseShotModel(ABC, QObject, metaclass=QABCMeta):
     """Abstract base for ShotModel with shared signals, cache access, and filtering.
 
     Provides signals (shots_loaded, shots_changed, refresh_finished, error_occurred)
@@ -108,11 +112,11 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                 self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
                 self.shots_loaded.emit(self.shots)
                 self._cache_hits += 1
-                self.logger.info(f"Loaded {len(self.shots)} shots from cache")
+                logger.info(f"Loaded {len(self.shots)} shots from cache")
                 return True
             except (KeyError, TypeError, ValueError):
                 # Handle corrupted cache data gracefully
-                self.logger.warning("Corrupted cache data, ignoring", exc_info=True)
+                logger.warning("Corrupted cache data, ignoring", exc_info=True)
                 self.shots = []
                 self._cache_misses += 1
                 return False
@@ -168,16 +172,16 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         # If output is completely empty, that might indicate an issue
         if not output.strip():
-            self.logger.warning("ws -sg returned empty output")
+            logger.warning("ws -sg returned empty output")
             return shots
 
         # Log the first few lines of output for debugging
-        self.logger.info(f"Parsing ws output with {len(lines)} lines")
+        logger.info(f"Parsing ws output with {len(lines)} lines")
         if lines:
-            self.logger.info(f"First line of ws output: {lines[0][:200]}")
+            logger.info(f"First line of ws output: {lines[0][:200]}")
             # Log first 3 lines for debugging
             for i, line in enumerate(lines[:3]):
-                self.logger.debug(f"ws output line {i + 1}: {line}")
+                logger.debug(f"ws output line {i + 1}: {line}")
 
         for line_num, line in enumerate(lines, 1):
             stripped_line = line.strip()
@@ -194,7 +198,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                     shot = result.shot
 
                     # Log what we extracted for debugging
-                    self.logger.debug(
+                    logger.debug(
                         f"Parsed line {line_num}: workspace_path={workspace_path}, show={show}, sequence={sequence}, shot={shot}"
                     )
 
@@ -206,7 +210,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                         shot,
                         names=["workspace_path", "show", "sequence", "shot"],
                     ):
-                        self.logger.warning(
+                        logger.warning(
                             f"Line {line_num}: Missing required components in: {line}",
                         )
                         continue
@@ -238,17 +242,17 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                         ),
                     )
                 except (IndexError, AttributeError) as e:
-                    self.logger.warning(
+                    logger.warning(
                         f"Line {line_num}: Failed to parse shot data from: {line} ({e})",
                     )
                     continue
             else:
                 # Log unmatched lines for debugging, but don't fail
-                self.logger.debug(
+                logger.debug(
                     f"Line {line_num}: No match for workspace pattern: {line}"
                 )
 
-        self.logger.info(f"Parsed {len(shots)} shots from ws -sg output")
+        logger.info(f"Parsed {len(shots)} shots from ws -sg output")
         return shots
 
     def _check_for_changes(self, new_shots: list[Shot]) -> bool:

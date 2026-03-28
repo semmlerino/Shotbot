@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 import time
 from pathlib import Path
@@ -14,6 +16,9 @@ from typing_extensions import override
 # Local application imports
 from previous_shots.finder import ParallelShotsFinder
 from workers.thread_safe_worker import ThreadSafeWorker
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -63,7 +68,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         # No need for _should_stop, use base class should_stop() method
         self._found_shots: list[Shot] = []
 
-        self.logger.info(
+        logger.info(
             f"PreviousShotsWorker initialized for user: {self._finder.username}"
         )
 
@@ -83,7 +88,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         """Request the worker to stop safely."""
         _ = self.request_stop()  # Use base class method for proper state transition
         self._finder.request_stop()  # Also stop the parallel finder
-        self.logger.debug("Stop requested for PreviousShotsWorker")
+        logger.debug("Stop requested for PreviousShotsWorker")
 
     @override
     def do_work(self) -> None:
@@ -92,7 +97,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         This method is called by the base class after proper state transitions.
         The base class handles state management, so we don't need to manage it here.
         """
-        self.logger.info("Starting previous shots scan")
+        logger.info("Starting previous shots scan")
         start_time = time.time()
 
         try:
@@ -101,7 +106,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
             # Use targeted search for maximum performance
             # This searches only in shows where user has active shots
-            self.logger.info("Using targeted search approach")
+            logger.info("Using targeted search approach")
             approved_shots = self._finder.find_approved_shots_targeted(
                 self._active_shots, self._shows_root
             )
@@ -123,7 +128,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             self.scan_progress.emit(100, 100, "Scan completed")
 
             elapsed = time.time() - start_time
-            self.logger.info(
+            logger.info(
                 f"Previous shots scan completed in {elapsed:.2f}s. "
                 f"Found {len(approved_shots)} approved shots."
             )
@@ -134,7 +139,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Base class handles state transition and worker_stopped signal
 
         except Exception as e:
-            self.logger.error(f"Error during previous shots scan: {e}")
+            logger.error(f"Error during previous shots scan: {e}")
             # Re-raise to let base class handle error state and emit worker_error
             raise
 

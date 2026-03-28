@@ -33,17 +33,21 @@ if TYPE_CHECKING:
     from type_definitions import ThreeDEScene
 
 # Runtime imports (needed at runtime)
+import logging
+
 from controllers.threede_cache_adapter import ThreeDECacheAdapter
 from controllers.threede_selection_handler import ThreeDESelectionHandler
 from controllers.threede_worker_manager import ThreeDEWorkerManager
-from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from timeout_config import TimeoutConfig
 
 
+logger = logging.getLogger(__name__)
+
+
 @final
-class ThreeDEController(LoggingMixin):
+class ThreeDEController:
     """Controller for 3DE scene discovery and management.
 
     Architecture: ThreeDEController implements a 5-layer pipeline with single responsibilities:
@@ -141,7 +145,7 @@ class ThreeDEController(LoggingMixin):
         # Delegate grid signal wiring to the selection handler
         self._selection_handler.setup_signals(self.window.threede_shot_grid)
 
-        self.logger.debug("ThreeDEController signals connected")
+        logger.debug("ThreeDEController signals connected")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_closing(self) -> None:
@@ -164,13 +168,13 @@ class ThreeDEController(LoggingMixin):
         """
         # First check if we're closing without holding mutex
         if self._closing:
-            self.logger.debug("Ignoring refresh request during shutdown")
+            logger.debug("Ignoring refresh request during shutdown")
             return
 
         # GUARD: If worker is already running, skip this request entirely
         # This prevents duplicate progress operations during rapid refresh calls
         if self._worker_manager.has_active_worker:
-            self.logger.debug(
+            logger.debug(
                 "3DE worker already running, skipping duplicate refresh request"
             )
             return
@@ -179,7 +183,7 @@ class ThreeDEController(LoggingMixin):
         now = time.time()
         time_since_last_scan = now - self._last_scan_time
         if self._last_scan_time > 0 and time_since_last_scan < self._min_scan_interval:
-            self.logger.info(
+            logger.info(
                 f"Scan requested too soon ({time_since_last_scan:.1f}s < {self._min_scan_interval}s), using cached data instead"
             )
             return  # Skip scan, use cached data
@@ -194,7 +198,7 @@ class ThreeDEController(LoggingMixin):
         if cached_scenes:
             self.window.threede_scene_model.set_scenes(cached_scenes)
             self.update_ui()
-            self.logger.info(
+            logger.info(
                 f"Loaded {len(cached_scenes)} cached 3DE scenes immediately "
                 "(scanning for updates in background)"
             )
@@ -228,7 +232,7 @@ class ThreeDEController(LoggingMixin):
             # If another operation was started after ours, don't finish the wrong one
             current_top = ProgressManager.get_current_operation()
             if current_top == self._current_progress_operation:
-                self.logger.debug(
+                logger.debug(
                     "Finishing orphaned progress operation during cleanup"
                 )
                 ProgressManager.finish_operation(
@@ -236,11 +240,11 @@ class ThreeDEController(LoggingMixin):
                 )
             # Our operation was already finished or another operation is on top
             elif current_top is None:
-                self.logger.debug(
+                logger.debug(
                     "3DE progress operation already finished during cleanup"
                 )
             else:
-                self.logger.warning(
+                logger.warning(
                     "3DE progress operation not on top of stack during cleanup - skipping finish to prevent stack corruption"
                 )
             self._current_progress_operation = None
@@ -411,15 +415,15 @@ class ThreeDEController(LoggingMixin):
 
     def log_discovered_scenes(self, scenes: list[ThreeDEScene]) -> None:
         """Log discovered scenes for debugging."""
-        self.logger.info(
+        logger.info(
             f"3DE Discovery finished with {len(scenes)} total scenes discovered"
         )
         for i, scene in enumerate(scenes[:5]):  # Log first 5 scenes
-            self.logger.info(
+            logger.info(
                 f"   Scene {i + 1}: {scene.full_name} (user: {scene.user})"
             )
         if len(scenes) > 5:
-            self.logger.info(f"   ... and {len(scenes) - 5} more scenes")
+            logger.info(f"   ... and {len(scenes) - 5} more scenes")
 
     def has_scene_changes(self, scenes: list[ThreeDEScene]) -> bool:
         """Check if discovered scenes differ from current model."""
@@ -427,16 +431,16 @@ class ThreeDEController(LoggingMixin):
             (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
             for scene in self.window.threede_scene_model.scenes
         }
-        self.logger.info(f"Current model has {len(old_scene_data)} existing scenes")
+        logger.info(f"Current model has {len(old_scene_data)} existing scenes")
 
         new_scene_data = {
             (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
             for scene in scenes
         }
-        self.logger.info(f"New discovery has {len(new_scene_data)} scene data items")
+        logger.info(f"New discovery has {len(new_scene_data)} scene data items")
 
         has_changes = old_scene_data != new_scene_data
-        self.logger.info(f"Has changes: {has_changes}")
+        logger.info(f"Has changes: {has_changes}")
         return has_changes
 
     def update_scenes_with_changes(self, scenes: list[ThreeDEScene]) -> None:
@@ -445,7 +449,7 @@ class ThreeDEController(LoggingMixin):
         self.window.threede_scene_model.set_scenes(
             self.window.threede_scene_model.deduplicate_scenes_by_shot(scenes)
         )
-        self.logger.info(
+        logger.info(
             f"After deduplication: {len(self.window.threede_scene_model.scenes)} scenes remain"
         )
 
@@ -472,18 +476,18 @@ class ThreeDEController(LoggingMixin):
         # Still cache the current state to refresh TTL
         self._cache_adapter.cache_scenes()
 
-        self.logger.info(
+        logger.info(
             f"No changes detected - existing model has {len(self.window.threede_scene_model.scenes)} scenes"
         )
 
         if self.window.threede_scene_model.scenes:
             # Re-apply existing scenes to UI
             self.update_ui()
-            self.logger.info(
+            logger.info(
                 f"Re-applied {len(self.window.threede_scene_model.scenes)} existing scenes to UI"
             )
         else:
-            self.logger.info("No existing scenes in model to apply")
+            logger.info("No existing scenes in model to apply")
 
         self.window.update_status("3DE scene discovery complete (no changes)")
 
@@ -514,7 +518,7 @@ class ThreeDEController(LoggingMixin):
         self.window.threede_proxy.invalidate()
         visible_count = self.window.threede_proxy.rowCount()
         total_count = len(scene_model.scenes)
-        self.logger.info(
+        logger.info(
             "UI model updated with %s visible scenes from %s total",
             visible_count,
             total_count,

@@ -61,6 +61,7 @@ from __future__ import annotations
 
 # Standard library imports
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -71,7 +72,6 @@ from PySide6.QtCore import QByteArray, QObject, QSettings
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin
 from managers.settings_domains import (
     DebugSettings,
     LaunchPreferenceSettings,
@@ -82,7 +82,7 @@ from managers.settings_domains import (
 )
 
 
-# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 
 class _SettingDef(NamedTuple):
@@ -92,7 +92,7 @@ class _SettingDef(NamedTuple):
 
 
 @final
-class SettingsManager(LoggingMixin, QObject):
+class SettingsManager(QObject):
     """Manages application settings with type safety and persistence.
 
     Provides a comprehensive settings management system with automatic
@@ -173,7 +173,7 @@ class SettingsManager(LoggingMixin, QObject):
         # Domain sub-objects — group related methods by concern.
         self._init_domain_objects()
 
-        self.logger.debug(f"SettingsManager initialized: {self.settings.fileName()}")
+        logger.debug(f"SettingsManager initialized: {self.settings.fileName()}")
 
     _DOMAIN_ATTRS: ClassVar[frozenset[str]] = frozenset(
         {"window", "refresh", "ui", "launch", "performance", "debug"}
@@ -219,7 +219,7 @@ class SettingsManager(LoggingMixin, QObject):
         for defn in self._REGISTRY.values():
             if not self.settings.contains(defn.qsettings_key):
                 self.settings.setValue(defn.qsettings_key, defn.default)
-                self.logger.debug(
+                logger.debug(
                     f"Initialized default setting: {defn.qsettings_key} = {defn.default}"
                 )
 
@@ -229,7 +229,7 @@ class SettingsManager(LoggingMixin, QObject):
         if self.settings.contains("migration_version"):
             return
 
-        self.logger.info("Migrating settings to new format...")
+        logger.info("Migrating settings to new format...")
 
         # Migrate any existing loose settings to organized structure
         old_keys = [
@@ -245,11 +245,11 @@ class SettingsManager(LoggingMixin, QObject):
                 value = cast("object", self.settings.value(old_key))
                 self.settings.setValue(new_key, value)
                 self.settings.remove(old_key)
-                self.logger.debug(f"Migrated setting: {old_key} -> {new_key}")
+                logger.debug(f"Migrated setting: {old_key} -> {new_key}")
 
         # Mark migration as complete
         self.settings.setValue("migration_version", 1)
-        self.logger.info("Settings migration completed")
+        logger.info("Settings migration completed")
 
     # -----------------------------------------------------------------------
     # Category Access
@@ -331,11 +331,11 @@ class SettingsManager(LoggingMixin, QObject):
             _ = Path(temp_path).replace(file_path)
             temp_path = None  # Successfully moved
 
-            self.logger.info(f"Settings exported to: {file_path}")
+            logger.info(f"Settings exported to: {file_path}")
             return True
 
         except Exception:
-            self.logger.exception("Failed to export settings")
+            logger.exception("Failed to export settings")
             # Clean up temp file on error
             if temp_fd is not None:
                 try:
@@ -359,7 +359,7 @@ class SettingsManager(LoggingMixin, QObject):
 
             # Type guard: ensure we have a dict at the top level
             if not isinstance(loaded_data, dict):
-                self.logger.error("Invalid settings file: not a dictionary")
+                logger.error("Invalid settings file: not a dictionary")
                 return False
 
             # Cast after type guard to help type checker
@@ -375,11 +375,11 @@ class SettingsManager(LoggingMixin, QObject):
                     }
                     self.set_category(str(category_name), settings_dict)
 
-            self.logger.info(f"Settings imported from: {file_path}")
+            logger.info(f"Settings imported from: {file_path}")
             return True
 
         except Exception:
-            self.logger.exception("Failed to import settings")
+            logger.exception("Failed to import settings")
             return False
 
     def reset_to_defaults(self) -> None:
@@ -390,7 +390,7 @@ class SettingsManager(LoggingMixin, QObject):
         # Reinitialize with defaults
         self._initialize_defaults()
 
-        self.logger.info("All settings reset to defaults")
+        logger.info("All settings reset to defaults")
 
     def reset_category(self, category: str) -> None:
         """Reset a specific category to defaults.
@@ -410,7 +410,7 @@ class SettingsManager(LoggingMixin, QObject):
             if defn.qsettings_key.startswith(prefix):
                 self.settings.setValue(defn.qsettings_key, defn.default)
 
-        self.logger.info(f"Category '{category}' reset to defaults")
+        logger.info(f"Category '{category}' reset to defaults")
 
     def sync(self) -> None:
         """Synchronize settings to disk."""

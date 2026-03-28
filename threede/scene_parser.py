@@ -16,14 +16,13 @@ from pathlib import Path
 from typing import ClassVar
 
 # Local application imports
-from logging_mixin import LoggingMixin
 from type_definitions import ThreeDEScene
 
 
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
-class SceneParser(LoggingMixin):
+class SceneParser:
     """Parser for 3DE scene file paths with optimized pattern matching.
 
     This class encapsulates all parsing logic extracted from the monolithic
@@ -129,7 +128,7 @@ class SceneParser(LoggingMixin):
             return parent_name
 
         except Exception:  # noqa: BLE001
-            self.logger.warning(
+            logger.warning(
                 f"Failed to extract sequence name from {file_path}; "
                 f"falling back to parent dir name",
                 exc_info=True,
@@ -206,7 +205,7 @@ class SceneParser(LoggingMixin):
             return (threede_file, show, sequence, shot, user, plate)
 
         except (ValueError, IndexError) as e:
-            self.logger.debug(f"Could not parse path {threede_file}: {e}")
+            logger.debug(f"Could not parse path {threede_file}: {e}")
             return None
 
     @staticmethod
@@ -261,7 +260,7 @@ class SceneParser(LoggingMixin):
             frame_end=frame_end,
         )
 
-        _logger.debug(
+        logger.debug(
             "Created scene: %s/%s/%s - %s/%s", show, sequence, shot, user, plate
         )
         return scene

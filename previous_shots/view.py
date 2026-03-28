@@ -7,6 +7,8 @@ with virtualization and proper Model/View architecture.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from typing import TYPE_CHECKING, cast
 
@@ -32,6 +34,9 @@ from shots.shot_grid_delegate import ShotGridDelegate
 # Local application imports
 from ui.base_shot_grid_view import BaseShotGridView
 from ui.design_system import design_system
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -98,7 +103,7 @@ class PreviousShotsView(BaseShotGridView):
         if model:
             self.set_model(model, proxy)
 
-        self.logger.debug("PreviousShotsView initialized")
+        logger.debug("PreviousShotsView initialized")
 
     @override
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:
@@ -235,7 +240,7 @@ class PreviousShotsView(BaseShotGridView):
     @Slot()  # pyright: ignore[reportAny]
     def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""
-        self.logger.debug("Refresh button clicked")
+        logger.debug("Refresh button clicked")
 
         if self._unified_model:
             assert self._refresh_button is not None
@@ -323,7 +328,7 @@ class PreviousShotsView(BaseShotGridView):
         """Handle widget close event to clean up resources."""
         self._visibility_timer.stop()
         super().closeEvent(event)
-        self.logger.debug("PreviousShotsView cleaned up resources on close")
+        logger.debug("PreviousShotsView cleaned up resources on close")
 
     # ============= Pin methods =============
 

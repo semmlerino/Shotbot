@@ -51,7 +51,7 @@ from controllers.threede_controller import (
 )
 from controllers.thumbnail_size_manager import ThumbnailSizeManager
 from launch.launch_request import LaunchRequest
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from timeout_config import TimeoutConfig
@@ -67,7 +67,7 @@ logger = get_module_logger(__name__)
 
 
 @final
-class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
+class MainWindow(QtWidgetMixin, QMainWindow):
     """Main application window and primary controller.
 
     Orchestrates the three-tab interface (My Shots, Other 3DE, Previous Shots),
@@ -159,12 +159,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # No longer need periodic background polling for shots - they use reactive signals now
         # One-shot timers during initialization are still used for async loading
         # Only background workers are used for 3DE scene discovery
-        self.logger.info(
+        logger.info(
             "Shot model uses reactive signals - periodic polling disabled (async init via QTimer)"
         )
-        self.logger.info("=" * 60)
-        self.logger.info("MainWindow.__init__() COMPLETE - returning to Qt event loop")
-        self.logger.info("=" * 60)
+        logger.info("=" * 60)
+        logger.info("MainWindow.__init__() COMPLETE - returning to Qt event loop")
+        logger.info("=" * 60)
 
     def _init_controllers(self) -> None:
         """Initialize controllers that require UI widgets to be set up first."""
@@ -433,12 +433,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _on_shot_error(self, error_msg: str) -> None:
         """Handle error signal from shot model."""
-        self.logger.error(f"Shot model error: {error_msg}")
+        logger.error(f"Shot model error: {error_msg}")
         self.status_bar.showMessage(f"Error: {error_msg}")
 
     def _on_data_recovery(self, title: str, details: str) -> None:
         """Handle data recovery notification from shot model."""
-        self.logger.warning(f"Data recovery: {title} - {details}")
+        logger.warning(f"Data recovery: {title} - {details}")
         NotificationManager.warning(title, details)
 
     def _on_shot_grid_pin_requested(self, shot: Shot) -> None:
@@ -509,7 +509,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
-        self.logger.debug("Refreshing shots via RefreshCoordinator")
+        logger.debug("Refreshing shots via RefreshCoordinator")
         self.refresh_coordinator.refresh_tab(0)
 
     # Note: Background refresh methods removed - now handled by reactive signals
@@ -598,14 +598,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         suitable for test environments where widgets are destroyed without
         proper close events.
         """
-        self.logger.debug("Starting explicit MainWindow cleanup")
+        logger.debug("Starting explicit MainWindow cleanup")
         self._perform_cleanup()
-        self.logger.debug("Completed explicit MainWindow cleanup")
+        logger.debug("Completed explicit MainWindow cleanup")
 
     @override
     def closeEvent(self, event: QCloseEvent) -> None:
         """Thread-safe close event handler."""
-        self.logger.debug("MainWindow closeEvent - starting cleanup")
+        logger.debug("MainWindow closeEvent - starting cleanup")
 
         # Flush any pending notes to disk
         self.notes_manager.flush()
@@ -615,7 +615,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Save settings before closing
         self.settings_controller.save_settings()
 
-        self.logger.debug("MainWindow closeEvent - cleanup complete")
+        logger.debug("MainWindow closeEvent - cleanup complete")
         event.accept()
 
     def _perform_cleanup(self) -> None:
@@ -628,18 +628,18 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             4. Managers (command_launcher, cache_coordinator)
             5. Models (shot_model, previous_shots_model, previous_shots_item_model)
         """
-        self.logger.debug("Starting MainWindow cleanup sequence")
+        logger.debug("Starting MainWindow cleanup sequence")
 
         # 1. Mark window as closing
         self._closing = True
 
         # 2. Controllers
         if self.threede_controller:
-            self.logger.debug("Cleaning up 3DE controller")
+            logger.debug("Cleaning up 3DE controller")
             self.threede_controller.cleanup_worker()
 
         if self.shot_selection_controller:
-            self.logger.debug("Cleaning up shot selection controller")
+            logger.debug("Cleaning up shot selection controller")
             self.shot_selection_controller.cleanup()
 
         # 3. Session warmer thread
@@ -650,32 +650,32 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # 4. Managers
         if self.command_launcher and hasattr(self.command_launcher, "cleanup"):
-            self.logger.debug("Cleaning up command launcher")
+            logger.debug("Cleaning up command launcher")
             self.command_launcher.cleanup()
 
-        self.logger.debug("Shutting down cache coordinator")
+        logger.debug("Shutting down cache coordinator")
         self.cache_coordinator.shutdown()
 
         # 5. Models
         if hasattr(self.shot_model, "cleanup"):
-            self.logger.debug("Cleaning up ShotModel background threads")
+            logger.debug("Cleaning up ShotModel background threads")
             self.shot_model.cleanup()
 
         if self.previous_shots_model:
-            self.logger.debug("Cleaning up PreviousShotsModel")
+            logger.debug("Cleaning up PreviousShotsModel")
             try:
                 self.previous_shots_model.cleanup()
             except Exception:
-                self.logger.exception("Error cleaning up PreviousShotsModel")
+                logger.exception("Error cleaning up PreviousShotsModel")
 
         if self.previous_shots_item_model:
-            self.logger.debug("Cleaning up PreviousShotsItemModel")
+            logger.debug("Cleaning up PreviousShotsItemModel")
             try:
                 item_model = self.previous_shots_item_model
                 if hasattr(item_model, "cleanup"):
                     item_model.cleanup()
             except Exception:
-                self.logger.exception("Error cleaning up PreviousShotsItemModel")
+                logger.exception("Error cleaning up PreviousShotsItemModel")
 
         # Final: process events, clean QRunnables, GC
         from PySide6.QtWidgets import QApplication as QApplicationType
@@ -686,14 +686,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         from workers.runnable_tracker import cleanup_all_runnables
 
-        self.logger.debug("Cleaning up tracked QRunnables")
+        logger.debug("Cleaning up tracked QRunnables")
         cleanup_all_runnables()
 
         import gc
 
         _ = gc.collect()
 
-        self.logger.debug("MainWindow cleanup sequence completed")
+        logger.debug("MainWindow cleanup sequence completed")
 
 
 # Background refresh methods and BackgroundRefreshWorker removed - ShotModel now uses reactive signals instead of polling

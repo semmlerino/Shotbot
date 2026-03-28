@@ -6,6 +6,8 @@ scene files in workspace directory structures.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 import re
 from collections.abc import Callable
@@ -17,6 +19,9 @@ from typing_extensions import override
 
 # Local application imports
 from version_mixin import VersionHandlingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 class BaseLatestFinder(VersionHandlingMixin):
@@ -63,28 +68,28 @@ class BaseLatestFinder(VersionHandlingMixin):
 
         """
         if not workspace_path:
-            self.logger.debug("No workspace path provided")
+            logger.debug("No workspace path provided")
             return None
 
         workspace = Path(workspace_path)
         if not workspace.exists():
-            self.logger.debug(f"Workspace does not exist: {workspace_path}")
+            logger.debug(f"Workspace does not exist: {workspace_path}")
             return None
 
         user_base = workspace / "user"
         if not user_base.exists():
-            self.logger.debug(f"No user directory in workspace: {workspace_path}")
+            logger.debug(f"No user directory in workspace: {workspace_path}")
             return None
 
         files = self._collect_scene_files(
             user_base, self._DCC_SUBPATH, self._GLOB_PATTERNS, cancel_flag
         )
         if files is None:
-            self.logger.debug(f"{self._DCC_LABEL} scene search cancelled")
+            logger.debug(f"{self._DCC_LABEL} scene search cancelled")
             return None
 
         if not files:
-            self.logger.debug(
+            logger.debug(
                 f"No {self._DCC_LABEL} files found in workspace: "
                 f"{shot_name or workspace_path}"
             )
@@ -92,13 +97,13 @@ class BaseLatestFinder(VersionHandlingMixin):
 
         latest_file = self._find_latest_by_version(files)
         if latest_file is None:
-            self.logger.debug(
+            logger.debug(
                 f"No versioned {self._DCC_LABEL} files found in workspace: "
                 f"{shot_name or workspace_path}"
             )
             return None
 
-        self.logger.info(
+        logger.info(
             f"Found latest {self._DCC_LABEL} scene for "
             f"{shot_name or 'shot'}: {latest_file.name}"
         )

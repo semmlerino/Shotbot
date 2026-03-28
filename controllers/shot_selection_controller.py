@@ -19,7 +19,7 @@ from PySide6.QtCore import QObject, QThreadPool, Signal, Slot
 from typing_extensions import override
 
 from config import Config
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 
 
 if TYPE_CHECKING:
@@ -109,7 +109,7 @@ class ShotDiscoveryWorker(TrackedQRunnable):
                 self.signals.error.emit(str(e))
 
 
-class ShotSelectionController(QObject, LoggingMixin):
+class ShotSelectionController(QObject):
     """Controller for shot selection, discovery, and crash recovery.
 
     This controller encapsulates all shot selection functionality that was
@@ -140,12 +140,11 @@ class ShotSelectionController(QObject, LoggingMixin):
 
         """
         super().__init__(parent)
-        LoggingMixin.__init__(self)
         self.window: ShotSelectionTarget = window
         self._command_launcher: CommandLauncher = command_launcher
         self._discovery_worker: ShotDiscoveryWorker | None = None
         self._setup_signals()
-        self.logger.debug("ShotSelectionController initialized")
+        logger.debug("ShotSelectionController initialized")
 
     def _setup_signals(self) -> None:
         """Connect UI signals to controller slots."""
@@ -164,7 +163,7 @@ class ShotSelectionController(QObject, LoggingMixin):
             self.on_shot_double_clicked  # pyright: ignore[reportAny]
         )
 
-        self.logger.debug("ShotSelectionController signals connected")
+        logger.debug("ShotSelectionController signals connected")
 
     def cleanup(self) -> None:
         """Clean up controller resources.
@@ -175,7 +174,7 @@ class ShotSelectionController(QObject, LoggingMixin):
         if self._discovery_worker is not None:
             self._discovery_worker.cancel()
             self._discovery_worker = None
-        self.logger.debug("ShotSelectionController cleaned up")
+        logger.debug("ShotSelectionController cleaned up")
 
     @Slot(object)  # pyright: ignore[reportAny]
     def on_shot_selected(self, shot: Shot | None) -> None:
@@ -284,7 +283,7 @@ class ShotSelectionController(QObject, LoggingMixin):
             error_message: Error description
 
         """
-        self.logger.warning(f"Shot discovery failed: {error_message}")
+        logger.warning(f"Shot discovery failed: {error_message}")
 
     @Slot(int)  # pyright: ignore[reportAny]
     def on_tab_activated(self, tab_index: int) -> None:
@@ -330,7 +329,7 @@ class ShotSelectionController(QObject, LoggingMixin):
             assert current_scene is not None  # Type narrowing
             workspace_path = current_scene.workspace_path
             full_name = current_scene.full_name
-        self.logger.info(
+        logger.info(
             f"Scanning for crash files in shot workspace: {workspace_path}"
         )
 

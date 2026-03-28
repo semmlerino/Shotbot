@@ -29,6 +29,9 @@ from PySide6.QtWidgets import (
 )
 from typing_extensions import override
 
+
+logger = logging.getLogger(__name__)
+
 # Local application imports
 from cache.thumbnail_cache import ThumbnailCache, ThumbnailCacheLoader
 from shots.shot_files_panel import ShotFilesPanel
@@ -343,13 +346,13 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
     def _load_pixmap_from_path(self, path: str | Path) -> None:
         """Load and display pixmap from path with bounds checking and error handling."""
         if not path:
-            self.logger.debug("No path provided for thumbnail loading")
+            logger.debug("No path provided for thumbnail loading")
             self._set_placeholder_thumbnail()
             return
 
         path_obj = Path(path) if isinstance(path, str) else path
         if not path_obj.exists():
-            self.logger.debug(f"Thumbnail path does not exist: {path}")
+            logger.debug(f"Thumbnail path does not exist: {path}")
             self._set_placeholder_thumbnail()
             return
 
@@ -359,7 +362,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             # Load the image using QImage for thread safety
             image = QImage(str(path))
             if image.isNull():
-                self.logger.debug(f"Failed to load thumbnail: {path}")
+                logger.debug(f"Failed to load thumbnail: {path}")
                 self._set_placeholder_thumbnail()
                 return
 
@@ -384,7 +387,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             )
 
             if scaled_image.isNull():
-                self.logger.warning(f"Failed to scale thumbnail: {path}")
+                logger.warning(f"Failed to scale thumbnail: {path}")
                 self._set_placeholder_thumbnail()
                 return
 
@@ -397,22 +400,22 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             if QThread.currentThread() == app_instance.thread():
                 pixmap = QPixmap.fromImage(scaled_image)
                 self.thumbnail_label.setPixmap(pixmap)
-            self.logger.debug(f"Successfully loaded info panel thumbnail: {path}")
+            logger.debug(f"Successfully loaded info panel thumbnail: {path}")
 
         except FileNotFoundError:
-            self.logger.debug(f"Thumbnail file not found: {path}")
+            logger.debug(f"Thumbnail file not found: {path}")
             self._set_placeholder_thumbnail()
         except PermissionError:
-            self.logger.warning(f"Permission denied loading thumbnail: {path}")
+            logger.warning(f"Permission denied loading thumbnail: {path}")
             self._set_placeholder_thumbnail()
         except MemoryError:
-            self.logger.error(f"Out of memory loading thumbnail: {path}")
+            logger.error(f"Out of memory loading thumbnail: {path}")
             self._set_placeholder_thumbnail()
         except OSError:
-            self.logger.warning(f"I/O error loading thumbnail {path}", exc_info=True)
+            logger.warning(f"I/O error loading thumbnail {path}", exc_info=True)
             self._set_placeholder_thumbnail()
         except Exception:
-            self.logger.exception(f"Unexpected error loading thumbnail {path}")
+            logger.exception(f"Unexpected error loading thumbnail {path}")
             self._set_placeholder_thumbnail()
         finally:
             # Clean up Qt objects

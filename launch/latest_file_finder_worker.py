@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,9 @@ from typing_extensions import override
 
 from discovery.latest_finders import MayaLatestFinder
 from workers.thread_safe_worker import ThreadSafeWorker
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -99,7 +103,7 @@ class LatestFileFinderWorker(ThreadSafeWorker):
         try:
             # Search for 3DE scene if requested
             if self._find_threede and not self.should_stop():
-                self.logger.debug(
+                logger.debug(
                     f"Searching for latest 3DE scene in {self._workspace_path}"
                 )
                 self._threede_finder = ThreeDELatestFinder()
@@ -111,20 +115,20 @@ class LatestFileFinderWorker(ThreadSafeWorker):
                 )
 
                 if self._threede_result:
-                    self.logger.info(f"Found 3DE scene: {self._threede_result.name}")
+                    logger.info(f"Found 3DE scene: {self._threede_result.name}")
                 else:
-                    self.logger.debug("No 3DE scene found")
+                    logger.debug("No 3DE scene found")
 
             # Check for cancellation between searches
             if self.should_stop():
-                self.logger.debug("Search cancelled")
+                logger.debug("Search cancelled")
                 success = False
                 self.search_complete.emit(success)
                 return
 
             # Search for Maya scene if requested
             if self._find_maya and not self.should_stop():
-                self.logger.debug(
+                logger.debug(
                     f"Searching for latest Maya scene in {self._workspace_path}"
                 )
                 self._maya_finder = MayaLatestFinder()
@@ -136,12 +140,12 @@ class LatestFileFinderWorker(ThreadSafeWorker):
                 )
 
                 if self._maya_result:
-                    self.logger.info(f"Found Maya scene: {self._maya_result.name}")
+                    logger.info(f"Found Maya scene: {self._maya_result.name}")
                 else:
-                    self.logger.debug("No Maya scene found")
+                    logger.debug("No Maya scene found")
 
         except Exception:
-            self.logger.exception("Error during file search")
+            logger.exception("Error during file search")
             success = False
 
         # Signal completion

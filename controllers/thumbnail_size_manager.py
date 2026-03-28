@@ -12,12 +12,15 @@ injection pattern established by SettingsController and ThreeDEController.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import Slot
 
 from config import Config
-from logging_mixin import LoggingMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -27,7 +30,7 @@ if TYPE_CHECKING:
 
 
 @final
-class ThumbnailSizeManager(LoggingMixin):
+class ThumbnailSizeManager:
     """Controller for thumbnail size synchronization across grid tabs.
 
     This controller encapsulates all thumbnail size functionality that was
@@ -50,7 +53,7 @@ class ThumbnailSizeManager(LoggingMixin):
         super().__init__()
         self.window: ThumbnailSizeTarget = window
         self._setup_signals()
-        self.logger.debug("ThumbnailSizeManager initialized")
+        logger.debug("ThumbnailSizeManager initialized")
 
     def _active_slider(self) -> QSlider:
         """Get the size slider for the currently active tab.
@@ -78,7 +81,7 @@ class ThumbnailSizeManager(LoggingMixin):
             self.sync_thumbnail_sizes  # pyright: ignore[reportAny]
         )
 
-        self.logger.debug("ThumbnailSizeManager signals connected")
+        logger.debug("ThumbnailSizeManager signals connected")
 
     @Slot(int)  # pyright: ignore[reportAny]
     def sync_thumbnail_sizes(self, value: int) -> None:

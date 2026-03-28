@@ -15,6 +15,8 @@ Thread Safety:
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 from typing import TYPE_CHECKING, ClassVar, final
 
@@ -45,6 +47,9 @@ from type_definitions import RefreshResult, Shot
 from ui.base_shot_model import BaseShotModel
 from workers.thread_safe_worker import ThreadSafeWorker
 from workers.worker_host import WorkerHost
+
+
+logger = logging.getLogger(__name__)
 
 
 # Re-export Shot for backward compatibility with existing imports
@@ -184,7 +189,7 @@ class ShotModel(BaseShotModel):
             RefreshResult with cached data status
 
         """
-        self.logger.debug("ShotModel.initialize_async() starting")
+        logger.debug("ShotModel.initialize_async() starting")
 
         # Step 1: Load cached shots immediately (< 1ms)
         cached_shots = self.cache_manager.get_shots_with_ttl()
@@ -193,12 +198,12 @@ class ShotModel(BaseShotModel):
         if cached_shots:
             try:
                 self.shots = [Shot.from_dict(s) for s in cached_shots]
-                self.logger.info(f"Loaded {len(self.shots)} shots from cache instantly")
+                logger.info(f"Loaded {len(self.shots)} shots from cache instantly")
                 self.shots_loaded.emit(self.shots)
                 cache_loaded = True
             except (KeyError, TypeError, ValueError) as e:
                 # Handle corrupted cache data gracefully
-                self.logger.warning(
+                logger.warning(
                     f"Corrupted cache data in initialize_async, ignoring: {e}"
                 )
                 # Treat as cache miss and continue with fresh load
@@ -207,12 +212,12 @@ class ShotModel(BaseShotModel):
             # Check if cache file exists but is expired
             persistent_cache = self.cache_manager.get_shots_no_ttl()
             if persistent_cache:
-                self.logger.info(
+                logger.info(
                     f"Cache expired ({len(persistent_cache)} shots exist), "
                     "starting background refresh for fresh data"
                 )
             else:
-                self.logger.info("No cached shots, starting background load")
+                logger.info("No cached shots, starting background load")
             # No cache, but still return immediately
             self.shots = []
             self.shots_loaded.emit(self.shots)
@@ -231,16 +236,16 @@ class ShotModel(BaseShotModel):
         expired-cache check that initialize_async() does. Callers that need the
         full initialisation sequence should use initialize_async() instead.
         """
-        self.logger.debug("ShotModel.load_cache_sync() starting")
+        logger.debug("ShotModel.load_cache_sync() starting")
         cached_shots = self.cache_manager.get_shots_with_ttl()
         if not cached_shots:
             return RefreshResult(success=False, has_changes=False)
         try:
             self.shots = [Shot.from_dict(s) for s in cached_shots]
-            self.logger.info(f"Loaded {len(self.shots)} shots from cache (sync)")
+            logger.info(f"Loaded {len(self.shots)} shots from cache (sync)")
             return RefreshResult(success=True, has_changes=False)
         except (KeyError, TypeError, ValueError) as e:
-            self.logger.warning(f"Corrupted cache in load_cache_sync, ignoring: {e}")
+            logger.warning(f"Corrupted cache in load_cache_sync, ignoring: {e}")
             return RefreshResult(success=False, has_changes=False)
 
     def start_background_refresh(self) -> None:
@@ -254,13 +259,13 @@ class ShotModel(BaseShotModel):
         is created at a time. Uses phased locking to avoid blocking
         while holding the mutex (prevents deadlocks).
         """
-        self.logger.debug("_start_background_refresh() starting")
+        logger.debug("_start_background_refresh() starting")
 
         # Phase 1: Check state and get old loader reference under lock
         old_loader: AsyncShotLoader | None = None
         with QMutexLocker(self._loader_lock):
             if self._loading_in_progress:
-                self.logger.warning(
+                logger.warning(
                     "Background load already in progress - returning early"
                 )
                 return
@@ -270,7 +275,7 @@ class ShotModel(BaseShotModel):
         # Phase 2: Clean up old loader OUTSIDE lock (wait() can block for 1s)
         if old_loader:
             if old_loader.isRunning():
-                self.logger.warning("Previous loader still running, stopping it")
+                logger.warning("Previous loader still running, stopping it")
                 _ = old_loader.request_stop()
                 _ = old_loader.wait(1000)
             old_loader.deleteLater()
@@ -279,7 +284,7 @@ class ShotModel(BaseShotModel):
         with QMutexLocker(self._loader_lock):
             # Re-check after cleanup (another thread may have started)
             if self._loading_in_progress:
-                self.logger.warning(
+                logger.warning(
                     "Background load started by another thread - returning"
                 )
                 return
@@ -311,7 +316,7 @@ class ShotModel(BaseShotModel):
 
             # Start background loading
             loader.start()
-            self.logger.debug("AsyncShotLoader started")
+            logger.debug("AsyncShotLoader started")
 
         # Phase 4: Emit signal OUTSIDE lock (prevents deadlock if slot re-enters)
         self.background_load_started.emit()
@@ -339,7 +344,7 @@ class ShotModel(BaseShotModel):
         if operation_name == "sync":
             pass  # Sync path logs this elsewhere
         else:
-            self.logger.info(
+            logger.info(
                 f"{operation_name}: {len(fresh_dicts)} shots from workspace, "
                 f"{len(cached_dicts)} shots from persistent cache"
             )
@@ -350,7 +355,7 @@ class ShotModel(BaseShotModel):
                 cached_dicts, fresh_dicts
             )
         except (KeyError, TypeError, ValueError) as e:
-            self.logger.warning(
+            logger.warning(
                 "Cache corruption detected, using fresh data only", exc_info=True
             )
             merge_result = ShotMergeResult(
@@ -367,7 +372,7 @@ class ShotModel(BaseShotModel):
             )
 
         # Log statistics
-        self.logger.info(
+        logger.info(
             f"Shot merge ({operation_name}): {len(merge_result.new_shots)} new, "
             f"{len(merge_result.removed_shots)} removed, "
             f"{len(merge_result.updated_shots)} total"
@@ -383,13 +388,13 @@ class ShotModel(BaseShotModel):
                     f"{s['show']}:{s['sequence']}_{s['shot']}"
                     for s in merge_result.removed_shots[:3]
                 ]
-                self.logger.info(
+                logger.info(
                     f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
                     f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}"
                 )
             else:
                 # Migration failed to persist - CacheManager already logged error
-                self.logger.warning(
+                logger.warning(
                     f"Failed to persist {len(merge_result.removed_shots)} migrated shots"
                 )
 
@@ -410,7 +415,7 @@ class ShotModel(BaseShotModel):
         try:
             new_shot_objects = [Shot.from_dict(d) for d in merge_result.updated_shots]
         except (KeyError, TypeError, ValueError) as e:
-            self.logger.exception("Merge result corrupted, using fresh data")
+            logger.exception("Merge result corrupted, using fresh data")
             new_shot_objects = fresh_shots
             merge_result = ShotMergeResult(
                 updated_shots=[s.to_dict() for s in fresh_shots],
@@ -430,7 +435,7 @@ class ShotModel(BaseShotModel):
 
         if did_change:
             self.shots = new_shot_objects
-            self.logger.info(
+            logger.info(
                 f"{context} refresh complete: {old_count} → {len(self.shots)} shots "
                 f"(+{len(merge_result.new_shots)} new, -{len(merge_result.removed_shots)} removed)"
             )
@@ -439,9 +444,9 @@ class ShotModel(BaseShotModel):
                     self.cache_manager.cache_shots(self.shots)
                     self.cache_updated.emit()
                 except OSError:
-                    self.logger.warning("Failed to cache shots", exc_info=True)
+                    logger.warning("Failed to cache shots", exc_info=True)
         else:
-            self.logger.info(f"{context} refresh: no changes detected")
+            logger.info(f"{context} refresh: no changes detected")
 
         return merge_result, did_change
 
@@ -462,7 +467,7 @@ class ShotModel(BaseShotModel):
         except Exception as e:
             # Unexpected merge failure - report error and abort
             error_msg = f"Merge operation failed: {e}"
-            self.logger.exception(error_msg)
+            logger.exception(error_msg)
             self.error_occurred.emit(error_msg)
             self.refresh_finished.emit(False, False)
             return
@@ -489,7 +494,7 @@ class ShotModel(BaseShotModel):
         This slot receives error messages from the background thread.
         Properly decorated with @Slot for Qt efficiency.
         """
-        self.logger.error(f"Background shot loading failed: {error_msg}")
+        logger.error(f"Background shot loading failed: {error_msg}")
         self.error_occurred.emit(error_msg)
         self.refresh_finished.emit(False, False)
 
@@ -535,15 +540,15 @@ class ShotModel(BaseShotModel):
             return self.initialize_async()
         if not loading:
             # For subsequent refreshes, start background refresh only if not already loading
-            self.logger.info(
+            logger.info(
                 "Shots already loaded and not loading - starting background refresh"
             )
             self._start_background_refresh()
             # Return immediately with current state
-            self.logger.info("Returning immediately (background refresh started)")
+            logger.info("Returning immediately (background refresh started)")
             return RefreshResult(success=True, has_changes=False)
         # Already loading - return True to indicate no error (operation in progress)
-        self.logger.info(
+        logger.info(
             "Already loading - skipping refresh request (returning success=True)"
         )
         return RefreshResult(success=True, has_changes=False)
@@ -579,12 +584,12 @@ class ShotModel(BaseShotModel):
         # Phase 2: Clean up loader OUTSIDE lock (wait() can block for seconds)
         if loader:
             if loader.isRunning():
-                self.logger.info("Stopping background loader")
+                logger.info("Stopping background loader")
                 _ = loader.request_stop()  # Sets event and requests interruption
 
                 # Give thread 2 seconds to stop gracefully
                 if not loader.wait(2000):
-                    self.logger.warning(
+                    logger.warning(
                         "Background loader did not stop gracefully within 2s"
                     )
                     # Use ThreadSafeWorker's safe_terminate method
@@ -594,7 +599,7 @@ class ShotModel(BaseShotModel):
                     if not loader.wait(2000):
                         # As last resort, we accept the thread will be abandoned
                         # safe_terminate already avoids dangerous terminate()
-                        self.logger.error(
+                        logger.error(
                             "Background loader thread abandoned - will be cleaned on exit"
                         )
                         # Mark it for deletion but don't force terminate
@@ -629,7 +634,7 @@ class ShotModel(BaseShotModel):
         """
         if self._process_pool:
             self._process_pool.invalidate_cache("ws -sg")
-            self.logger.debug("Workspace cache invalidated")
+            logger.debug("Workspace cache invalidated")
 
     def refresh_shots_sync(self) -> RefreshResult:
         """Synchronous refresh with incremental caching.
@@ -666,7 +671,7 @@ class ShotModel(BaseShotModel):
             except Exception as e:
                 # Unexpected merge failure - report error and abort
                 error_msg = f"Merge operation failed: {e}"
-                self.logger.exception(error_msg)
+                logger.exception(error_msg)
                 self.error_occurred.emit(error_msg)
                 self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
@@ -682,13 +687,13 @@ class ShotModel(BaseShotModel):
 
         except (TimeoutError, RuntimeError, WorkspaceError) as e:
             error_msg = f"Failed to refresh shots: {e}"
-            self.logger.error(error_msg)
+            logger.error(error_msg)
             self.error_occurred.emit(error_msg)
             self.refresh_finished.emit(False, False)
             return RefreshResult(success=False, has_changes=False)
         except Exception as e:
             error_msg = f"Unexpected error while refreshing shots: {e}"
-            self.logger.exception(error_msg)
+            logger.exception(error_msg)
             self.error_occurred.emit(error_msg)
             self.refresh_finished.emit(False, False)
             return RefreshResult(success=False, has_changes=False)

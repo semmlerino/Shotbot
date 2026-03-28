@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import ClassVar, cast
@@ -9,12 +10,14 @@ from typing import ClassVar, cast
 from typing_extensions import override
 
 from cachetools import TTLCache
-from logging_mixin import LoggingMixin
 from singleton_mixin import SingletonMixin
 from timeout_config import TimeoutConfig
 
 
-class FilesystemCoordinator(SingletonMixin, LoggingMixin):
+logger = logging.getLogger(__name__)
+
+
+class FilesystemCoordinator(SingletonMixin):
     """Singleton coordinator for filesystem operations.
 
     This class provides centralized caching of directory listings to prevent
@@ -44,7 +47,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
         self._cache_misses: int = 0
 
         self._mark_initialized()
-        self.logger.debug(
+        logger.debug(
             f"FilesystemCoordinator initialized with {TimeoutConfig.FILESYSTEM_CACHE_TTL}s TTL"
         )
 
@@ -70,7 +73,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             )
             if cached is not None:
                 self._cache_hits += 1
-                self.logger.debug(
+                logger.debug(
                     f"Cache hit for {path.name} "
                     f"(hit rate: {self._get_hit_rate():.1%})"
                 )
@@ -78,7 +81,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
             # Cache miss or expired — scan inside lock to prevent thundering herd
             self._cache_misses += 1
-            self.logger.debug(f"Cache miss for {path.name}, scanning...")
+            logger.debug(f"Cache miss for {path.name}, scanning...")
 
             try:
                 listing = [
@@ -88,14 +91,14 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
                 self._directory_cache[path] = listing  # pyright: ignore[reportUnknownMemberType]
 
-                self.logger.debug(
+                logger.debug(
                     f"Cached {len(listing)} items from {path.name} "
                     f"(hit rate: {self._get_hit_rate():.1%})"
                 )
                 return listing.copy()
 
             except (OSError, PermissionError) as e:
-                self.logger.debug(f"Failed to list directory {path}: {e}")
+                logger.debug(f"Failed to list directory {path}: {e}")
                 return []
 
     def find_files_with_extension(
@@ -145,7 +148,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
         with self._lock:
             if path in self._directory_cache:
                 del self._directory_cache[path]  # pyright: ignore[reportUnknownMemberType]
-                self.logger.debug(f"Invalidated cache for {path}")
+                logger.debug(f"Invalidated cache for {path}")
 
     def invalidate_all(self) -> int:
         """Clear all cached directory listings.
@@ -158,7 +161,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             self._directory_cache.clear()  # pyright: ignore[reportUnknownMemberType]
             self._cache_hits = 0
             self._cache_misses = 0
-            self.logger.info(f"Cleared {count} cached directory listings")
+            logger.info(f"Cleared {count} cached directory listings")
             return count
 
     def share_discovered_paths(
@@ -182,7 +185,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
                     shared_count += 1
 
         if shared_count > 0:
-            self.logger.debug(f"Shared {shared_count} directory listings")
+            logger.debug(f"Shared {shared_count} directory listings")
 
     def get_cache_stats(self) -> dict[str, int | float]:
         """Get cache statistics for monitoring.

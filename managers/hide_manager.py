@@ -10,9 +10,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from logging_mixin import LoggingMixin
+from logging_mixin import get_module_logger
 from managers._keyed_list_store import KeyedListStore
 from managers._shot_key import shot_key
+
+
+logger = get_module_logger(__name__)
 
 
 if TYPE_CHECKING:
@@ -23,7 +26,7 @@ if TYPE_CHECKING:
 HIDDEN_SHOTS_CACHE_KEY = "hidden_shots"
 
 
-class HideManager(LoggingMixin):
+class HideManager:
     """Manages hidden shot tracking and persistence.
 
     Tracks shots by composite key (show, sequence, shot) to handle
@@ -40,7 +43,7 @@ class HideManager(LoggingMixin):
 
         """
         super().__init__()
-        self._store = KeyedListStore(cache_dir, HIDDEN_SHOTS_CACHE_KEY, self.logger)
+        self._store = KeyedListStore(cache_dir, HIDDEN_SHOTS_CACHE_KEY, logger)
 
     def hide_shot(self, shot: Shot) -> None:
         """Hide a shot.
@@ -54,7 +57,7 @@ class HideManager(LoggingMixin):
         key = shot_key(shot)
 
         if not self._store.contains(key):
-            self.logger.info(f"Hiding shot: {shot.full_name}")
+            logger.info(f"Hiding shot: {shot.full_name}")
             self._store.add(key)
             self._store.save()
 
@@ -68,7 +71,7 @@ class HideManager(LoggingMixin):
         key = shot_key(shot)
 
         if self._store.remove(key):
-            self.logger.info(f"Unhid shot: {shot.full_name}")
+            logger.info(f"Unhid shot: {shot.full_name}")
             self._store.save()
 
     def is_hidden(self, shot: Shot) -> bool:
@@ -96,4 +99,4 @@ class HideManager(LoggingMixin):
         """Clear all hidden shots."""
         self._store.clear()
         self._store.save()
-        self.logger.info("Cleared all hidden shots")
+        logger.info("Cleared all hidden shots")

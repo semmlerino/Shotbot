@@ -44,9 +44,10 @@ def _relative_age(modified_time: datetime) -> str:
     """Return human-readable relative age (e.g., '2 hours ago', 'yesterday')."""
     try:
         result = arrow.get(modified_time).humanize()
-        # Arrow returns "in X seconds/minutes/..." for future timestamps
-        # (clock skew or filesystem quirks) — normalise to "just now"
-        if result.startswith("in ") or result == "just now":
+        # Normalise near-present timestamps to "just now":
+        # - Future timestamps (clock skew / filesystem quirks): "in X seconds"
+        # - Sub-minute past timestamps: "X seconds ago"
+        if result.startswith("in ") or result == "just now" or result.endswith("seconds ago"):
             return "just now"
         return result
     except Exception:  # noqa: BLE001

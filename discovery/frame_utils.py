@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import re
 
-from fileseq import FileSeqException  # pyright: ignore[reportPrivateImportUsage]
-from fileseq import FileSequence  # pyright: ignore[reportPrivateImportUsage]
+from fileseq import (
+    FileSeqException,  # pyright: ignore[reportPrivateImportUsage]
+    FileSequence,  # pyright: ignore[reportPrivateImportUsage]
+)
 
 
 # Regex fallback for filename patterns fileseq doesn't handle (e.g. underscore separator).

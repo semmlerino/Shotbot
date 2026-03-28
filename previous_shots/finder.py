@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
+import logging
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, final
@@ -15,6 +16,9 @@ from config import ThreadingConfig
 from paths import resolve_shows_root
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -42,7 +46,7 @@ class PreviousShotsFinder(ShotFinderBase):
         # Initialize parent class (ShotFinderBase) which handles username sanitization
         super().__init__(username=username)
 
-        self.logger.debug(f"PreviousShotsFinder initialized for user: {self.username}")
+        logger.debug(f"PreviousShotsFinder initialized for user: {self.username}")
 
     def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:
         """Find all shots that contain user work directories.
@@ -59,7 +63,7 @@ class PreviousShotsFinder(ShotFinderBase):
         root = resolve_shows_root(shows_root)
 
         if not root.exists():
-            self.logger.warning(f"Shows root does not exist: {root}")
+            logger.warning(f"Shows root does not exist: {root}")
             return shots
 
         try:
@@ -67,32 +71,32 @@ class PreviousShotsFinder(ShotFinderBase):
             # This avoids subprocess isolation issues with pytest-xdist workers
             # where subprocess commands cannot see directories created by the worker
             pattern = f"**/user/{self.username}"
-            self.logger.debug(f"Searching for pattern: {pattern} in {root}")
+            logger.debug(f"Searching for pattern: {pattern} in {root}")
 
             # Find all matching user directories
             user_dirs = list(root.rglob(pattern))
-            self.logger.debug(f"Found {len(user_dirs)} user directories")
+            logger.debug(f"Found {len(user_dirs)} user directories")
 
             # Parse each found path to extract shot information
             for user_dir in user_dirs:
                 # Convert to string for regex matching
                 path_str = str(user_dir)
-                self.logger.debug(f"Parsing path: {path_str}")
+                logger.debug(f"Parsing path: {path_str}")
 
                 shot = self._parse_shot_from_path(path_str)
                 if shot:
-                    self.logger.debug(f"Parsed shot: {shot}")
+                    logger.debug(f"Parsed shot: {shot}")
                     if shot not in shots:
                         shots.append(shot)
                     else:
-                        self.logger.debug(f"Shot already in list: {shot}")
+                        logger.debug(f"Shot already in list: {shot}")
                 else:
-                    self.logger.debug(f"Failed to parse shot from path: {path_str}")
+                    logger.debug(f"Failed to parse shot from path: {path_str}")
 
-            self.logger.info(f"Found {len(shots)} shots with user work")
+            logger.info(f"Found {len(shots)} shots with user work")
 
         except Exception:
-            self.logger.exception("Error finding user shots")
+            logger.exception("Error finding user shots")
 
         return shots
 
@@ -223,7 +227,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
                 if has_shots:
                     shows.append(show_path)
 
-        self.logger.info(
+        logger.info(
             f"Discovered {len(shows)} shows in {shows_root} (via coordinator)"
         )
 
@@ -245,7 +249,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         if self._stop_requested:
             return []
         shots = self._run_find_scan(show_path / "shots", maxdepth=6)
-        self.logger.debug(f"Found {len(shots)} shots in {show_path.name}")
+        logger.debug(f"Found {len(shots)} shots in {show_path.name}")
         return shots
 
     def find_user_shots_parallel(
@@ -271,7 +275,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         root = resolve_shows_root(shows_root)
 
         if not root.exists():
-            self.logger.warning(f"Shows root does not exist: {root}")
+            logger.warning(f"Shows root does not exist: {root}")
             return
 
         # Stage 1: Quick show discovery
@@ -279,12 +283,12 @@ class ParallelShotsFinder(PreviousShotsFinder):
         shows = self._discover_shows(root)
 
         if not shows:
-            self.logger.warning("No shows found to scan")
+            logger.warning("No shows found to scan")
             return
 
         # Check for cancellation after show discovery
         if should_cancel():
-            self.logger.debug("Shot search cancelled after show discovery")
+            logger.debug("Shot search cancelled after show discovery")
             return
 
         total_shows = len(shows)
@@ -305,7 +309,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
             for future in concurrent.futures.as_completed(future_to_show):
                 if should_cancel():
                     # Cancel remaining futures
-                    self.logger.debug("Cancelling remaining shot search futures")
+                    logger.debug("Cancelling remaining shot search futures")
                     for f in future_to_show:
                         _ = f.cancel()
                     break
@@ -327,9 +331,9 @@ class ParallelShotsFinder(PreviousShotsFinder):
                     yield from shots
 
                 except concurrent.futures.TimeoutError:
-                    self.logger.warning(f"Timeout processing {show.name}")
+                    logger.warning(f"Timeout processing {show.name}")
                 except Exception:
-                    self.logger.exception(f"Error processing {show.name}")
+                    logger.exception(f"Error processing {show.name}")
 
         self._report_progress(100, 100, "Scan complete")
 
@@ -350,14 +354,14 @@ class ParallelShotsFinder(PreviousShotsFinder):
         root = resolve_shows_root(shows_root)
 
         # Use parallel implementation
-        self.logger.info("Using parallel shot finder with incremental loading")
+        logger.info("Using parallel shot finder with incremental loading")
         start_time = time.time()
 
         # Collect all shots from generator
         shots = list(self.find_user_shots_parallel(root))
 
         elapsed = time.time() - start_time
-        self.logger.info(
+        logger.info(
             f"Parallel scan found {len(shots)} shots in {elapsed:.1f} seconds"
         )
 
@@ -398,13 +402,13 @@ class ParallelShotsFinder(PreviousShotsFinder):
         if self._stop_requested:
             targeted_finder.request_stop()
 
-        self.logger.info("Using targeted search approach for maximum performance")
+        logger.info("Using targeted search approach for maximum performance")
 
         try:
             return targeted_finder.find_approved_shots_targeted(active_shots, root)
 
         except Exception as e:  # noqa: BLE001
-            self.logger.error(
+            logger.error(
                 f"Error in targeted search, falling back to parallel search: {e}"
             )
             # Fallback to existing parallel implementation

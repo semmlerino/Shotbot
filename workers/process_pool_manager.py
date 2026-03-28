@@ -34,7 +34,7 @@ from PySide6.QtCore import (
 from cachetools import LRUCache
 
 # Local application imports
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 from timeout_config import TimeoutConfig
 
 
@@ -185,7 +185,7 @@ class CancellableSubprocess:
 
 
 @final
-class ProcessPoolManager(LoggingMixin, QObject):
+class ProcessPoolManager(QObject):
     """Centralized process management with caching.
 
     This singleton class manages all subprocess operations for the application,
@@ -265,7 +265,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Mark initialization as complete
         self._init_done = True
 
-        self.logger.debug("ProcessPoolManager initialized")
+        logger.debug("ProcessPoolManager initialized")
 
     @classmethod
     def get_instance(cls) -> ProcessPoolManager:
@@ -407,7 +407,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             return result
 
         except Exception:
-            self.logger.exception(f"Command execution failed ({command[:80]!r})")
+            logger.exception(f"Command execution failed ({command[:80]!r})")
             raise
 
     def invalidate_cache(self, pattern: str | None = None) -> None:
@@ -442,30 +442,30 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         with QMutexLocker(self._mutex):
             if self._shutdown_requested:
-                self.logger.debug(
+                logger.debug(
                     "ProcessPoolManager shutdown already requested, skipping"
                 )
                 return
             self._shutdown_requested = True
 
-        self.logger.debug("Starting ProcessPoolManager shutdown")
+        logger.debug("Starting ProcessPoolManager shutdown")
 
         # Clear cache and force garbage collection to clean up circular references
         try:
             cache_size = len(self._cache)
             self._cache.clear()
             if cache_size > 0:
-                self.logger.debug(f"Cleared {cache_size} command cache entries")
+                logger.debug(f"Cleared {cache_size} command cache entries")
 
         except Exception:  # noqa: BLE001
-            self.logger.warning("Error during resource cleanup", exc_info=True)
+            logger.warning("Error during resource cleanup", exc_info=True)
 
         try:
             _ = gc.collect()
         except Exception as e:  # noqa: BLE001
-            self.logger.debug(f"Error during garbage collection: {e}")
+            logger.debug(f"Error during garbage collection: {e}")
 
-        self.logger.info("ProcessPoolManager shutdown complete")
+        logger.info("ProcessPoolManager shutdown complete")
 
     def __del__(self) -> None:
         """Ensure cleanup on destruction.
@@ -474,7 +474,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         try:
             if getattr(self, "_init_done", False) and not self._shutdown_requested:
-                self.logger.debug(
+                logger.debug(
                     "ProcessPoolManager.__del__ called - triggering shutdown"
                 )
                 self.shutdown(timeout=2.0)

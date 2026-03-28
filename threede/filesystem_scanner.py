@@ -7,6 +7,8 @@ progressive discovery.
 
 from __future__ import annotations
 
+import logging
+
 # Standard library imports
 import os
 import selectors
@@ -18,8 +20,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
 
 # Local application imports
-from logging_mixin import LoggingMixin
 from timeout_config import TimeoutConfig
+
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -33,7 +37,7 @@ if TYPE_CHECKING:
 
 
 @final
-class FileSystemScanner(LoggingMixin):
+class FileSystemScanner:
     """Efficient filesystem scanner for .3de files with multiple optimization strategies.
 
     This class encapsulates all filesystem scanning logic extracted from the monolithic
@@ -102,7 +106,7 @@ class FileSystemScanner(LoggingMixin):
             # Use cached directory listing
             user_entries = self.get_directory_listing_cached(user_dir)
 
-            self.logger.debug(
+            logger.debug(
                 f"Scanning user dir: {user_dir}, found {len(user_entries)} entries"
             )
 
@@ -111,7 +115,7 @@ class FileSystemScanner(LoggingMixin):
                     excluded_users is None or entry_name not in excluded_users
                 ):
                     user_path = user_dir / entry_name
-                    self.logger.debug(
+                    logger.debug(
                         f"Searching for .3de files in user directory: {user_path}"
                     )
 
@@ -126,20 +130,20 @@ class FileSystemScanner(LoggingMixin):
                             ):
                                 files.append((entry_name, threede_file))
                                 found_count += 1
-                                self.logger.debug(f"Found .3de file: {threede_file}")
+                                logger.debug(f"Found .3de file: {threede_file}")
 
                         if found_count > 0:
-                            self.logger.info(
+                            logger.info(
                                 f"Found {found_count} .3de files for user {entry_name}"
                             )
                     except (OSError, PermissionError) as e:
-                        self.logger.warning(
+                        logger.warning(
                             f"Permission denied accessing {user_path}: {e}"
                         )
                         continue
 
         except (OSError, PermissionError):
-            self.logger.warning(
+            logger.warning(
                 f"Permission denied accessing {user_dir}", exc_info=True
             )
 
@@ -208,10 +212,10 @@ class FileSystemScanner(LoggingMixin):
             FileNotFoundError,
         ):
             # Fallback to Python method
-            self.logger.debug("Subprocess method failed, falling back to Python")
+            logger.debug("Subprocess method failed, falling back to Python")
             return self._find_3de_files_python_optimized(user_dir, excluded_users)
         except (OSError, PermissionError):
-            self.logger.debug(f"Permission denied accessing {user_dir}")
+            logger.debug(f"Permission denied accessing {user_dir}")
 
         return files
 
@@ -242,19 +246,19 @@ class FileSystemScanner(LoggingMixin):
             # Adaptive strategy based on user count (no double traversal)
             if user_count <= self.SMALL_WORKLOAD_THRESHOLD:
                 # Small workload: use Python approach
-                self.logger.debug(f"Using Python method for {user_count} users")
+                logger.debug(f"Using Python method for {user_count} users")
                 files = self._find_3de_files_python_optimized(user_dir, excluded_users)
             else:
                 # Larger workload: use subprocess approach
-                self.logger.debug(f"Using subprocess method for {user_count} users")
+                logger.debug(f"Using subprocess method for {user_count} users")
                 files = self._find_3de_files_subprocess_optimized(
                     user_dir, excluded_users
                 )
 
         except Exception:  # noqa: BLE001
-            self.logger.warning("Error in progressive discovery", exc_info=True)
+            logger.warning("Error in progressive discovery", exc_info=True)
             # Fallback to Python method
-            self.logger.debug("Falling back to Python method due to error")
+            logger.debug("Falling back to Python method due to error")
             files = self._find_3de_files_python_optimized(user_dir, excluded_users)
 
         return files
@@ -272,7 +276,7 @@ class FileSystemScanner(LoggingMixin):
                 and scene_path.suffix.lower() == ".3de"
             )
         except Exception:  # noqa: BLE001
-            self.logger.warning(
+            logger.warning(
                 f"Exception checking scene existence for {scene_path}; treating as missing",
                 exc_info=True,
             )
@@ -329,14 +333,14 @@ class FileSystemScanner(LoggingMixin):
             while process.poll() is None:
                 # Check cancellation
                 if cancel_flag and cancel_flag():
-                    self.logger.info("Subprocess cancelled by cancel_flag")
+                    logger.info("Subprocess cancelled by cancel_flag")
                     process.kill()
                     _ = process.wait()
                     return (None, "", "", "cancelled")
 
                 # Check timeout
                 if time.monotonic() - start_time >= max_wait_time:
-                    self.logger.error(
+                    logger.error(
                         f"Subprocess timed out after {max_wait_time} seconds"
                     )
                     process.kill()
@@ -431,14 +435,14 @@ class FileSystemScanner(LoggingMixin):
                             results.append(parsed)
 
             elif returncode != 0:
-                self.logger.warning(
+                logger.warning(
                     f"Find command failed with return code {returncode}"
                 )
                 if stderr:
-                    self.logger.warning(f"stderr: {stderr}")
+                    logger.warning(f"stderr: {stderr}")
 
         except (FileNotFoundError, OSError):
-            self.logger.warning("Error running find command", exc_info=True)
+            logger.warning("Error running find command", exc_info=True)
 
         return results
 
@@ -568,24 +572,24 @@ class FileSystemScanner(LoggingMixin):
 
                         if shot:
                             shots_with_published_mm.add((sequence, shot))
-                            self.logger.debug(
+                            logger.debug(
                                 f"Found published MM for: {sequence}/{shot}"
                             )
                         else:
-                            self.logger.debug(
+                            logger.debug(
                                 f"Skipping empty shot name from: {shot_dir}"
                             )
                     except (IndexError, AttributeError) as e:
-                        self.logger.debug(
+                        logger.debug(
                             f"Could not parse publish/mm path {line}: {e}"
                         )
 
-            self.logger.info(
+            logger.info(
                 f"Found {len(shots_with_published_mm)} shots with published matchmove"
             )
 
         except Exception:  # noqa: BLE001
-            self.logger.warning("Error finding publish/mm directories", exc_info=True)
+            logger.warning("Error finding publish/mm directories", exc_info=True)
             return None
 
         return shots_with_published_mm
@@ -615,18 +619,18 @@ class FileSystemScanner(LoggingMixin):
                 if (result[2], result[3]) in shots_with_published_mm
             ]
             msg_prefix = "Partial results (timeout):" if user_timed_out else "Filtered"
-            self.logger.info(
+            logger.info(
                 f"{msg_prefix} {len(user_results)} user files to {len(results)}"
                 " from shots with published MM"
             )
             return results
 
         if publish_scan_failed:
-            self.logger.info(
+            logger.info(
                 "Publish/mm scan failed - showing all user files unfiltered"
             )
         else:
-            self.logger.info("No publish/mm directories found - showing all user files")
+            logger.info("No publish/mm directories found - showing all user files")
         return user_results
 
     def _log_scan_summary(
@@ -640,24 +644,24 @@ class FileSystemScanner(LoggingMixin):
         unique_shots: set[str] = {f"{r[2]}/{r[3]}" for r in results}
         file_count = len(results)
 
-        self.logger.info(
+        logger.info(
             "=== COMPLETED find_all_3de_files_in_show_targeted (optimized) ==="
         )
-        self.logger.info(f"  Found {file_count} .3de files in {elapsed:.2f}s")
-        self.logger.info(f"  Unique shots with 3DE files: {len(unique_shots)}")
+        logger.info(f"  Found {file_count} .3de files in {elapsed:.2f}s")
+        logger.info(f"  Unique shots with 3DE files: {len(unique_shots)}")
 
         if unique_shots:
             sample_shots = list(unique_shots)[:5]
-            self.logger.debug(f"  Sample shots: {', '.join(sample_shots)}")
+            logger.debug(f"  Sample shots: {', '.join(sample_shots)}")
 
         if user_timed_out:
-            self.logger.warning(
+            logger.warning(
                 f"Search incomplete (timeout): {len(user_results)} user files found,"
                 f" {file_count} files from shots with published MM"
                 f" ({len(unique_shots)} shots, {elapsed:.1f}s)"
             )
         else:
-            self.logger.info(
+            logger.info(
                 f"Dual search complete: {len(user_results)} user files found,"
                 f" {file_count} files from shots with published MM"
                 f" ({len(unique_shots)} shots, {elapsed:.1f}s)"
@@ -689,7 +693,7 @@ class FileSystemScanner(LoggingMixin):
         """
         self._ensure_parser()
 
-        self.logger.info(
+        logger.info(
             f"=== STARTING find_all_3de_files_in_show_targeted (optimized) ==="
             f" show_root={show_root!r}, show={show!r}"
         )
@@ -698,7 +702,7 @@ class FileSystemScanner(LoggingMixin):
         shots_dir = show_path / "shots"
 
         if not shots_dir.exists():
-            self.logger.warning(f"No shots directory found: {shots_dir}")
+            logger.warning(f"No shots directory found: {shots_dir}")
             return []
 
         excluded_users = excluded_users or set()
@@ -708,12 +712,12 @@ class FileSystemScanner(LoggingMixin):
         user_timed_out = False
 
         try:
-            self.logger.info("Using optimized dual-search strategy for .3de files")
+            logger.info("Using optimized dual-search strategy for .3de files")
 
             find_cmd_user, find_cmd_publish_dirs = self._build_find_commands(shots_dir)
 
             # Search 1: user directories — actual .3de files
-            self.logger.debug(f"Search 1 (user): {' '.join(find_cmd_user)}")
+            logger.debug(f"Search 1 (user): {' '.join(find_cmd_user)}")
             user_results_raw = self._run_find_and_parse(
                 find_cmd_user,
                 show_path,
@@ -729,7 +733,7 @@ class FileSystemScanner(LoggingMixin):
                 return []
 
             # Search 2: publish/mm directories — which shots have published matchmove
-            self.logger.debug(
+            logger.debug(
                 f"Search 2 (publish/mm dirs): {' '.join(find_cmd_publish_dirs)}"
             )
             shots_with_mm = self._find_shots_with_published_mm(
@@ -749,7 +753,7 @@ class FileSystemScanner(LoggingMixin):
                 )
 
             if not results:
-                self.logger.info(
+                logger.info(
                     "No results from user directory search, falling back to Python-based search"
                 )
                 return self._fallback_python_search(
@@ -757,7 +761,7 @@ class FileSystemScanner(LoggingMixin):
                 )
 
         except Exception:
-            self.logger.exception("Error in optimized search")
+            logger.exception("Error in optimized search")
 
         elapsed = time.monotonic() - start_time
         self._log_scan_summary(results, user_results, user_timed_out, elapsed)
@@ -782,7 +786,7 @@ class FileSystemScanner(LoggingMixin):
         results: list[tuple[Path, str, str, str, str, str]] = []
         excluded_users = excluded_users or set()
 
-        self.logger.info("Using Python-based fallback search")
+        logger.info("Using Python-based fallback search")
         start_time = time.monotonic()
         file_count = 0
 
@@ -798,9 +802,9 @@ class FileSystemScanner(LoggingMixin):
                         results.append(parsed)
 
         except Exception:
-            self.logger.exception("Error in Python fallback search")
+            logger.exception("Error in Python fallback search")
 
         elapsed = time.monotonic() - start_time
-        self.logger.info(f"Python search found {file_count} files in {elapsed:.2f}s")
+        logger.info(f"Python search found {file_count} files in {elapsed:.2f}s")
 
         return results

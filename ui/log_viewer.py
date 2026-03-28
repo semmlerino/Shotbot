@@ -1,17 +1,21 @@
 """Log viewer widget for displaying command history."""
 
 # Third-party imports
+import logging
+
 from PySide6.QtGui import QFont, QTextCursor
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin
 from ui.design_system import design_system
 from ui.qt_widget_mixin import QtWidgetMixin
 
 
-class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
+logger = logging.getLogger(__name__)
+
+
+class LogViewer(QtWidgetMixin, QWidget):
     """Widget for displaying command execution logs."""
 
     def __init__(self, parent: QWidget | None = None) -> None:

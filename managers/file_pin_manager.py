@@ -6,6 +6,7 @@ to mark important file versions with optional comments.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import ClassVar, cast
@@ -13,15 +14,17 @@ from typing import ClassVar, cast
 from PySide6.QtCore import QObject, Signal
 
 from cache import atomic_json_write
-from logging_mixin import LoggingMixin
 from managers._json_helpers import load_validated_json
+
+
+logger = logging.getLogger(__name__)
 
 
 # Cache key for pinned files
 PINNED_FILES_CACHE_KEY = "pinned_files"
 
 
-class FilePinManager(LoggingMixin, QObject):
+class FilePinManager(QObject):
     """Manager for file version pinning with comments.
 
     Provides persistence for file pins with optional comments.
@@ -72,7 +75,7 @@ class FilePinManager(LoggingMixin, QObject):
             "pinned_at": datetime.now(UTC).isoformat(),
         }
         self._save_pins()
-        self.logger.info(f"Pinned file: {Path(path_str).name}")
+        logger.info(f"Pinned file: {Path(path_str).name}")
         self.pin_changed.emit(path_str)
 
     def unpin_file(self, file_path: str | Path) -> None:
@@ -86,7 +89,7 @@ class FilePinManager(LoggingMixin, QObject):
         if path_str in self._pins:
             del self._pins[path_str]
             self._save_pins()
-            self.logger.info(f"Unpinned file: {Path(path_str).name}")
+            logger.info(f"Unpinned file: {Path(path_str).name}")
             self.pin_changed.emit(path_str)
 
     def is_pinned(self, file_path: str | Path) -> bool:
@@ -134,7 +137,7 @@ class FilePinManager(LoggingMixin, QObject):
 
         self._pins[path_str]["comment"] = comment.strip()
         self._save_pins()
-        self.logger.debug(f"Updated comment for: {Path(path_str).name}")
+        logger.debug(f"Updated comment for: {Path(path_str).name}")
         self.pin_changed.emit(path_str)
 
     def get_pinned_count(self) -> int:
@@ -151,7 +154,7 @@ class FilePinManager(LoggingMixin, QObject):
         paths = list(self._pins.keys())
         self._pins.clear()
         self._save_pins()
-        self.logger.info("Cleared all pinned files")
+        logger.info("Cleared all pinned files")
         for path in paths:
             self.pin_changed.emit(path)
 
@@ -161,7 +164,7 @@ class FilePinManager(LoggingMixin, QObject):
         """Load pins from cache file."""
         cache_file = self._cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
 
-        data = load_validated_json(cache_file, dict, {}, self.logger)
+        data = load_validated_json(cache_file, dict, {}, logger)
 
         # Validate structure and load pins
         self._pins = {}
@@ -177,7 +180,7 @@ class FilePinManager(LoggingMixin, QObject):
                 "pinned_at": str(pinned_at_val) if pinned_at_val else "",
             }
 
-        self.logger.info(f"Loaded {len(self._pins)} pinned files from cache")
+        logger.info(f"Loaded {len(self._pins)} pinned files from cache")
 
     def _save_pins(self) -> None:
         """Save pins to cache file (atomic write)."""
@@ -186,6 +189,6 @@ class FilePinManager(LoggingMixin, QObject):
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
             atomic_json_write(cache_file, self._pins, indent=2, fsync=False)
-            self.logger.debug(f"Saved {len(self._pins)} pinned files to cache")
+            logger.debug(f"Saved {len(self._pins)} pinned files to cache")
         except OSError:
-            self.logger.exception("Failed to save pinned files")
+            logger.exception("Failed to save pinned files")

@@ -9,13 +9,17 @@ from __future__ import annotations
 
 # Standard library imports
 import contextlib
+import logging
 from collections.abc import Callable
 
+
+logger = logging.getLogger(__name__)
+
+
 # Local application imports
-from logging_mixin import LoggingMixin
 
 
-class ProgressReportingMixin(LoggingMixin):
+class ProgressReportingMixin:
     """Mixin to add progress reporting capabilities to finders.
 
     This mixin provides:
@@ -54,12 +58,12 @@ class ProgressReportingMixin(LoggingMixin):
 
         """
         self._progress_callback = callback
-        self.logger.debug(f"Progress callback set for {self.__class__.__name__}")
+        logger.debug(f"Progress callback set for {self.__class__.__name__}")
 
     def clear_progress_callback(self) -> None:
         """Clear the progress callback."""
         self._progress_callback = None
-        self.logger.debug(f"Progress callback cleared for {self.__class__.__name__}")
+        logger.debug(f"Progress callback cleared for {self.__class__.__name__}")
 
     def request_stop(self) -> None:
         """Request the current operation to stop.
@@ -68,7 +72,7 @@ class ProgressReportingMixin(LoggingMixin):
         long-running operations using _check_stop().
         """
         self._stop_requested = True
-        self.logger.info(f"Stop requested for {self.__class__.__name__}")
+        logger.info(f"Stop requested for {self.__class__.__name__}")
 
     def clear_stop_request(self) -> None:
         """Clear any pending stop request.
@@ -78,7 +82,7 @@ class ProgressReportingMixin(LoggingMixin):
         """
         self._stop_requested = False
         self._last_reported_progress = -1
-        self.logger.debug(f"Stop request cleared for {self.__class__.__name__}")
+        logger.debug(f"Stop request cleared for {self.__class__.__name__}")
 
     @property
     def stop_requested(self) -> bool:
@@ -115,7 +119,7 @@ class ProgressReportingMixin(LoggingMixin):
             self._progress_callback(current, total, message)
         except Exception:
             # Log error but don't disrupt the operation
-            self.logger.exception("Error in progress callback")
+            logger.exception("Error in progress callback")
             # Disable callback to prevent further errors
             self._progress_callback = None
 
@@ -130,7 +134,7 @@ class ProgressReportingMixin(LoggingMixin):
 
         """
         if self._stop_requested:
-            self.logger.info(
+            logger.info(
                 f"Operation stopped by user request in {self.__class__.__name__}"
             )
             # Report final progress as cancelled

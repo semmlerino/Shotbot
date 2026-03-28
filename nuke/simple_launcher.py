@@ -9,6 +9,7 @@ For complex cases (generating scripts with plates), use NukeLaunchHandler.
 
 from __future__ import annotations
 
+import logging
 import os
 import shlex
 import tempfile
@@ -16,15 +17,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from config import Config
-from logging_mixin import LoggingMixin
 from utils import get_current_username
 
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from type_definitions import Shot
 
 
-class SimpleNukeLauncher(LoggingMixin):
+class SimpleNukeLauncher:
     """Simple Nuke launcher for opening existing scripts.
 
     This class handles the most common workflow: open the latest Nuke script
@@ -89,7 +91,7 @@ class SimpleNukeLauncher(LoggingMixin):
                         f"export SGTK_FILE_TO_OPEN={safe_path} && nuke {safe_path}"
                     )
                     log_messages.append(f"Opening: {latest_script.name}")
-                    self.logger.info(f"Opening latest Nuke script: {latest_script}")
+                    logger.info(f"Opening latest Nuke script: {latest_script}")
                     return command, log_messages
 
             # No scripts found
@@ -113,7 +115,7 @@ class SimpleNukeLauncher(LoggingMixin):
             return "nuke", log_messages
 
         except (OSError, PermissionError) as e:
-            self.logger.exception(f"Error accessing script directory {script_dir}")
+            logger.exception(f"Error accessing script directory {script_dir}")
             log_messages.append(f"Error: Could not access script directory: {e}")
             log_messages.append("Opening empty Nuke")
             return "nuke", log_messages
@@ -227,11 +229,11 @@ except OSError:
         safe_temp = shlex.quote(temp_script)
         command = f"nuke --script {safe_temp}"
 
-        self.logger.info(f"Generated Nuke startup script to create: {script_path}")
-        self.logger.info(
+        logger.info(f"Generated Nuke startup script to create: {script_path}")
+        logger.info(
             f"Context: SHOW={shot.show} SHOT={shot.full_name} PLATE={plate}"
         )
-        self.logger.debug(f"Startup script: {temp_script}")
+        logger.debug(f"Startup script: {temp_script}")
 
         return (
             f"{self._NUKE_PATH_EXPORT}"
@@ -286,11 +288,11 @@ except OSError:
             log_messages.append(
                 "Note: Nuke will run onCreate hooks and apply templates"
             )
-            self.logger.info(f"Creating Nuke script version {next_version} via API")
+            logger.info(f"Creating Nuke script version {next_version} via API")
             return command, log_messages
 
         except (OSError, PermissionError) as e:
-            self.logger.exception("Failed to create new version")
+            logger.exception("Failed to create new version")
             log_messages.append(f"Error: Could not create new version: {e}")
             log_messages.append("Opening empty Nuke")
             return "nuke", log_messages
