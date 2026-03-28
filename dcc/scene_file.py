@@ -7,6 +7,8 @@ from datetime import datetime
 from enum import Enum, auto
 from pathlib import Path
 
+import arrow
+
 
 class FileType(Enum):
     """Enumeration of supported file types."""
@@ -40,36 +42,15 @@ FILE_TYPE_COLORS: dict[FileType, str] = {
 
 def _relative_age(modified_time: datetime) -> str:
     """Return human-readable relative age (e.g., '2 hours ago', 'yesterday')."""
-    now = datetime.now()  # noqa: DTZ005 - Comparing with naive local time from filesystem
-    delta = now - modified_time
-
-    seconds = int(delta.total_seconds())
-    if seconds < 0:
-        return "just now"
-
-    minutes = seconds // 60
-    hours = minutes // 60
-    days = delta.days
-
-    if seconds < 60:
-        return "just now"
-    if minutes < 60:
-        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-    if hours < 24:
-        return f"{hours} hour{'s' if hours != 1 else ''} ago"
-    time_str = modified_time.strftime("%H:%M")
-    if days == 1:
-        return f"yesterday at {time_str}"
-    if days < 7:
-        return f"{days} days ago at {time_str}"
-    if days < 30:
-        weeks = days // 7
-        return f"{weeks} week{'s' if weeks != 1 else ''} ago"
-    if days < 365:
-        months = days // 30
-        return f"{months} month{'s' if months != 1 else ''} ago"
-    years = days // 365
-    return f"{years} year{'s' if years != 1 else ''} ago"
+    try:
+        result = arrow.get(modified_time).humanize()
+        # Arrow returns "in X seconds/minutes/..." for future timestamps
+        # (clock skew or filesystem quirks) — normalise to "just now"
+        if result.startswith("in ") or result == "just now":
+            return "just now"
+        return result
+    except Exception:  # noqa: BLE001
+        return modified_time.strftime("%Y-%m-%d %H:%M")
 
 
 @dataclass(frozen=True, slots=True)
