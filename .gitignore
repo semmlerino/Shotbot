@@ -36,6 +36,14 @@ test_venv/
 .skylos_traces/
 .skylos_trace_failures.json
 
+# Prompt/AI workspace files
+PROMPT/
+PROMPTS/
+PROMPTS2/
+prompt_workbench.html
+prompts.json
+example.py
+
 # Local/generated workspace artifacts
 .post-commit-output/
 /--help/
