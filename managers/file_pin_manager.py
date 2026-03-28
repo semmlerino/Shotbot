@@ -13,8 +13,7 @@ from typing import ClassVar, cast
 
 from PySide6.QtCore import QObject, Signal
 
-from cache import atomic_json_write
-from managers._json_helpers import load_validated_json
+from cache import atomic_json_write, load_validated_json
 
 
 logger = logging.getLogger(__name__)
@@ -188,6 +187,7 @@ class FilePinManager(QObject):
 
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
+            # fsync=False: writes on every pin toggle, crash-loss of a single pin is acceptable
             atomic_json_write(cache_file, self._pins, indent=2, fsync=False)
             logger.debug(f"Saved {len(self._pins)} pinned files to cache")
         except OSError:

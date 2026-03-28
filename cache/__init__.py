@@ -10,7 +10,7 @@ Re-exports all public types for convenient imports::
 from __future__ import annotations
 
 from cache._dir_resolver import resolve_default_cache_dir
-from cache._json_store import atomic_json_write
+from cache._json_store import atomic_json_write, load_validated_json
 from cache.coordinator import CacheCoordinator
 from cache.latest_file_cache import LatestFileCache, make_default_latest_file_cache
 from cache.scene_cache_disk import SceneDiskCache
@@ -38,6 +38,7 @@ __all__ = [
     "ThumbnailCacheLoaderSignals",
     "ThumbnailLoader",
     "atomic_json_write",
+    "load_validated_json",
     "make_default_latest_file_cache",
     "make_default_shot_cache",
     "make_default_thumbnail_cache",

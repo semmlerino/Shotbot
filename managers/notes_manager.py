@@ -14,8 +14,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QTimer
 
-from cache import atomic_json_write
-from managers._json_helpers import load_validated_json
+from cache import atomic_json_write, load_validated_json
 from managers._shot_key import key_from_workspace_path, shot_key
 
 
@@ -114,6 +113,7 @@ class NotesManager(QObject):
 
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
+            # fsync=False: writes on every note edit, crash-loss of a single note is acceptable
             atomic_json_write(cache_file, data, indent=2, fsync=False)
             logger.debug(f"Saved {len(self._notes_by_key)} shot notes to cache")
         except OSError:
