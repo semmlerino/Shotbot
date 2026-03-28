@@ -135,8 +135,6 @@ class QRunnableTracker(SingletonMixin):
     def wait_for_all(self, timeout_ms: int = 30000) -> bool:
         """Wait for all active runnables to complete.
 
-        Thread-safe: Uses lock only for checking active count, not during sleep.
-
         Args:
             timeout_ms: Maximum time to wait in milliseconds
 
@@ -144,28 +142,14 @@ class QRunnableTracker(SingletonMixin):
             True if all completed, False if timeout
 
         """
-        # Standard library imports
-        import time
-
-        start_time = time.time()
-        timeout_sec = timeout_ms / 1000.0
-
-        while True:
-            # Check active count under lock
+        completed = QThreadPool.globalInstance().waitForDone(timeout_ms)
+        if not completed:
             with self._data_lock:
                 active_count = len(self._active_runnables)
-                if active_count == 0:
-                    return True
-
-            # Check timeout outside lock
-            if time.time() - start_time > timeout_sec:
-                logger.warning(
-                    f"Timeout waiting for {active_count} runnables to complete"
-                )
-                return False
-
-            # Sleep outside lock to allow other threads to make progress
-            time.sleep(0.1)
+            logger.warning(
+                "Timeout waiting for %d runnables to complete", active_count
+            )
+        return completed
 
     def cleanup_all(self) -> None:
         """Clean up all tracked resources.
