@@ -5,6 +5,12 @@ from __future__ import annotations
 # Standard library imports
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    # Third-party imports
+    from PySide6.QtCore import SignalInstance
 
 # Local application imports
 from config import Config
@@ -25,6 +31,7 @@ from version_utils import VersionUtils  # used in get_cache_stats(); not re-expo
 __all__ = [
     "FileUtils",
     "ValidationUtils",
+    "safe_disconnect",
 ]
 
 
@@ -116,6 +123,24 @@ def find_path_case_insensitive(base_path: Path, plate_id: str) -> Path | None:
         return original_path
 
     return None
+
+
+def safe_disconnect(*signals: SignalInstance) -> None:
+    """Safely disconnect all receivers from the given signals.
+
+    Calls disconnect() on each signal, suppressing errors that occur when a
+    signal has no connections or the underlying Qt object has already been
+    deleted.
+
+    Args:
+        *signals: One or more Qt signal instances to disconnect.
+
+    """
+    for signal in signals:
+        try:
+            signal.disconnect()
+        except (RuntimeError, TypeError, AttributeError):
+            pass
 
 
 class FileUtils:

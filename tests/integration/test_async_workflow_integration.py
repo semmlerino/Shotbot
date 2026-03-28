@@ -236,13 +236,8 @@ class TestAsyncWorkflowIntegration:
         assert item_model.rowCount() == 1
         assert info_panel._current_shot is not None
 
-        # Cleanup - wait for background threads, then process events and delete
-        get_tracker().wait_for_all(timeout_ms=2000)
-        process_qt_events()
+        # Clear cache; widget cleanup handled by autouse cleanup_qt_state + qtbot
         item_model.clear_thumbnail_cache()
-        item_model.deleteLater()
-        info_panel.deleteLater()
-        process_qt_events()
 
     def test_memory_management_during_async_operations(
         self,
