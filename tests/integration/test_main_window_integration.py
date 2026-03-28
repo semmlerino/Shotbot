@@ -7,7 +7,6 @@ import shutil
 import sys
 import tempfile
 import time
-import traceback
 from collections.abc import Generator, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -15,7 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtGui import QKeySequence
-from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from tests.fixtures.process_fixtures import (
@@ -157,25 +155,16 @@ def main_window_with_real_components(
     # Use MagicMock for NotificationManager
     mock_notification_manager = MagicMock()
 
-    original_notification_methods = {
-        "error": NotificationManager.error,
-        "warning": NotificationManager.warning,
-        "info": NotificationManager.info,
-        "success": NotificationManager.success,
-    }
-    NotificationManager.error = mock_notification_manager.error
-    NotificationManager.warning = mock_notification_manager.warning
-    NotificationManager.info = mock_notification_manager.info
-    NotificationManager.success = mock_notification_manager.success
+    monkeypatch.setattr(NotificationManager, "error", mock_notification_manager.error)
+    monkeypatch.setattr(NotificationManager, "warning", mock_notification_manager.warning)
+    monkeypatch.setattr(NotificationManager, "info", mock_notification_manager.info)
+    monkeypatch.setattr(NotificationManager, "success", mock_notification_manager.success)
 
-    # Use create_autospec for ProgressManager
+    # Use MagicMock for ProgressManager
     mock_progress_manager = MagicMock()
-    original_operation = ProgressManager.operation
-    original_start_operation = ProgressManager.start_operation
-    original_finish_operation = ProgressManager.finish_operation
-    ProgressManager.operation = mock_progress_manager.operation
-    ProgressManager.start_operation = mock_progress_manager.start_operation
-    ProgressManager.finish_operation = mock_progress_manager.finish_operation
+    monkeypatch.setattr(ProgressManager, "operation", mock_progress_manager.operation)
+    monkeypatch.setattr(ProgressManager, "start_operation", mock_progress_manager.start_operation)
+    monkeypatch.setattr(ProgressManager, "finish_operation", mock_progress_manager.finish_operation)
 
     import types
 
@@ -218,13 +207,6 @@ def main_window_with_real_components(
                 sys.modules.pop(module_name, None)
             else:
                 sys.modules[module_name] = original_module
-
-        for name, method in original_notification_methods.items():
-            setattr(NotificationManager, name, method)
-
-        ProgressManager.operation = original_operation
-        ProgressManager.start_operation = original_start_operation
-        ProgressManager.finish_operation = original_finish_operation
 
         _stop_window_background_work(window)
 
@@ -322,7 +304,7 @@ class TestCrossTabSynchronization:
         assert window.right_panel._current_shot == second_shot
 
     def test_show_filter_affects_all_tabs(
-        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
+        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path, monkeypatch: Any
     ) -> None:
         """Test that show filtering propagates correctly within a tab."""
         from shots.shot_model import AsyncShotLoader
@@ -337,12 +319,11 @@ class TestCrossTabSynchronization:
 
         from PySide6.QtCore import QTimer
 
-        original_singleshot = QTimer.singleShot
-        QTimer.singleShot = lambda *_args, **_kwargs: None
-
         temp_cache_dir = tmp_path / "shotbot_test_cache"
         temp_cache_dir.mkdir()
-        window = MainWindow(cache_dir=temp_cache_dir)
+        with monkeypatch.context() as mp:
+            mp.setattr(QTimer, "singleShot", lambda *_args, **_kwargs: None)
+            window = MainWindow(cache_dir=temp_cache_dir)
         qtbot.addWidget(window)
         self.test_windows.append(window)
 
@@ -371,8 +352,6 @@ class TestCrossTabSynchronization:
         )
         window.shot_model._process_pool = test_pool
         window.shot_model._force_sync_refresh = True
-
-        QTimer.singleShot = original_singleshot
 
         success, _ = window.shot_model.refresh_shots()
         assert success, "refresh_shots should succeed"
@@ -820,83 +799,3 @@ def cleanup_test_environment(temp_dir: Path) -> None:
         print(f"Cleanup warning: {e}")
 
 
-if __name__ == "__main__":
-    temp_dir = setup_test_environment()
-
-    try:
-        app = QApplication.instance()
-        if app is None:
-            app = QApplication([])
-
-        print("Running critical user workflow integration tests...")
-        print("1. Testing Nuke launch workflow...")
-        try:
-
-            class StandaloneQtBot:
-                def addWidget(self, widget: Any) -> None:
-                    pass
-
-                def wait(self, ms: int) -> None:
-                    QTest.qWait(ms)
-
-                def waitUntil(self, condition: Any, timeout: int = 1000) -> bool:
-                    start_time = time.time()
-                    while time.time() - start_time < timeout / 1000:
-                        if condition():
-                            return True
-                        QTest.qWait(10)
-                    return False
-
-            qtbot = StandaloneQtBot()
-            standalone_temp = tempfile.mkdtemp(prefix="shotbot_user_workflow_")
-            test_instance = TestUserWorkflows()
-            test_instance.temp_dir = Path(standalone_temp)
-            test_instance.config_dir = test_instance.temp_dir / "config"
-            test_instance.cache_dir = test_instance.temp_dir / "cache"
-            test_instance.shows_dir = test_instance.temp_dir / "shows"
-            for d in [
-                test_instance.config_dir,
-                test_instance.cache_dir,
-                test_instance.shows_dir,
-            ]:
-                d.mkdir(parents=True, exist_ok=True)
-            test_instance.test_shots = [
-                {
-                    "show": "feature_film",
-                    "sequence": "SEQ_001_FOREST",
-                    "shot": "0010",
-                    "name": "SEQ_001_FOREST_0010",
-                    "workspace_path": "/shows/feature_film/shots/SEQ_001_FOREST/SEQ_001_FOREST_0010",
-                },
-            ]
-            test_instance.test_processes = {
-                "nuke": PopenDouble(
-                    ["nuke"], returncode=0, stdout="Nuke started", stderr=""
-                ),
-            }
-            test_instance.test_processes["nuke"].pid = 11111
-            test_instance.signal_events = []
-            test_instance.progress_operation = MagicMock()
-            test_instance.progress_patcher = patch(
-                "managers.progress_manager.ProgressManager.start_operation"
-            )
-            test_instance.mock_progress = test_instance.progress_patcher.start()
-            test_instance.mock_progress.return_value = test_instance.progress_operation
-
-            try:
-                test_instance.test_launch_nuke_with_shot(qtbot)
-                print("   Nuke launch workflow passed")
-            finally:
-                with contextlib.suppress(Exception):
-                    test_instance.progress_patcher.stop()
-                cleanup_test_environment(Path(standalone_temp))
-        except Exception as e:  # noqa: BLE001
-            print(f"   Nuke launch workflow failed: {e}")
-
-        print("Standalone workflow tests completed")
-
-    except Exception as e:  # noqa: BLE001
-        print(f"Standalone test error: {e}")
-        traceback.print_exc()
-    finally:
-        cleanup_test_environment(temp_dir)

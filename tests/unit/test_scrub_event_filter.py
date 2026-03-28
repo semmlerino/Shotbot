@@ -11,7 +11,6 @@ Tests focus on:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -23,16 +22,14 @@ from scrub.scrub_event_filter import ScrubEventFilter
 from tests.test_helpers import process_qt_events
 
 
-if TYPE_CHECKING:
-    from PySide6.QtWidgets import QApplication
-
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 @pytest.fixture
-def mock_view(qapp: QApplication) -> QListView:
+def mock_view(qtbot) -> QListView:
     """Create a mock QListView for testing."""
     view = QListView()
+    qtbot.addWidget(view)
     view.resize(400, 400)
     view.show()
     process_qt_events()
@@ -51,10 +48,11 @@ class TestEventFiltering:
     """Tests for event filtering behavior."""
 
     def test_filter_ignores_non_viewport_events(
-        self, scrub_filter: ScrubEventFilter, mock_view: QListView
+        self, scrub_filter: ScrubEventFilter, mock_view: QListView, qtbot
     ) -> None:
         """Test filter ignores events not from viewport."""
         other_widget = QWidget()
+        qtbot.addWidget(other_widget)
         event = QEvent(QEvent.Type.MouseMove)
 
         result = scrub_filter.eventFilter(other_widget, event)
@@ -387,9 +385,10 @@ class TestEdgeCases:
         assert not scrub_filter._hover_timer.isActive()
         assert not scrub_filter._hover_pending
 
-    def test_cleanup_on_view_destruction(self, qapp: QApplication) -> None:
+    def test_cleanup_on_view_destruction(self, qtbot) -> None:
         """Test filter cleanup when view is destroyed."""
         view = QListView()
+        qtbot.addWidget(view)
         view.show()
         process_qt_events()
 

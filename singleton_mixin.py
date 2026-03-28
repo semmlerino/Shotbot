@@ -122,7 +122,9 @@ class SingletonMixin:
         It should only be used in test cleanup to ensure test isolation.
         """
         with cls._lock:
-            if cls._instance is not None:
-                cls._cleanup_instance()
-            cls._instance = None
-            cls._initialized = False
+            try:
+                if cls._instance is not None:
+                    cls._cleanup_instance()
+            finally:
+                cls._instance = None
+                cls._initialized = False

@@ -615,7 +615,6 @@ class FakePreviousShotsWorker(QObject):
     def safe_shutdown(self, timeout_ms: int = 2000) -> None:
         """Test double: simulate safe shutdown."""
         self.stop()
-        self.deleteLater()
 
 
 def create_test_shot(

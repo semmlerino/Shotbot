@@ -80,52 +80,30 @@ def reset_threede_singletons() -> None:
     """Reset 3DE-related singletons to prevent cross-test contamination.
 
     Resets:
-    - ProcessPoolManager._instance (used by worker for parallel discovery)
-    - NotificationManager._instance (used for progress notifications)
-    - ProgressManager._instance (used for operation tracking)
+    - ProcessPoolManager (used by worker for parallel discovery)
+    - NotificationManager (used for progress notifications)
+    - ProgressManager (used for operation tracking)
     """
     # Import here to avoid circular dependencies
     from managers.notification_manager import NotificationManager
     from managers.progress_manager import ProgressManager
     from workers.process_pool_manager import ProcessPoolManager
 
-    # Reset ProcessPoolManager
-    if ProcessPoolManager._instance is not None:
-        try:
-            if hasattr(ProcessPoolManager._instance, "shutdown"):
-                ProcessPoolManager._instance.shutdown(timeout=1.0)
-        except Exception:  # noqa: BLE001
-            pass
-    ProcessPoolManager._instance = None
-
-    # Reset NotificationManager
-    if NotificationManager._instance is not None:
-        try:
-            NotificationManager.cleanup()
-        except (RuntimeError, AttributeError):
-            pass
-        if hasattr(NotificationManager._instance, "_initialized"):
-            delattr(NotificationManager._instance, "_initialized")
-    NotificationManager._instance = None
-    NotificationManager._main_window = None
-    NotificationManager._status_bar = None
-    NotificationManager._active_toasts = []
-    NotificationManager._current_progress = None
-
-    # Reset ProgressManager
-    if ProgressManager._instance is not None:
-        if hasattr(ProgressManager._instance, "_initialized"):
-            delattr(ProgressManager._instance, "_initialized")
-    ProgressManager._instance = None
-    ProgressManager._operation_stack = []
-    ProgressManager._status_bar = None
+    # Reset all singletons using their proper reset() methods.
+    # This ensures all cleanup hooks are called, including:
+    # - ProcessPoolManager: shutdown() and deleteLater() for Qt cleanup
+    # - NotificationManager: cleanup() and deleteLater() for Qt cleanup
+    # - ProgressManager: operation cancellation and state clearing with locking
+    ProcessPoolManager.reset()
+    NotificationManager.reset()
+    ProgressManager.reset()
 
     yield
 
     # Reset again after test (defense in depth)
-    ProcessPoolManager._instance = None
-    NotificationManager._instance = None
-    ProgressManager._instance = None
+    ProcessPoolManager.reset()
+    NotificationManager.reset()
+    ProgressManager.reset()
 
 
 class TestThreeDEWorkerWorkflow:
