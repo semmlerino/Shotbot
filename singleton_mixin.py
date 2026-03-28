@@ -4,7 +4,7 @@ This module provides a reusable SingletonMixin that implements a thread-safe
 singleton pattern with proper test isolation support via reset().
 
 Usage:
-    from typing_compat import override
+    from typing_extensions import override
 
     class MyService(SingletonMixin):
         def __init__(self) -> None:

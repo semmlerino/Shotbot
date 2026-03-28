@@ -16,10 +16,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar, cast, final
 
 from PySide6.QtCore import QObject, QThreadPool, Signal, Slot
+from typing_extensions import override
 
 from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
-from typing_compat import override
 
 
 if TYPE_CHECKING:
@@ -234,7 +234,6 @@ class ShotSelectionController(QObject, LoggingMixin):
             _ = self._discovery_worker.signals.error.connect(self._on_discovery_error)  # pyright: ignore[reportAny]
             QThreadPool.globalInstance().start(self._discovery_worker)
 
-    @Slot(object)  # pyright: ignore[reportAny]
     def on_shot_double_clicked(self, _shot: Shot) -> None:
         """Handle shot double click - launch default app."""
         from launch.launch_request import LaunchRequest

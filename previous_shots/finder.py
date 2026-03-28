@@ -8,14 +8,13 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
-from typing_extensions import Unpack
+from typing_extensions import Unpack, override
 
 # Local application imports
 from config import ThreadingConfig
 from paths import resolve_shows_root
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
-from typing_compat import override
 
 
 if TYPE_CHECKING:

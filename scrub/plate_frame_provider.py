@@ -13,11 +13,11 @@ from typing import ClassVar, Literal
 
 from PySide6.QtCore import QObject, QThreadPool, Signal
 from PySide6.QtGui import QImage
+from typing_extensions import override
 
 import ui.image_utils as utils_module
 from discovery.frame_utils import substitute_frame
 from scrub.scrub_frame_cache import ScrubFrameCache
-from typing_compat import override
 
 
 logger = logging.getLogger(__name__)

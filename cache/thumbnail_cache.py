@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, cast, final
 
 from PIL import Image
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
+from typing_extensions import override
 
 # Third-party imports
 from cachetools import TTLCache
@@ -26,7 +27,6 @@ from cachetools import TTLCache
 # Local application imports
 from exceptions import ThumbnailError
 from logging_mixin import LoggingMixin
-from typing_compat import override
 from workers.runnable_tracker import TrackedQRunnable
 
 

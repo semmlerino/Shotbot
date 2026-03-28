@@ -138,7 +138,7 @@ def safe_disconnect(*signals: SignalInstance) -> None:
     """
     for signal in signals:
         try:
-            signal.disconnect()
+            _ = signal.disconnect()
         except (RuntimeError, TypeError, AttributeError):
             pass
 

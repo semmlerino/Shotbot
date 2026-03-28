@@ -8,8 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import Signal
-
-from typing_compat import override
+from typing_extensions import override
 
 from .dcc_file_table import DCCFileTable
 from .dcc_section_base import BaseDCCSection

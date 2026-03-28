@@ -27,8 +27,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-
-from typing_compat import override
+from typing_extensions import override
 
 
 if TYPE_CHECKING:

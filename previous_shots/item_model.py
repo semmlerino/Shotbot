@@ -10,8 +10,8 @@ import warnings
 from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, Qt, Signal
+from typing_extensions import override
 
-from typing_compat import override
 from ui.base_item_model import BaseItemModel
 from utils import safe_disconnect
 

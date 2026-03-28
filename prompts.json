@@ -1,0 +1,206 @@
+{
+  "_meta": {
+    "description": "Prompt catalog for the Prompt Workbench. LLMs: add entries to the 'prompts' array.",
+    "schema": {
+      "id": "Unique kebab-case slug. Must not collide with existing IDs.",
+      "title": "Short display name (2-6 words).",
+      "category": "One of the existing categories, or a new one. Existing: Architecture & Design | UX & Developer Experience | Performance & Scalability | Debugging & Observability | Feature Ideation | Tooling & Automation | Creative & Unconventional",
+      "priority": "high | med | low — how valuable is this prompt for the target codebase.",
+      "composesWell": "Array of IDs of other prompts this one combines well with. Can be empty.",
+      "body": "The full prompt text. Use markdown formatting. Should be self-contained and actionable by an LLM."
+    },
+    "guidelines": [
+      "Prompts should be modular — usable standalone or composed with others.",
+      "Avoid implementation-specific references (file paths, class names) — keep prompts transferable across projects.",
+      "Encourage structured output (tables, classifications, severity ratings) so results are scannable.",
+      "Each prompt should specify what to look for AND how to present findings.",
+      "Prefer concrete checklists over vague instructions ('find X' not 'consider X')."
+    ]
+  },
+  "prompts": [
+    {
+      "id": "signal-coupling-audit",
+      "title": "Signal Coupling Audit",
+      "category": "Architecture & Design",
+      "priority": "high",
+      "composesWell": ["responsibility-boundary-review", "layer-violation-detector", "thread-safety-audit"],
+      "body": "Trace all signal\u2192slot connections in this application. For each connection, classify it as:\n- **Direct**: emitter and receiver are in the same module\n- **Routed**: connection is wired through a coordinator/parent (e.g., MainWindow)\n- **Implicit**: connection relies on singleton access or global state\n\nProduce a dependency graph (text or mermaid) showing which modules would break if\na given signal were removed. Identify:\n1. Signals connected to 3+ receivers (fan-out risk)\n2. Slots that connect to 3+ signals (convergence risk \u2014 unclear which trigger fired)\n3. Chains longer than 3 hops (signal A \u2192 handler \u2192 signal B \u2192 handler \u2192 signal C)\n4. Any signal that is emitted but never connected\n\nFor each finding, assess: is this coupling intentional and justified, or accidental?\nSuggest specific decoupling strategies only where the coupling creates a concrete problem\n(e.g., testing difficulty, cascade failures, ordering bugs)."
+    },
+    {
+      "id": "responsibility-boundary-review",
+      "title": "Responsibility Boundary Review",
+      "category": "Architecture & Design",
+      "priority": "med",
+      "composesWell": ["signal-coupling-audit", "layer-violation-detector"],
+      "body": "For each controller/coordinator/manager in this codebase, answer:\n\n1. What is its single responsibility? State it in one sentence.\n2. Does it own state, coordinate behavior, or both? If both, is there a clean split?\n3. What would break if this class were deleted? (Trace callers and signal consumers.)\n4. Does it depend on concrete implementations or abstractions?\n\nThen identify:\n- Classes doing two jobs that should be split\n- Classes so thin they should be inlined into their sole caller\n- Circular dependencies between controllers (A calls B which signals back to A)\n- State that lives in the wrong layer (e.g., UI state in a domain model, domain logic in a widget)\n\nPresent findings as a table: [Class | Responsibility | Owns State? | Depends On | Depended On By | Issue].\nOnly recommend changes where the current structure causes a real problem you can name."
+    },
+    {
+      "id": "singleton-health-check",
+      "title": "Singleton Health Check",
+      "category": "Architecture & Design",
+      "priority": "med",
+      "composesWell": ["thread-safety-audit", "test-suite-diagnostic"],
+      "body": "Find every singleton in this codebase (classes using SingletonMixin, module-level instances,\nor manual instance caching). For each one:\n\n1. Why is it a singleton? Is the constraint \"exactly one instance\" actually required,\n   or is it convenience for global access?\n2. Can it be tested in isolation? Check if tests reset it properly.\n3. Does it hold mutable state that survives across operations in surprising ways?\n4. What is its initialization order relative to other singletons? Are there implicit\n   dependencies (singleton A's __init__ calls singleton B.get_instance())?\n\nDraw the singleton initialization graph. Flag:\n- Singletons that are only accessed from one module (don't need to be singletons)\n- Initialization order dependencies that aren't enforced\n- Singletons missing test reset hooks\n- Thread-safety gaps (mutable state accessed from multiple threads without synchronization)"
+    },
+    {
+      "id": "layer-violation-detector",
+      "title": "Layer Violation Detector",
+      "category": "Architecture & Design",
+      "priority": "med",
+      "composesWell": ["signal-coupling-audit", "responsibility-boundary-review"],
+      "body": "This codebase has these architectural layers (adapt to actual project):\n  UI (widgets, delegates, views) \u2192 Controllers \u2192 Models/Services \u2192 Infrastructure (cache, IO, threading)\n\nFor each Python file, determine its layer. Then find violations:\n1. **Upward dependency**: A lower layer imports from a higher one (e.g., model imports a widget)\n2. **Layer skip**: UI directly calls infrastructure, bypassing controllers\n3. **Mixed concerns**: A single file has code belonging to 2+ layers\n4. **Leaking abstraction**: A lower layer returns or accepts types defined in a higher layer\n\nPresent violations as: [File | Its Layer | Violates By | Importing From | Suggested Fix].\nIgnore TYPE_CHECKING-guarded imports (those are fine for type annotations)."
+    },
+    {
+      "id": "error-path-completeness-audit",
+      "title": "Error Path Completeness Audit",
+      "category": "UX & Developer Experience",
+      "priority": "high",
+      "composesWell": ["logging-coverage-gap-analysis", "what-happened-reconstruction-test"],
+      "body": "Trace every operation the user can trigger (button clicks, menu items, keyboard shortcuts,\ndrag-drop, context menu actions). For each operation:\n\n1. What happens on success? (What feedback does the user see?)\n2. What happens on failure? (Is there an error dialog, status message, silent failure, or crash?)\n3. What happens if the operation is slow? (Is there a progress indicator, spinner, or does the UI freeze?)\n4. What happens if the user triggers it twice rapidly? (Is it debounced, queued, or does it race?)\n\nFlag operations where:\n- Failure is silent (no user feedback)\n- Failure shows a generic message (\"An error occurred\") without actionable detail\n- Slow operations lack progress indication\n- Double-trigger can cause inconsistent state\n- Success feedback is missing or ambiguous\n\nPrioritize findings by user impact (frequent operations > rare ones)."
+    },
+    {
+      "id": "keyboard-workflow-gap-analysis",
+      "title": "Keyboard-Driven Workflow Gap Analysis",
+      "category": "UX & Developer Experience",
+      "priority": "low",
+      "composesWell": ["workflow-automation-opportunity-finder"],
+      "body": "Map every user action available via mouse interaction (clicks, right-clicks, drag, hover).\nFor each, check whether an equivalent keyboard shortcut or focus-based interaction exists.\n\nIdentify:\n1. High-frequency actions with no keyboard shortcut\n2. Keyboard shortcuts that conflict or are non-discoverable\n3. Focus order issues (Tab doesn't reach important controls)\n4. Actions only reachable via nested menus or right-click context menus\n\nFor a power-user workflow (the user's most common 5-10 action sequences), map the current\nkeypress count vs. the ideal keypress count. Suggest shortcuts that would reduce the most\ncommon workflows by the largest factor."
+    },
+    {
+      "id": "dx-friction-audit",
+      "title": "DX Friction Audit",
+      "category": "UX & Developer Experience",
+      "priority": "med",
+      "composesWell": ["test-suite-diagnostic", "adr-extraction", "codebase-as-teaching-tool"],
+      "body": "Simulate a new contributor's first day on this project. Walk through:\n\n1. **Setup**: Clone \u2192 install \u2192 run. What steps are missing from docs? What fails?\n2. **First change**: Add a trivial feature (e.g., new field on a model, new button).\n   What files must be touched? Is it obvious which ones? Are there hidden registration\n   steps (singletons, fixtures, signal wiring)?\n3. **Testing**: Write a test for the change. What boilerplate is required?\n   What fixtures are non-obvious? What breaks if you forget a teardown step?\n4. **Debugging**: Introduce a deliberate bug. How easy is it to find? Are error messages\n   helpful? Do stack traces point to the right place, or do they dead-end in signal dispatch?\n\nFor each friction point, categorize as:\n- **Documentation gap** (fix with docs)\n- **Boilerplate tax** (fix with tooling or base classes)\n- **Architectural friction** (fix requires design change)"
+    },
+    {
+      "id": "critical-path-latency-analysis",
+      "title": "Critical Path Latency Analysis",
+      "category": "Performance & Scalability",
+      "priority": "high",
+      "composesWell": ["cache-effectiveness-review", "scaling-bottleneck-forecast", "thread-safety-audit"],
+      "body": "Identify the user-facing critical paths in this application (startup, primary data load,\nmain user action, refresh/reload). For each path:\n\n1. Trace the execution from trigger to visible result, listing every function call,\n   I/O operation, and thread transition.\n2. Classify each step as: CPU-bound, I/O-bound, or waiting (locks, signals, event loop).\n3. Identify which steps are on the main/UI thread vs. background threads.\n4. Flag any I/O or blocking call on the main thread.\n5. Estimate relative time contribution of each step (you don't need precise numbers \u2014\n   \"dominates\", \"significant\", \"negligible\" is fine).\n\nFor each critical path, answer:\n- What is the theoretical minimum latency? (Only I/O that can't be cached or parallelized.)\n- What is the current overhead above that minimum?\n- What single change would most reduce perceived latency?\n\nPresent as a timeline diagram or ordered list with annotations."
+    },
+    {
+      "id": "cache-effectiveness-review",
+      "title": "Cache Effectiveness Review",
+      "category": "Performance & Scalability",
+      "priority": "med",
+      "composesWell": ["critical-path-latency-analysis", "scaling-bottleneck-forecast"],
+      "body": "For each cache in this system, determine:\n\n1. **What it caches**: The exact data type and source.\n2. **Hit rate estimate**: Based on usage patterns, what fraction of accesses are hits?\n   (Trace callers to understand access patterns.)\n3. **Invalidation strategy**: How and when is the cache cleared? Is it time-based, event-based,\n   or manual? Are there scenarios where stale data is served?\n4. **Memory cost**: What's the maximum size? Is it bounded? What happens at capacity?\n5. **Cold start penalty**: What happens on first access or after invalidation?\n\nThen assess:\n- Caches that are rarely hit (overhead > benefit)\n- Caches with no TTL or invalidation (stale data risk)\n- Caches that duplicate data already cached elsewhere\n- Missing caches for expensive operations that are called repeatedly with same inputs\n- Cache key collisions or namespace conflicts"
+    },
+    {
+      "id": "scaling-bottleneck-forecast",
+      "title": "Scaling Bottleneck Forecast",
+      "category": "Performance & Scalability",
+      "priority": "low",
+      "composesWell": ["critical-path-latency-analysis", "cache-effectiveness-review"],
+      "body": "This application currently handles [N items / N users / N operations] (determine from code).\nAnalyze what would break or degrade at 10x, 100x, and 1000x that scale:\n\n1. **Data structures**: Which collections are O(n) scanned? Which lookups are O(1)?\n2. **Threading**: Which thread pools have fixed sizes? What happens when the queue fills?\n3. **I/O**: Which operations are sequential that could be parallel? Which are parallel\n   but unthrottled (could overwhelm the target)?\n4. **Memory**: Which data is loaded entirely into memory? What grows linearly with input size?\n5. **UI rendering**: Which paint operations scale with item count? Are there visible-range\n   optimizations?\n\nFor each bottleneck, classify as:\n- **Linear degradation** (gets proportionally slower, still works)\n- **Cliff** (works fine until threshold, then fails catastrophically)\n- **Already optimized** (has explicit handling for scale)\n\nFocus on cliffs \u2014 those are the urgent ones."
+    },
+    {
+      "id": "logging-coverage-gap-analysis",
+      "title": "Logging Coverage Gap Analysis",
+      "category": "Debugging & Observability",
+      "priority": "med",
+      "composesWell": ["error-path-completeness-audit", "what-happened-reconstruction-test"],
+      "body": "For each module/package in this codebase, assess logging coverage:\n\n1. What log level does it use most? (DEBUG/INFO/WARNING/ERROR)\n2. Are errors logged with full context (exception info, relevant state, operation being attempted)?\n3. Are there \"silent\" failure paths (except/pass, except with only a print, return None without logging)?\n4. For async/threaded operations: can you reconstruct the sequence of events from logs alone?\n   Is there a correlation ID or operation name that ties related log entries together?\n5. Are there operations where you'd want a log entry but there isn't one?\n\nProduce a heatmap: [Module | Entry Points | Logged | Silent | Missing Context].\nPrioritize: operations that fail in production but would be hard to diagnose from current logging."
+    },
+    {
+      "id": "what-happened-reconstruction-test",
+      "title": "\"What Happened?\" Reconstruction Test",
+      "category": "Debugging & Observability",
+      "priority": "high",
+      "composesWell": ["error-path-completeness-audit", "logging-coverage-gap-analysis", "chaos-engineering-scenario-generator"],
+      "body": "Simulate these failure scenarios and determine whether current logging/observability\nwould let you diagnose the root cause from logs alone (no debugger, no reproduction):\n\n1. A background worker silently stops producing results\n2. The UI shows stale data after a refresh was triggered\n3. A subprocess command fails with a non-zero exit code\n4. The application hangs (main thread blocked)\n5. A race condition causes duplicate or missing data\n6. Startup takes 10x longer than usual\n\nFor each scenario:\n- What log entries would exist?\n- What information is missing that you'd need?\n- How would you distinguish this failure from a similar but different one?\n- What single logging addition would most improve diagnosability?\n\nPresent as: [Scenario | Current Diagnosability (1-5) | Key Missing Info | Recommended Addition]."
+    },
+    {
+      "id": "thread-safety-audit",
+      "title": "Thread Safety Audit",
+      "category": "Debugging & Observability",
+      "priority": "high",
+      "composesWell": ["signal-coupling-audit", "singleton-health-check", "critical-path-latency-analysis"],
+      "body": "Find all mutable shared state in this codebase \u2014 any data that is written from one thread\nand read from another. For each piece of shared state:\n\n1. What protects it? (mutex, signal/slot, queue, atomic, nothing)\n2. Is the protection correct? (Lock scope covers all accesses? Signal/slot crosses thread boundary correctly?)\n3. Can a reader ever see a partially-updated state?\n4. Are there lock ordering constraints between multiple locks? (Deadlock risk.)\n5. Is there any shared state accessed via singleton that might be called from any thread?\n\nClassification:\n- **Safe**: Properly synchronized, no issues\n- **Fragile**: Works by accident (e.g., GIL protects it, but refactoring could break it)\n- **Unsafe**: Actual race condition possible\n- **Unknown**: Can't determine without runtime analysis\n\nFor each Unsafe finding, provide: the two threads involved, the shared data, and a\nconcrete interleaving that produces incorrect behavior."
+    },
+    {
+      "id": "workflow-automation-opportunity-finder",
+      "title": "Workflow Automation Opportunity Finder",
+      "category": "Feature Ideation",
+      "priority": "med",
+      "composesWell": ["keyboard-workflow-gap-analysis", "what-if-feature-exploration"],
+      "body": "Observe the user's workflow through this application. Identify repetitive multi-step\nsequences that could be automated or streamlined:\n\n1. Map the top 5 most common user workflows end-to-end (from intent to completion).\n2. For each workflow, count: total clicks, context switches between panels/tabs,\n   wait times for background operations, and manual data entry steps.\n3. Identify \"glue steps\" \u2014 actions the user performs only to connect two other actions\n   (e.g., copying a value from one panel to paste in another).\n4. Identify \"ceremony steps\" \u2014 actions that are always the same and could be defaulted\n   or skipped (e.g., confirming a dialog that's always confirmed).\n\nFor each automation opportunity, estimate:\n- Time saved per occurrence\n- Frequency of the workflow\n- Implementation complexity (trivial / moderate / significant)\n- Risk of the automation doing the wrong thing\n\nPrioritize by (time_saved \u00d7 frequency) / complexity."
+    },
+    {
+      "id": "what-if-feature-exploration",
+      "title": "\"What If\" Feature Exploration",
+      "category": "Feature Ideation",
+      "priority": "med",
+      "composesWell": ["workflow-automation-opportunity-finder", "plugin-extension-point-design", "reverse-requirements-document"],
+      "body": "Given this application's domain and architecture, brainstorm features that would be\nhigh-value but non-obvious. Approach from three angles:\n\n1. **Data the app already has but doesn't surface**: What information passes through\n   the system that users might find valuable if visualized, searchable, or exportable?\n   (e.g., timing data, historical patterns, relationships between entities)\n\n2. **Patterns the app could detect**: What recurring situations could the app recognize\n   and act on proactively? (e.g., anomaly detection, smart defaults, predictive caching,\n   \"you usually do X after Y\" suggestions)\n\n3. **Integration points**: What adjacent tools or systems could this app connect to\n   that would eliminate context-switching? What data does the user currently look up\n   elsewhere that this app could surface inline?\n\nFor each idea, assess:\n- Value to the user (1-5)\n- Feasibility given current architecture (1-5)\n- What existing code/data it would build on\n- The minimal viable version (smallest useful increment)"
+    },
+    {
+      "id": "plugin-extension-point-design",
+      "title": "Plugin / Extension Point Design",
+      "category": "Feature Ideation",
+      "priority": "low",
+      "composesWell": ["what-if-feature-exploration"],
+      "body": "If this application needed to support user-created extensions, where would the natural\nextension points be? Analyze the codebase for:\n\n1. **Data extension**: Places where the data model could accept user-defined fields\n   or metadata without schema changes.\n2. **Behavior extension**: Operations that follow a pattern (command, strategy, handler)\n   where new variants could be registered without modifying core code.\n3. **UI extension**: Panels, tabs, or menu items that could host user-provided content.\n4. **Pipeline extension**: Processing steps that could be inserted, replaced, or reordered.\n\nFor each extension point:\n- What interface would extensions implement?\n- What guarantees must extensions respect? (Thread safety, lifecycle, error handling)\n- What's the simplest mechanism? (Registry, naming convention, config file, decorators)\n- What's the cost of adding extensibility now vs. later?\n\nOnly recommend extension points where there's a concrete use case, not speculative flexibility."
+    },
+    {
+      "id": "test-suite-diagnostic",
+      "title": "Test Suite Diagnostic",
+      "category": "Tooling & Automation",
+      "priority": "med",
+      "composesWell": ["singleton-health-check", "dx-friction-audit", "chaos-engineering-scenario-generator"],
+      "body": "Analyze the test suite for structural health:\n\n1. **Coverage shape**: Which modules have thorough tests? Which have none?\n   Map as [Module | Unit Tests | Integration Tests | Untested Public API].\n2. **Test isolation**: Do tests share state via singletons, class variables, or filesystem?\n   Which tests fail when run in a different order?\n3. **Test speed distribution**: Which tests are fast (<100ms), slow (>1s), very slow (>5s)?\n   Are slow tests slow because of real I/O, or unnecessary setup?\n4. **Assertion quality**: Find tests that assert only \"no exception was raised\" without\n   checking actual behavior. Find tests that over-assert on implementation details\n   (mock call counts, exact log messages) rather than outcomes.\n5. **Fixture complexity**: Which fixtures do significant work? Are there fixtures that\n   duplicate setup already done by other fixtures?\n\nRecommend:\n- Tests to delete (redundant or testing implementation details)\n- Tests to add (untested critical paths)\n- Tests to speed up (mock boundaries, fixture simplification)\n- Tests to restructure (isolation improvements)"
+    },
+    {
+      "id": "build-deploy-pipeline-stress-test",
+      "title": "Build & Deploy Pipeline Stress Test",
+      "category": "Tooling & Automation",
+      "priority": "low",
+      "composesWell": ["dead-code-dependency-hygiene"],
+      "body": "Analyze the build, test, and deployment pipeline:\n\n1. **Reproducibility**: Can you rebuild the exact same artifact from the same commit?\n   What external state (package versions, environment variables, system tools) affects the build?\n2. **Fragility**: What steps are most likely to fail? What's the MTTR (mean time to recovery)\n   for each type of failure? Which failures are transient (retry fixes them) vs. structural?\n3. **Speed**: What's the total pipeline duration? What percentage is actual work vs. waiting\n   (downloads, queue time, sequential steps that could parallelize)?\n4. **Blast radius**: If the pipeline produces a bad artifact, how quickly is it detected?\n   What's the rollback procedure? How many users are affected before detection?\n5. **Secret management**: Are credentials hardcoded, in environment variables, in a vault?\n   Could a compromised build step exfiltrate secrets?\n\nFor each fragility, recommend the cheapest mitigation."
+    },
+    {
+      "id": "dead-code-dependency-hygiene",
+      "title": "Dead Code & Dependency Hygiene",
+      "category": "Tooling & Automation",
+      "priority": "med",
+      "composesWell": ["build-deploy-pipeline-stress-test"],
+      "body": "Perform a comprehensive dead code and dependency analysis:\n\n**Dead code:**\n1. Find functions/methods/classes that are defined but never called (excluding test files).\n2. Find imports that are unused (beyond what linters catch \u2014 e.g., modules imported for\n   side effects that no longer have those side effects).\n3. Find feature flags, config options, or CLI arguments that are parsed but never acted on.\n4. Find error handling for conditions that can no longer occur (guarding against states\n   that were refactored away).\n\n**Dependencies:**\n1. Which dependencies are used in only one file? Could they be replaced with stdlib?\n2. Which dependencies are pinned to old versions? What would upgrading require?\n3. Are there dependencies that duplicate functionality (two JSON libraries, two HTTP clients)?\n4. Are there vendored/copied files that have upstream updates available?\n\nPresent as: [Item | Type | Last Used/Referenced | Safe to Remove? | Migration Cost]."
+    },
+    {
+      "id": "adr-extraction",
+      "title": "Architecture Decision Record Extraction",
+      "category": "Creative & Unconventional",
+      "priority": "high",
+      "composesWell": ["dx-friction-audit", "codebase-as-teaching-tool", "reverse-requirements-document"],
+      "body": "Read through this codebase and extract the implicit architectural decisions \u2014\nchoices that were clearly deliberate but aren't documented anywhere. For each:\n\n1. **Decision**: What was decided? (e.g., \"Use signals for all cross-module communication\")\n2. **Evidence**: What code patterns reveal this decision? (file paths, consistent patterns)\n3. **Alternatives rejected**: What could have been done instead? (infer from what's NOT in the code)\n4. **Tradeoffs accepted**: What downsides does this decision create? (complexity, coupling, performance)\n5. **Status**: Is this decision still being followed consistently, or has it eroded?\n\nPresent as ADR format:\n- Title\n- Status (active / eroded / superseded)\n- Context (why this decision was needed)\n- Decision (what was chosen)\n- Consequences (positive and negative)\n\nFocus on the 5-10 most consequential decisions, not trivial style choices."
+    },
+    {
+      "id": "chaos-engineering-scenario-generator",
+      "title": "Chaos Engineering Scenario Generator",
+      "category": "Creative & Unconventional",
+      "priority": "med",
+      "composesWell": ["what-happened-reconstruction-test", "thread-safety-audit", "test-suite-diagnostic"],
+      "body": "Design targeted failure injection experiments for this application. For each experiment:\n\n1. **Hypothesis**: \"The system should [expected behavior] when [failure condition].\"\n2. **Injection method**: How to simulate the failure (mock, network partition, delay,\n   corrupt data, kill process, exhaust resource).\n3. **Observation points**: What metrics/logs/UI states to watch during the experiment.\n4. **Blast radius**: What's the worst that could happen if the hypothesis is wrong?\n5. **Recovery verification**: How to confirm the system returns to normal after the failure is removed.\n\nTarget these categories:\n- I/O failures (disk full, network timeout, permission denied, corrupt file)\n- Resource exhaustion (memory, threads, file handles, queue depth)\n- Timing anomalies (operations completing in unexpected order, extreme latency)\n- Data integrity (corrupt cache, schema mismatch, partial writes)\n- Dependency failures (external service down, wrong version, changed API)\n\nPrioritize experiments by: (likelihood of real occurrence) \u00d7 (severity if unhandled)."
+    },
+    {
+      "id": "codebase-as-teaching-tool",
+      "title": "Codebase as a Teaching Tool",
+      "category": "Creative & Unconventional",
+      "priority": "low",
+      "composesWell": ["dx-friction-audit", "adr-extraction"],
+      "body": "This codebase contains real-world examples of software patterns. Identify the best\nexamples for teaching each of these concepts:\n\n1. **Concurrency patterns**: What's the clearest example of thread-safe state management?\n   Producer-consumer? Worker pools? Signal-based coordination?\n2. **Design patterns**: Which GoF or domain patterns are used? Are they clean examples\n   or adapted? (Observer, Strategy, Factory, Singleton, etc.)\n3. **Error handling strategies**: What's the best example of graceful degradation?\n   Retry with backoff? Circuit breaking? Fallback behavior?\n4. **Testing patterns**: Best example of test doubles? Integration test boundaries?\n   Fixture design? Testing async code?\n5. **Anti-patterns**: Where has the code evolved past a pattern into an anti-pattern?\n   What would a textbook call it? What's the pragmatic fix?\n\nFor each example, provide: file:line, the pattern name, what makes it a good/bad example,\nand what a learner should notice."
+    },
+    {
+      "id": "reverse-requirements-document",
+      "title": "Reverse Requirements Document",
+      "category": "Creative & Unconventional",
+      "priority": "med",
+      "composesWell": ["what-if-feature-exploration", "adr-extraction"],
+      "body": "By reading only the code (not documentation), reconstruct the functional requirements\nthis application was built to satisfy. For each requirement:\n\n1. **Requirement**: What the system must do (stated in user terms, not code terms).\n2. **Evidence**: Which code implements this requirement? (files, classes, methods)\n3. **Completeness**: Is the requirement fully implemented, partially implemented, or stubbed?\n4. **Implicit requirements**: What unstated requirements does the code reveal?\n   (e.g., \"must handle offline mode\" inferred from fallback behavior)\n5. **Missing requirements**: What would a user reasonably expect that isn't implemented?\n\nThen compare against any existing documentation. Identify:\n- Documented features that aren't implemented\n- Implemented features that aren't documented\n- Requirements that have drifted (docs say one thing, code does another)"
+    }
+  ]
+}

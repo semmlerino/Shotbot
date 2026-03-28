@@ -23,11 +23,11 @@ from PySide6.QtWidgets import (
     QPushButton,
     QWidget,
 )
+from typing_extensions import override
 
 from shots.shot_grid_delegate import ShotGridDelegate
 from shots.shot_item_model import ShotItemModel
 from type_definitions import Shot
-from typing_compat import override
 
 # Local application imports
 from ui.base_item_model import BaseItemRole

@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, ClassVar, cast, final
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, Qt, Signal, Slot
+from typing_extensions import override
 
 # Local application imports
 from previous_shots.finder import ParallelShotsFinder
 from previous_shots.worker import PreviousShotsWorker
 from type_definitions import Shot
-from typing_compat import override
 from ui.base_shot_model import BaseShotModel
 from utils import safe_disconnect
 from workers.worker_host import WorkerHost

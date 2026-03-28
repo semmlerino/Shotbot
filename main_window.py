@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
-from typing_compat import override
 from ui.qt_widget_mixin import (
     require_main_thread,
 )

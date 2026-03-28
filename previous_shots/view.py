@@ -24,10 +24,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 from managers.progress_manager import ProgressManager
 from shots.shot_grid_delegate import ShotGridDelegate
-from typing_compat import override
 
 # Local application imports
 from ui.base_shot_grid_view import BaseShotGridView

@@ -19,8 +19,8 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import QInputDialog, QMenu, QWidget
+from typing_extensions import override
 
-from typing_compat import override
 from ui.base_grid_view import BaseGridView
 from ui.base_item_model import BaseItemRole
 from workers.runnable_tracker import FolderOpenerWorker

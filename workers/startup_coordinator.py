@@ -6,8 +6,9 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from typing_extensions import override
+
 from timeout_config import TimeoutConfig
-from typing_compat import override
 from workers.thread_safe_worker import ThreadSafeWorker
 
 

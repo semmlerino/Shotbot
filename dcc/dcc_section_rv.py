@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, final
 
-from typing_compat import override
+from typing_extensions import override
 
 from .dcc_section_base import BaseDCCSection
 from .dcc_section_file import FileDCCSection

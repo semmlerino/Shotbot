@@ -11,8 +11,7 @@ from typing import TYPE_CHECKING, ClassVar, Final
 
 from PySide6.QtCore import QEvent, QModelIndex, QObject, QRect, QTimer, Signal
 from shiboken6 import isValid
-
-from typing_compat import override
+from typing_extensions import override
 
 
 if TYPE_CHECKING:

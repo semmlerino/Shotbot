@@ -39,11 +39,10 @@ from PySide6.QtWidgets import (
     QStyleOptionViewItem,
     QWidget,
 )
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, override
 
 from config import Config
 from logging_mixin import get_module_logger
-from typing_compat import override
 
 # Local application imports
 from ui.base_item_model import BaseItemRole

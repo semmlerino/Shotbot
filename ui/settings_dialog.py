@@ -77,13 +77,13 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from timeout_config import TimeoutConfig
-from typing_compat import override
 from ui.design_system import design_system
 from ui.qt_widget_mixin import QtWidgetMixin
 

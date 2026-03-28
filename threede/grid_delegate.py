@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtGui import QColor
+from typing_extensions import override
 
 from logging_mixin import get_module_logger
-from typing_compat import override
 from ui.base_item_model import BaseItemRole
 
 # Local application imports

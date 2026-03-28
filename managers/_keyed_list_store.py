@@ -72,7 +72,7 @@ class KeyedListStore:
                 self._keys = []
                 return
 
-            data = cast("list[dict[str, str] | list[str]]", raw_data)
+            data = cast("list[dict[str, object] | list[object]]", raw_data)
 
             self._keys = []
             for item in data:
@@ -97,7 +97,7 @@ class KeyedListStore:
                         isinstance(v0, str)
                         and isinstance(v1, str)
                         and isinstance(v2, str)
-                    ):  # pyright: ignore[reportUnnecessaryIsInstance]
+                    ):
                         self._keys.append((v0, v1, v2))
 
             self._logger.info(f"Loaded {len(self._keys)} {self._cache_key} from cache")

@@ -35,9 +35,9 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 from threede.grid_delegate import ThreeDEGridDelegate
-from typing_compat import override
 
 # Local application imports
 from ui.base_grid_view import BaseGridView

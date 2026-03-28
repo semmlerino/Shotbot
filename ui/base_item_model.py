@@ -33,13 +33,13 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtGui import QIcon, QPixmap
+from typing_extensions import override
 
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol
 from qt_abc_meta import QABCMeta
-from typing_compat import override
 from ui.qt_widget_mixin import require_main_thread
 
 

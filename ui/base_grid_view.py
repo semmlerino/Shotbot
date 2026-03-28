@@ -31,11 +31,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
-from typing_compat import override
 from ui.grid_context_menu_mixin import GridContextMenuMixin
 from ui.qt_widget_mixin import QtWidgetMixin
 from ui.scrub_bridge import ScrubPreviewBridge

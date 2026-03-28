@@ -10,8 +10,7 @@ from PySide6.QtCore import (
     QPersistentModelIndex,
     Qt,
 )
-
-from typing_compat import override
+from typing_extensions import override
 
 
 if TYPE_CHECKING:

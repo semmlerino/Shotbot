@@ -7,11 +7,12 @@ import time
 from pathlib import Path
 from typing import ClassVar
 
+from typing_extensions import override
+
 from config import Config
 from logging_mixin import LoggingMixin
 from singleton_mixin import SingletonMixin
 from timeout_config import TimeoutConfig
-from typing_compat import override
 
 
 class FilesystemCoordinator(SingletonMixin, LoggingMixin):

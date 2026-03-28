@@ -18,9 +18,9 @@ from typing import ClassVar, final
 # Third-party imports
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
+from typing_extensions import override
 
 from singleton_mixin import SingletonMixin
-from typing_compat import override
 
 
 logger = logging.getLogger(__name__)

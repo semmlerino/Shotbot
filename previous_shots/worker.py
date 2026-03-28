@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
+from typing_extensions import override
 
 # Local application imports
 from previous_shots.finder import ParallelShotsFinder
-from typing_compat import override
 from workers.thread_safe_worker import ThreadSafeWorker
 
 
