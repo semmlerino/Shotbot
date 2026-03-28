@@ -14,6 +14,7 @@ from logging_mixin import LoggingMixin
 
 
 LATEST_FILES_TTL_MINUTES = 5
+LATEST_FILES_NEGATIVE_TTL_SECONDS = 30
 
 
 class _LatestFileCacheEntry(TypedDict):
@@ -77,15 +78,21 @@ class LatestFileCache(LoggingMixin):
         if entry is None:
             return LatestFileCacheResult("miss")
 
+        # Determine TTL based on cached value (negative entries expire faster)
+        path_str = entry.get("path")
+        if path_str is None:
+            ttl_seconds = LATEST_FILES_NEGATIVE_TTL_SECONDS
+        else:
+            ttl_seconds = self._latest_files_ttl.total_seconds()
+
         # Check TTL
         cached_at = entry.get("cached_at", 0.0)
         age = datetime.now(tz=UTC).timestamp() - cached_at
-        if age > self._latest_files_ttl.total_seconds():
+        if age > ttl_seconds:
             self.logger.debug(f"Latest file cache expired for {key}")
             return LatestFileCacheResult("miss")
 
         # Within TTL — check the cached value
-        path_str = entry.get("path")
         if path_str:
             cached_path = Path(path_str)
             if cached_path.exists():

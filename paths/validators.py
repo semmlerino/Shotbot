@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 # Local application imports
+from config import Config
 from logging_mixin import get_module_logger
 
 
@@ -20,7 +21,8 @@ logger = get_module_logger(__name__)
 # Cache for path existence checks (with TTL)
 _path_cache: dict[str, tuple[bool, float]] = {}
 _path_cache_lock = threading.Lock()  # Thread-safety for path cache access
-_PATH_CACHE_TTL = 0.0  # seconds - 0 = no automatic expiry, manual refresh only
+_PATH_CACHE_TTL = Config.PATH_CACHE_TTL_SECONDS  # 60s for positive entries
+_PATH_CACHE_NEGATIVE_TTL = Config.PATH_CACHE_NEGATIVE_TTL_SECONDS  # 10s for negative
 _cache_disabled = False  # Test isolation flag
 
 
@@ -95,7 +97,8 @@ class PathValidators:
         with _path_cache_lock:
             if path_str in _path_cache:
                 cached_exists, timestamp = _path_cache[path_str]
-                if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
+                ttl = _PATH_CACHE_NEGATIVE_TTL if not cached_exists else _PATH_CACHE_TTL
+                if current_time - timestamp < ttl:
                     # Return cached result without verification to avoid performance issues
                     if not cached_exists:
                         logger.debug(
@@ -175,10 +178,8 @@ class PathValidators:
                 path_str = str(path)
                 if path_str in _path_cache:
                     cached_exists, timestamp = _path_cache[path_str]
-                    if (
-                        _PATH_CACHE_TTL == 0
-                        or current_time - timestamp < _PATH_CACHE_TTL
-                    ):
+                    ttl = _PATH_CACHE_NEGATIVE_TTL if not cached_exists else _PATH_CACHE_TTL
+                    if current_time - timestamp < ttl:
                         # Use cached result without verification
                         results[path_str] = cached_exists
                         continue

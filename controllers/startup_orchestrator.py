@@ -123,7 +123,7 @@ class StartupOrchestrator:
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
         if has_cached_shots:
-            if not target.scene_disk_cache.has_valid_threede_cache():
+            if not target.scene_disk_cache.is_cache_fresh():
                 logger.debug("3DE cache invalid/expired - starting discovery")
                 if target.threede_controller:
                     QTimer.singleShot(

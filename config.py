@@ -201,9 +201,8 @@ class Config:
     ENABLE_BACKGROUND_REFRESH: bool = True
 
     # Enhanced cache settings
-    PATH_CACHE_TTL_SECONDS: int = (
-        0  # Path validation (0 = no automatic expiry, manual refresh only)
-    )
+    PATH_CACHE_TTL_SECONDS: int = 60  # Positive path validation TTL (seconds)
+    PATH_CACHE_NEGATIVE_TTL_SECONDS: int = 10  # Missing-path TTL (seconds)
     DIR_CACHE_TTL_SECONDS: int = (
         0  # Directory listings (0 = no automatic expiry, manual refresh only)
     )

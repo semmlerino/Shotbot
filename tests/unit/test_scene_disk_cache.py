@@ -120,3 +120,66 @@ class TestSceneCacheOperations:
         # With 0-minute TTL, cache should be expired
         cached = scene_cache.get_cached_threede_scenes()
         assert cached is None
+
+
+class TestIsCacheFresh:
+    """Tests for TTL-aware cache freshness check."""
+
+    def test_fresh_cache_returns_true(self, scene_cache: SceneDiskCache) -> None:
+        """Recently written cache is fresh."""
+        scenes = [
+            {
+                "show": "test_show",
+                "sequence": "seq01",
+                "shot": "shot010",
+                "user": "artist1",
+                "plate": "bg01",
+                "scene_path": "/path/to/scene.3de",
+                "workspace_path": "/path",
+            }
+        ]
+        scene_cache.cache_threede_scenes(scenes)
+        assert scene_cache.is_cache_fresh() is True
+
+    def test_expired_cache_returns_false(self, scene_cache: SceneDiskCache) -> None:
+        """Expired cache is not fresh."""
+        scenes = [
+            {
+                "show": "test_show",
+                "sequence": "seq01",
+                "shot": "shot010",
+                "user": "artist1",
+                "plate": "bg01",
+                "scene_path": "/path/to/scene.3de",
+                "workspace_path": "/path",
+            }
+        ]
+        scene_cache.cache_threede_scenes(scenes)
+        # Set TTL to 0 so cache is immediately expired
+        scene_cache.set_expiry_minutes(0)
+        assert scene_cache.is_cache_fresh() is False
+
+    def test_no_cache_returns_false(self, scene_cache: SceneDiskCache) -> None:
+        """No cache file → not fresh."""
+        assert scene_cache.is_cache_fresh() is False
+
+    def test_has_valid_still_returns_true_for_expired(
+        self, scene_cache: SceneDiskCache
+    ) -> None:
+        """has_valid_threede_cache still ignores TTL (existing behavior preserved)."""
+        scenes = [
+            {
+                "show": "test_show",
+                "sequence": "seq01",
+                "shot": "shot010",
+                "user": "artist1",
+                "plate": "bg01",
+                "scene_path": "/path/to/scene.3de",
+                "workspace_path": "/path",
+            }
+        ]
+        scene_cache.cache_threede_scenes(scenes)
+        scene_cache.set_expiry_minutes(0)
+        # has_valid ignores TTL, is_cache_fresh respects it
+        assert scene_cache.has_valid_threede_cache() is True
+        assert scene_cache.is_cache_fresh() is False

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from version_utils import VersionUtils
 
@@ -95,3 +96,42 @@ class TestGetLatestVersionPath:
         result = VersionUtils.get_latest_version_path(tmp_path)
 
         assert isinstance(result, Path)
+
+
+class TestVersionCacheExpiry:
+    """Tests for version cache TTL behavior."""
+
+    def test_version_cache_expires_after_ttl(self, tmp_path: Path) -> None:
+        """Cached v001 -> v002 created -> lookup after TTL returns v002."""
+        VersionUtils.clear_version_cache()
+
+        (tmp_path / "v001").mkdir()
+
+        with (
+            patch("version_utils.time.time") as mock_vtime,
+            patch("paths.validators.time.time") as mock_ptime,
+        ):
+            mock_vtime.return_value = 1000.0
+            mock_ptime.return_value = 1000.0
+
+            result1 = VersionUtils.find_version_directories(tmp_path)
+            assert len(result1) == 1
+            assert result1[0] == (1, "v001")
+
+            # Create v002
+            (tmp_path / "v002").mkdir()
+
+            # Before TTL expires - still cached
+            mock_vtime.return_value = 1050.0
+            mock_ptime.return_value = 1050.0
+            result2 = VersionUtils.find_version_directories(tmp_path)
+            assert len(result2) == 1  # Still cached
+
+            # After TTL expires (60s)
+            mock_vtime.return_value = 1061.0
+            mock_ptime.return_value = 1061.0
+            result3 = VersionUtils.find_version_directories(tmp_path)
+            assert len(result3) == 2
+            assert result3[1] == (2, "v002")
+
+        VersionUtils.clear_version_cache()

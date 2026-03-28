@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import ClassVar
 
+from config import Config
 from logging_mixin import LoggingMixin
 from singleton_mixin import SingletonMixin
 from timeout_config import TimeoutConfig
@@ -95,7 +96,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
                     f"Cached {len(listing)} items from {path.name} "
                     f"(hit rate: {self._get_hit_rate():.1%})"
                 )
-                return listing
+                return listing.copy()
 
             except (OSError, PermissionError) as e:
                 self.logger.debug(f"Failed to list directory {path}: {e}")
@@ -183,7 +184,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             for directory, contents in paths.items():
                 # Only update if not already cached or if newer
                 if directory not in self._directory_cache:
-                    self._directory_cache[directory] = (contents, now)
+                    self._directory_cache[directory] = (contents.copy(), now)
                     shared_count += 1
 
         if shared_count > 0:
@@ -244,6 +245,20 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             for path in expired_paths:
                 del self._directory_cache[path]
                 removed += 1
+
+            # Enforce size limit after TTL cleanup
+            max_size = Config.DIR_CACHE_MAX_SIZE  # 500
+            if len(self._directory_cache) > max_size:
+                # Evict oldest entries down to 80% capacity
+                target_size = int(max_size * 0.8)  # 400
+                sorted_paths = sorted(
+                    self._directory_cache.items(),
+                    key=lambda item: item[1][1],  # Sort by timestamp
+                )
+                evict_count = len(self._directory_cache) - target_size
+                for path, _ in sorted_paths[:evict_count]:
+                    del self._directory_cache[path]
+                    removed += 1
 
         if removed > 0:
             self.logger.debug(f"Removed {removed} expired cache entries")

@@ -18,6 +18,7 @@ from __future__ import annotations
 # Standard library imports
 import threading
 import time
+from collections.abc import Callable
 from typing import Self
 
 # Third-party imports
@@ -136,15 +137,13 @@ class InjectableProcessPoolManager(ProcessPoolManager):
             QObject,
         )
 
-        # Third-party imports
-        from cachetools import TTLCache
-
         QObject.__init__(self)  # Initialize QObject directly
 
         self._session_pools: dict[str, list[BashSessionDouble]] = {}
         self._session_round_robin: dict[str, int] = {}
         self._sessions_per_type = 3
-        self._cache: TTLCache[str, str] = TTLCache(maxsize=500, ttl=30)
+        self._cache: dict[str, tuple[str, float, float]] = {}  # key -> (result, timestamp, ttl)
+        self._cache_max_size = 500
         self._cache_lock = QMutex()
         self._session_lock = threading.RLock()
         # Add condition variable for proper thread synchronization
@@ -163,30 +162,30 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         command: str,
         cache_ttl: int = 30,
         timeout: int | None = None,
+        use_login_shell: bool = False,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> str:
         """Override to use test session when available."""
         if self._test_session:
-            # Use test session instead of secure executor
-            # Check cache first (same as parent)
-            cached = self._cache.get(command)
-            if cached is not None:
-                return cached
+            cache_key = f"{command}|login={use_login_shell}"
+            # Check cache first
+            if cache_ttl > 0:
+                entry = self._cache.get(cache_key)
+                if entry is not None:
+                    result, timestamp, ttl = entry
+                    if time.monotonic() - timestamp < ttl:
+                        return result
 
             # Execute with test session
             result = self._test_session.execute(command, timeout)
 
             # Cache result
-            self._cache[command] = result
+            if cache_ttl > 0:
+                self._cache[cache_key] = (result, time.monotonic(), cache_ttl)
 
             return result
         # Use parent implementation with secure executor
-        return super().execute_workspace_command(command, cache_ttl, timeout)
-
-    def _get_bash_session(self, session_type: str):
-        """Override to return injected test session when available."""
-        if self._test_session:
-            return self._test_session
-        return super()._get_bash_session(session_type)
+        return super().execute_workspace_command(command, cache_ttl, timeout, use_login_shell, cancel_flag)
 
 
 # =============================================================================
@@ -297,6 +296,46 @@ class TestCacheInvalidation:
         assert len(session.executed_commands) == initial_count  # Not re-executed
 
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
+        manager.shutdown()
+
+
+class TestPerEntryCacheTTL:
+    """Test per-entry cache TTL behavior."""
+
+    def test_cache_ttl_zero_skips_cache(self) -> None:
+        """cache_ttl=0 must not populate cache — two calls both execute."""
+        manager = InjectableProcessPoolManager()
+        session = BashSessionDouble()
+        session.set_response("cmd", "output")
+        manager.set_test_session(session)
+
+        result1 = manager.execute_workspace_command("cmd", cache_ttl=0)
+        result2 = manager.execute_workspace_command("cmd", cache_ttl=0)
+
+        assert result1 == "output"
+        assert result2 == "output"
+        assert len(session.executed_commands) == 2  # Both executed, no caching
+
+        manager.shutdown()
+
+    def test_different_login_shell_separate_cache(self) -> None:
+        """Different use_login_shell values produce separate cache entries."""
+        manager = InjectableProcessPoolManager()
+        session = BashSessionDouble()
+        session.set_response("ws list", "interactive_output")
+        manager.set_test_session(session)
+
+        result1 = manager.execute_workspace_command("ws list", cache_ttl=30, use_login_shell=False)
+
+        # Change response for login shell variant
+        session.set_response("ws list", "login_output")
+        result2 = manager.execute_workspace_command("ws list", cache_ttl=30, use_login_shell=True)
+
+        # Should be different results (separate cache keys)
+        assert result1 == "interactive_output"
+        assert result2 == "login_output"
+        assert len(session.executed_commands) == 2  # Both executed
+
         manager.shutdown()
 
 

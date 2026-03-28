@@ -30,9 +30,6 @@ from PySide6.QtCore import (
     QThread,
 )
 
-# Third-party imports
-from cachetools import TTLCache
-
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
 from timeout_config import TimeoutConfig
@@ -253,7 +250,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         super().__init__()
 
-        self._cache: TTLCache[str, str] = TTLCache(maxsize=500, ttl=30)  # pyright: ignore[reportInvalidTypeArguments] - vendored cachetools lacks type stubs
+        self._cache: dict[str, tuple[str, float, float]] = {}  # key -> (result, timestamp, ttl)
+        self._cache_max_size = 500
         self._cache_lock = QMutex()
         # Instance-level mutex and shutdown flag for thread-safe shutdown
         self._mutex = QMutex()
@@ -335,11 +333,17 @@ class ProcessPoolManager(LoggingMixin, QObject):
         if timeout is None:
             timeout = int(TimeoutConfig.SUBPROCESS_SEC)
 
+        cache_key = f"{command}|login={use_login_shell}"
+
         # Check cache first
-        with QMutexLocker(self._cache_lock):
-            _raw = self._cache.get(command)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType] - vendored cachetools
-        if isinstance(_raw, str):
-            return _raw
+        if cache_ttl > 0:
+            with QMutexLocker(self._cache_lock):
+                entry = self._cache.get(cache_key)
+                if entry is not None:
+                    result, timestamp, entry_ttl = entry
+                    if time.monotonic() - timestamp < entry_ttl:
+                        return result
+                    del self._cache[cache_key]
 
         # Execute command using subprocess
         try:
@@ -387,8 +391,16 @@ class ProcessPoolManager(LoggingMixin, QObject):
             result = proc_result.stdout
 
             # Cache result
-            with QMutexLocker(self._cache_lock):
-                self._cache[command] = result
+            if cache_ttl > 0:
+                with QMutexLocker(self._cache_lock):
+                    self._cache[cache_key] = (result, time.monotonic(), cache_ttl)
+                    # Size eviction: trim oldest entries if over limit
+                    if len(self._cache) > self._cache_max_size:
+                        sorted_keys = sorted(
+                            self._cache, key=lambda k: self._cache[k][1]
+                        )
+                        for k in sorted_keys[:100]:
+                            del self._cache[k]
 
             return result
 
@@ -408,7 +420,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 self._cache.clear()
                 logger.info("Cleared entire command cache")
             else:
-                keys: list[str] = [k for k in self._cache if pattern in k]  # pyright: ignore[reportUnknownVariableType] - vendored cachetools
+                keys: list[str] = [k for k in self._cache if pattern in k]
                 for k in keys:
                     del self._cache[k]
                 logger.info(

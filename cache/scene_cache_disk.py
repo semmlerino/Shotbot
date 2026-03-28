@@ -69,6 +69,20 @@ class SceneDiskCache(LoggingMixin, QObject):
         cached = self.get_persistent_threede_scenes()
         return cached is not None
 
+    def is_cache_fresh(self) -> bool:
+        """Check if 3DE cache exists and is within TTL.
+
+        Unlike has_valid_threede_cache() which ignores TTL, this method
+        returns False when the cache has expired, triggering background
+        discovery to refresh stale data.
+
+        Returns:
+            True if cache file exists with data AND is within TTL
+
+        """
+        cached = self.get_cached_threede_scenes()
+        return cached is not None
+
     def cache_threede_scenes(
         self,
         scenes: list[ThreeDESceneDict],

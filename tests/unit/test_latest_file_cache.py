@@ -12,6 +12,7 @@ from __future__ import annotations
 
 # Standard library imports
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Third-party imports
@@ -95,3 +96,63 @@ class TestLatestFileCacheResult:
 
         result = latest_file_cache.get_latest_file_cache_result("/workspace", "threede")
         assert result.status == "miss"
+
+
+# ---------------------------------------------------------------------------
+# TestNegativeCacheTTL
+# ---------------------------------------------------------------------------
+
+
+class TestNegativeCacheTTL:
+    """Tests for shorter TTL on negative (None) cache entries."""
+
+    def test_negative_result_expires_after_30s(
+        self, latest_file_cache: LatestFileCache
+    ) -> None:
+        """Negative result should expire after LATEST_FILES_NEGATIVE_TTL_SECONDS."""
+        latest_file_cache.cache_latest_file("/workspace", "threede", None)
+
+        # Within 30s — should still be "not_found"
+        result1 = latest_file_cache.get_latest_file_cache_result(
+            "/workspace", "threede"
+        )
+        assert result1.status == "not_found"
+
+        # Manually set cached_at to 31 seconds ago
+        cache_data = json.loads(
+            latest_file_cache.latest_files_cache_file.read_text()
+        )
+        cache_data["/workspace:threede"]["cached_at"] = (
+            datetime.now(tz=UTC).timestamp() - 31
+        )
+        latest_file_cache.latest_files_cache_file.write_text(json.dumps(cache_data))
+
+        # After 30s — should be "miss" (expired)
+        result2 = latest_file_cache.get_latest_file_cache_result(
+            "/workspace", "threede"
+        )
+        assert result2.status == "miss"
+
+    def test_positive_result_uses_full_ttl(
+        self, latest_file_cache: LatestFileCache
+    ) -> None:
+        """Positive result should still use the full 5-minute TTL."""
+        test_file = latest_file_cache.latest_files_cache_file.parent / "test.3de"
+        test_file.touch()
+        latest_file_cache.cache_latest_file("/workspace", "threede", test_file)
+
+        # Set cached_at to 60 seconds ago (well past 30s negative TTL, but within 5min)
+        cache_data = json.loads(
+            latest_file_cache.latest_files_cache_file.read_text()
+        )
+        cache_data["/workspace:threede"]["cached_at"] = (
+            datetime.now(tz=UTC).timestamp() - 60
+        )
+        latest_file_cache.latest_files_cache_file.write_text(json.dumps(cache_data))
+
+        # Should still be a hit (60s < 300s full TTL)
+        result = latest_file_cache.get_latest_file_cache_result(
+            "/workspace", "threede"
+        )
+        assert result.status == "hit"
+        assert result.path == test_file

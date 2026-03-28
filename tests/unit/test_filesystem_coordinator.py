@@ -605,3 +605,88 @@ class TestErrorHandling:
         listing = coordinator.get_directory_listing(link_dir)
         assert len(listing) == 1
         assert listing[0][0] == "file.txt"
+
+
+class TestMutableSafety:
+    """Test that cache returns are safe from mutation."""
+
+    def test_mutating_miss_result_does_not_affect_cache(
+        self,
+        coordinator: FilesystemCoordinator,
+        make_test_directory,
+    ) -> None:
+        """Mutating the returned listing from a cache miss must not affect cached data."""
+        test_dir = make_test_directory(file_count=3, subdirs=0)
+
+        # First call is a cache miss
+        listing = coordinator.get_directory_listing(test_dir)
+        assert len(listing) == 3
+
+        # Mutate the returned list
+        listing.append(("injected.txt", False, True))
+        listing.clear()
+
+        # Cache should be unaffected
+        cached_listing = coordinator.get_directory_listing(test_dir)
+        assert len(cached_listing) == 3
+
+    def test_mutating_shared_paths_does_not_affect_cache(
+        self,
+        coordinator: FilesystemCoordinator,
+        tmp_path: Path,
+    ) -> None:
+        """Mutating the list passed to share_discovered_paths must not affect cache."""
+        test_dir = tmp_path / "shared"
+        test_dir.mkdir()
+
+        contents = [("file.txt", False, True)]
+        coordinator.share_discovered_paths({test_dir: contents})
+
+        # Mutate the original list
+        contents.append(("injected.txt", False, True))
+
+        # Cache should be unaffected
+        listing = coordinator.get_directory_listing(test_dir)
+        assert len(listing) == 1
+        assert listing[0][0] == "file.txt"
+
+
+class TestSizeEviction:
+    """Test cache size limit enforcement."""
+
+    def test_cleanup_expired_enforces_size_limit(
+        self,
+        coordinator: FilesystemCoordinator,
+    ) -> None:
+        """Cache exceeding DIR_CACHE_MAX_SIZE triggers eviction to 80%."""
+        # Fill cache well over limit (use 510 entries with max_size=500)
+        # Use timestamps in the recent past to avoid TTL expiration
+        now = time.time()
+        ttl = coordinator._ttl_seconds
+        for i in range(510):
+            path = Path(f"/fake/dir_{i}")
+            # Distribute timestamps from (now - ttl + 100) to (now - 100)
+            # so nothing expires on TTL, but all entries exist
+            timestamp = now - ttl + 100 + (i * (ttl - 200) / 510)
+            coordinator._directory_cache[path] = (
+                [(f"file_{i}.txt", False, True)],
+                timestamp,
+            )
+
+        assert len(coordinator._directory_cache) == 510
+
+        # Run cleanup at current time (nothing expired due to TTL, but size limit applies)
+        with patch("time.time", return_value=now):
+            removed = coordinator.cleanup_expired()
+
+        # Should have evicted down to 400 (80% of 500)
+        assert len(coordinator._directory_cache) == 400
+        assert removed == 110
+
+        # Oldest entries (lowest timestamps) should have been evicted
+        # dir_0 through dir_109 should be gone (they had the oldest timestamps)
+        assert Path("/fake/dir_0") not in coordinator._directory_cache
+        assert Path("/fake/dir_109") not in coordinator._directory_cache
+        # dir_110 onwards should remain
+        assert Path("/fake/dir_110") in coordinator._directory_cache
+        assert Path("/fake/dir_509") in coordinator._directory_cache

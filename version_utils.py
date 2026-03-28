@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import ClassVar
 
 # Local application imports
+from config import Config
 from logging_mixin import get_module_logger
-from paths.validators import (
-    _PATH_CACHE_TTL,  # pyright: ignore[reportPrivateUsage]
-    PathValidators,
-)
+from paths.validators import PathValidators
+
+
+_VERSION_CACHE_TTL = Config.PATH_CACHE_TTL_SECONDS  # 60s TTL for version cache
 
 
 logger = get_module_logger(__name__)
@@ -68,9 +69,7 @@ class VersionUtils:
         with VersionUtils._version_cache_lock:
             if path_str in VersionUtils._version_cache:
                 version_dirs, timestamp = VersionUtils._version_cache[path_str]
-                if (
-                    _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL
-                ):  # Use same TTL as path cache
+                if current_time - timestamp < _VERSION_CACHE_TTL:
                     return version_dirs.copy()  # Return a copy to prevent modification
 
         # Cache miss - scan filesystem (outside lock)
