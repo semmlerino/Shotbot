@@ -81,7 +81,7 @@ httpx==0.28.1
     #   openai
 huggingface-hub==1.4.1
     # via tokenizers
-hypothesis==6.100.8
+hypothesis==6.151.9
 idna==3.11
     # via
     #   anyio
@@ -201,7 +201,7 @@ pytest==8.4.2
     #   pytest-randomly
     #   pytest-timeout
     #   pytest-xdist
-pytest-cov==7.0.0
+pytest-cov==7.1.0
 pytest-mock==3.15.1
 pytest-qt==4.5.0
 pytest-randomly==3.16.0
