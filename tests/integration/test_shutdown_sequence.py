@@ -20,8 +20,6 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtCore import QMutexLocker, QObject, Signal
 
-from tests.test_helpers import SynchronizationHelpers, process_qt_events
-
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -81,7 +79,7 @@ class TestSignalDeliveryDuringShutdown:
 
         # Emit should work
         emitter.emit_test()
-        process_qt_events()
+        qtbot.waitUntil(lambda: len(received) == 1, timeout=5000)
         assert len(received) == 1
 
         # Disconnect (simulating shutdown)
@@ -91,7 +89,7 @@ class TestSignalDeliveryDuringShutdown:
         # Emit after disconnect should not crash
         # (would crash if handler was called with deleted object)
         emitter.emit_test()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Handler should not have received second signal
         assert len(received) == 1
@@ -215,10 +213,7 @@ class TestAppWideShutdown:
         lock_acquired.wait(timeout=2.0)
 
         # Shutdown during operation
-        SynchronizationHelpers.wait_for_condition(
-            lambda: "started" in active_operations,
-            timeout_ms=1000,
-        )
+        qtbot.waitUntil(lambda: "started" in active_operations, timeout=1000)
 
         # Shutdown while operation is active
         pool.shutdown(timeout=2.0)

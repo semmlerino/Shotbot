@@ -33,7 +33,6 @@ from PySide6.QtWidgets import QWidget
 
 from config import Config
 from tests.fixtures.qt_fixtures import make_mock_wheel_event
-from tests.test_helpers import process_qt_events
 from ui.base_grid_view import BaseGridView, HasAvailableShows
 from ui.base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
 
@@ -149,7 +148,7 @@ def grid_view(qtbot: QtBot) -> ConcreteGridView:
 def cleanup_qt_state(qtbot: QtBot):
     """Ensure Qt state is cleaned up after each test."""
     yield
-    process_qt_events()
+    qtbot.wait(1)
 
 
 # ============================================================================
@@ -255,7 +254,7 @@ class TestThumbnailSizeControl:
         """Test that slider change updates label, thumbnail size, delegate size, and grid size."""
         new_size = 500
         grid_view.size_slider.setValue(new_size)
-        process_qt_events()
+        qtbot.waitUntil(lambda: grid_view.size_label.text() == f"{new_size}px")
 
         assert grid_view.size_label.text() == f"{new_size}px"
         assert grid_view.thumbnail_size == new_size
@@ -328,7 +327,7 @@ class TestShowFilter:
 
         signal_spy = QSignalSpy(grid_view.show_filter_requested)
         grid_view.show_combo.setCurrentText("TestShow")
-        process_qt_events()
+        qtbot.waitUntil(lambda: signal_spy.count() == 1)
 
         assert signal_spy.count() == 1
         assert signal_spy.at(0)[0] == "TestShow"
@@ -340,11 +339,11 @@ class TestShowFilter:
         """Test that 'All Shows' selection emits empty string."""
         grid_view.populate_show_filter(["TestShow"])
         grid_view.show_combo.setCurrentText("TestShow")
-        process_qt_events()
+        qtbot.wait(1)
 
         signal_spy = QSignalSpy(grid_view.show_filter_requested)
         grid_view.show_combo.setCurrentText("All Shows")
-        process_qt_events()
+        qtbot.waitUntil(lambda: signal_spy.count() == 1)
 
         assert signal_spy.count() == 1
         assert signal_spy.at(0)[0] == ""
@@ -366,7 +365,7 @@ class TestTextFilter:
         signal_spy = QSignalSpy(grid_view.text_filter_requested)
 
         grid_view.text_filter_input.setText("test query")
-        process_qt_events()
+        qtbot.waitUntil(lambda: signal_spy.count() >= 1)
 
         assert signal_spy.count() >= 1
         # Last emission should be the complete text
@@ -379,11 +378,11 @@ class TestTextFilter:
     ) -> None:
         """Test that clearing text filter emits empty string."""
         grid_view.text_filter_input.setText("some text")
-        process_qt_events()
+        qtbot.wait(1)
 
         signal_spy = QSignalSpy(grid_view.text_filter_requested)
         grid_view.text_filter_input.clear()
-        process_qt_events()
+        qtbot.waitUntil(lambda: signal_spy.count() >= 1)
 
         assert signal_spy.count() >= 1
         last_idx = signal_spy.count() - 1
@@ -410,7 +409,9 @@ class TestWheelEvent:
         )
 
         grid_view.wheelEvent(wheel_event)
-        process_qt_events()
+        qtbot.waitUntil(
+            lambda: grid_view.thumbnail_size == min(initial_size + 10, Config.MAX_THUMBNAIL_SIZE)
+        )
 
         # Size should increase by 10 (capped at MAX)
         expected = min(initial_size + 10, Config.MAX_THUMBNAIL_SIZE)
@@ -423,7 +424,7 @@ class TestWheelEvent:
         """Test that Ctrl+Wheel down decreases thumbnail size."""
         # Start at a size that allows decrease
         grid_view.size_slider.setValue(200)
-        process_qt_events()
+        qtbot.wait(1)
 
         initial_size = grid_view.thumbnail_size
 
@@ -432,7 +433,9 @@ class TestWheelEvent:
         )
 
         grid_view.wheelEvent(wheel_event)
-        process_qt_events()
+        qtbot.waitUntil(
+            lambda: grid_view.thumbnail_size == max(initial_size - 10, Config.MIN_THUMBNAIL_SIZE)
+        )
 
         expected = max(initial_size - 10, Config.MIN_THUMBNAIL_SIZE)
         assert grid_view.thumbnail_size == expected
@@ -458,14 +461,14 @@ class TestWheelEvent:
     ) -> None:
         """Test that Ctrl+Wheel respects minimum thumbnail size."""
         grid_view.size_slider.setValue(Config.MIN_THUMBNAIL_SIZE)
-        process_qt_events()
+        qtbot.wait(1)
 
         wheel_event = make_mock_wheel_event(
             delta=-120, modifiers=Qt.KeyboardModifier.ControlModifier
         )
 
         grid_view.wheelEvent(wheel_event)
-        process_qt_events()
+        qtbot.waitUntil(lambda: grid_view.thumbnail_size == Config.MIN_THUMBNAIL_SIZE)
 
         assert grid_view.thumbnail_size == Config.MIN_THUMBNAIL_SIZE
 
@@ -474,14 +477,14 @@ class TestWheelEvent:
     ) -> None:
         """Test that Ctrl+Wheel respects maximum thumbnail size."""
         grid_view.size_slider.setValue(Config.MAX_THUMBNAIL_SIZE)
-        process_qt_events()
+        qtbot.wait(1)
 
         wheel_event = make_mock_wheel_event(
             delta=120, modifiers=Qt.KeyboardModifier.ControlModifier
         )
 
         grid_view.wheelEvent(wheel_event)
-        process_qt_events()
+        qtbot.waitUntil(lambda: grid_view.thumbnail_size == Config.MAX_THUMBNAIL_SIZE)
 
         assert grid_view.thumbnail_size == Config.MAX_THUMBNAIL_SIZE
 
@@ -518,10 +521,10 @@ class TestKeyboardShortcuts:
         # QAction shortcuts require the widget to be visible to fire
         grid_view.show()
         grid_view.list_view.setFocus()
-        process_qt_events()
+        qtbot.wait(1)
 
         QTest.keyPress(grid_view.list_view, key)
-        process_qt_events()
+        qtbot.waitUntil(lambda: signal_spy.count() == 1)
 
         assert signal_spy.count() == 1
         assert signal_spy.at(0)[0] == expected_app
@@ -533,7 +536,7 @@ class TestKeyboardShortcuts:
         # Arrow keys should go to list view for navigation
         mock_key = mocker.patch.object(grid_view.list_view, "keyPressEvent")
         QTest.keyPress(grid_view, Qt.Key.Key_Down)
-        process_qt_events()
+        qtbot.waitUntil(lambda: mock_key.call_count == 1)
         mock_key.assert_called_once()
 
     def test_launch_actions_installed_on_list_view(
@@ -555,10 +558,10 @@ class TestKeyboardShortcuts:
         signal_spy = QSignalSpy(grid_view.app_launch_requested)
 
         grid_view.list_view.setFocus()
-        process_qt_events()
+        qtbot.wait(1)
 
         QTest.keyPress(grid_view.list_view, Qt.Key.Key_Down)
-        process_qt_events()
+        qtbot.wait(1)
 
         assert signal_spy.count() == 0
 
@@ -574,10 +577,10 @@ class TestKeyboardShortcuts:
         # Show widget and focus the search field (not list_view)
         grid_view.show()
         grid_view.text_filter_input.setFocus()
-        process_qt_events()
+        qtbot.wait(1)
 
         QTest.keyPress(grid_view.text_filter_input, Qt.Key.Key_N)
-        process_qt_events()
+        qtbot.wait(1)
 
         assert signal_spy.count() == 0
 
@@ -678,7 +681,7 @@ class TestVisibilityTracking:
 
         # Manually trigger update
         grid_view._update_visible_range()
-        process_qt_events()
+        qtbot.waitUntil(lambda: len(grid_view.visible_range_updates) >= 1)
 
         # Should have recorded a visible range update
         assert len(grid_view.visible_range_updates) >= 1
@@ -691,7 +694,7 @@ class TestVisibilityTracking:
         grid_view.visible_range_updates.clear()
 
         grid_view._update_visible_range()
-        process_qt_events()
+        qtbot.wait(1)
 
         # No updates should be recorded
         assert len(grid_view.visible_range_updates) == 0

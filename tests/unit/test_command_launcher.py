@@ -18,7 +18,6 @@ from config import Config
 from launch.command_launcher import CommandLauncher, LaunchContext
 from launch.launch_request import LaunchRequest
 from tests.fixtures.process_fixtures import PopenDouble
-from tests.test_helpers import process_qt_events
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -53,7 +52,7 @@ def ensure_qt_cleanup(qtbot: QtBot):
     """
     yield
     # Wait for any pending timers (CommandLauncher uses 100ms timers)
-    process_qt_events()
+    qtbot.wait(1)
 
 
 @pytest.fixture(autouse=True)
@@ -86,7 +85,7 @@ class TestCommandLauncher:
     """Test CommandLauncher functionality."""
 
     @pytest.fixture
-    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
+    def launcher(self, monkeypatch: pytest.MonkeyPatch, qtbot: QtBot) -> Iterator[CommandLauncher]:
         """Create CommandLauncher with test doubles."""
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
@@ -96,7 +95,7 @@ class TestCommandLauncher:
         launcher = CommandLauncher()
         yield launcher
         launcher.cleanup()
-        process_qt_events()
+        qtbot.wait(1)
 
     @pytest.fixture
     def test_shot(self) -> Shot:
@@ -132,6 +131,7 @@ class TestCommandLauncher:
         mocker,
         launcher: CommandLauncher,
         test_shot: Shot,
+        qtbot: QtBot,
         app_name: str,
         expected_token: str,
     ) -> None:
@@ -150,7 +150,7 @@ class TestCommandLauncher:
         result = launcher.launch(LaunchRequest(app_name=app_name))
 
         assert result is True
-        process_qt_events()
+        qtbot.wait(1)
 
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
@@ -195,7 +195,7 @@ class TestCommandLauncher:
         result = launcher.launch(LaunchRequest(app_name="nuke", scene=nuke_scene))
 
         assert result is True
-        process_qt_events()
+        qtbot.wait(1)
         assert mock_popen.called
         command_str = " ".join(mock_popen.call_args[0][0])
         # Non-3DE scene launches should NOT export SGTK_FILE_TO_OPEN
@@ -228,7 +228,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        process_qt_events()
+        qtbot.wait(1)
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -277,7 +277,7 @@ class TestCommandLauncher:
             result = launcher.launch(LaunchRequest(app_name="rv"))
 
         assert result is True
-        process_qt_events()
+        qtbot.wait(1)
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
         command_str = " ".join(call_args)
@@ -319,7 +319,7 @@ class TestCommandLauncher:
         assert result is False
 
         # Wait for any pending Qt events (QTimer won't fire due to failure, but process events)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Verify subprocess was attempted
         assert mock_popen.called
@@ -356,7 +356,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        process_qt_events()
+        qtbot.wait(1)
 
         # Verify subprocess was called with direct bash (headless)
         assert mock_popen.called
@@ -402,7 +402,7 @@ class TestCommandLauncher:
         result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is True
-        process_qt_events()
+        qtbot.wait(1)
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
         command_str = " ".join(call_args)
@@ -418,7 +418,7 @@ class TestCommandLauncherSignals:
     """Test CommandLauncher signal emissions."""
 
     @pytest.fixture
-    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
+    def launcher(self, monkeypatch: pytest.MonkeyPatch, qtbot: QtBot) -> Iterator[CommandLauncher]:
         """Create CommandLauncher with test doubles."""
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
@@ -428,7 +428,7 @@ class TestCommandLauncherSignals:
         launcher = CommandLauncher()
         yield launcher
         launcher.cleanup()
-        process_qt_events()
+        qtbot.wait(1)
 
     @pytest.mark.allow_dialogs  # Warning dialogs are acceptable in this smoke-style path test
     def test_signal_data_format(self, mocker, launcher: CommandLauncher, qtbot: QtBot) -> None:
@@ -453,7 +453,7 @@ class TestCommandLauncherSignals:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        process_qt_events()
+        qtbot.wait(1)
 
         # Should have called Popen
         assert mock_popen.called
@@ -463,7 +463,7 @@ class TestScriptsDirValidation:
     """Test _validate_scripts_dir preflight validation."""
 
     @pytest.fixture
-    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
+    def launcher(self, monkeypatch: pytest.MonkeyPatch, qtbot: QtBot) -> Iterator[CommandLauncher]:
         """Create CommandLauncher with test doubles."""
         from launch import EnvironmentManager
 
@@ -472,7 +472,7 @@ class TestScriptsDirValidation:
         launcher = CommandLauncher()
         yield launcher
         launcher.cleanup()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_missing_scripts_dir_blocks_nuke_launch(
         self,
@@ -509,6 +509,7 @@ class TestScriptsDirValidation:
         mocker,
         launcher: CommandLauncher,
         monkeypatch: pytest.MonkeyPatch,
+        qtbot: QtBot,
     ) -> None:
         """Maya launch doesn't check scripts dir (doesn't use hook scripts)."""
         monkeypatch.setattr(Config, "SCRIPTS_DIR", "/nonexistent/scripts")
@@ -529,7 +530,7 @@ class TestScriptsDirValidation:
         result = launcher.launch(LaunchRequest(app_name="maya"))
 
         assert result is True
-        process_qt_events()
+        qtbot.wait(1)
 
 
 class TestSubprocessErrorHandling:

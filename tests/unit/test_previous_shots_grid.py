@@ -40,7 +40,6 @@ from tests.fixtures.model_fixtures import (
     create_test_shot,
     create_test_shots,
 )
-from tests.test_helpers import SynchronizationHelpers, process_qt_events
 
 
 if TYPE_CHECKING:
@@ -70,17 +69,10 @@ def _schedule_delete_later(*objects: QObject) -> None:
 
 
 def _wait_for_qt_condition(
-    condition: Callable[[], object], timeout_ms: int = 1000
+    qtbot: QtBot, condition: Callable[[], object], timeout_ms: int = 1000
 ) -> None:
     """Poll a Qt condition without entering pytest-qt nested wait loops."""
-
-    def _poll() -> bool:
-        process_qt_events()
-        return bool(condition())
-
-    assert SynchronizationHelpers.wait_for_condition(_poll, timeout_ms=timeout_ms), (
-        "Timed out waiting for Qt state to settle"
-    )
+    qtbot.waitUntil(lambda: bool(condition()), timeout=timeout_ms)
 
 
 class FakePreviousShotsModel(QObject):
@@ -295,7 +287,7 @@ class TestPreviousShotsView:
         test_model.set_shots(test_shots)
 
         # Wait for parent widget to be visible first
-        _wait_for_qt_condition(lambda: grid_widget.isVisible(), timeout_ms=500)
+        _wait_for_qt_condition(qtbot, lambda: grid_widget.isVisible(), timeout_ms=500)
 
         # Then check list_view visibility (uses list_view in Model/View architecture)
         # The list_view should be visible if parent is shown
@@ -303,13 +295,14 @@ class TestPreviousShotsView:
 
         # Wait for model to update (QueuedConnection needs event loop processing)
         _wait_for_qt_condition(
+            qtbot,
             lambda: grid_widget._model and grid_widget._model.rowCount() == 3,
             timeout_ms=1000,
         )
 
         # Status should show shot count
         _wait_for_qt_condition(
-            lambda: "3" in grid_widget._status_label.text(), timeout_ms=1000
+            qtbot, lambda: "3" in grid_widget._status_label.text(), timeout_ms=1000
         )
 
     def test_thumbnail_signal_connections(
@@ -325,6 +318,7 @@ class TestPreviousShotsView:
 
         # Wait for model to have data
         _wait_for_qt_condition(
+            qtbot,
             lambda: grid_widget._model and grid_widget._model.rowCount() > 0,
             timeout_ms=500,
         )
@@ -359,6 +353,7 @@ class TestPreviousShotsView:
 
         # Wait for model population
         _wait_for_qt_condition(
+            qtbot,
             lambda: grid_widget._model and grid_widget._model.rowCount() == 2,
             timeout_ms=500,
         )
@@ -393,6 +388,7 @@ class TestPreviousShotsView:
 
         # Wait for model to have data
         _wait_for_qt_condition(
+            qtbot,
             lambda: grid_widget._model and grid_widget._model.rowCount() > 0,
             timeout_ms=500,
         )
@@ -423,6 +419,7 @@ class TestPreviousShotsView:
         # Add shots
         test_model.set_shots(create_test_shots(2))
         _wait_for_qt_condition(
+            qtbot,
             lambda: grid_widget._model and grid_widget._model.rowCount() == 2,
             timeout_ms=1000,
         )
@@ -432,6 +429,7 @@ class TestPreviousShotsView:
 
         # Wait for model to clear (QueuedConnection needs event loop processing)
         _wait_for_qt_condition(
+            qtbot,
             lambda: grid_widget._model and grid_widget._model.rowCount() == 0,
             timeout_ms=1000,
         )
@@ -454,6 +452,7 @@ class TestPreviousShotsView:
 
         # Wait for model population
         _wait_for_qt_condition(
+            qtbot,
             lambda: grid_widget._model and grid_widget._model.rowCount() == 6,
             timeout_ms=500,
         )
@@ -505,6 +504,7 @@ class TestPreviousShotsView:
 
         # Wait for model to update
         _wait_for_qt_condition(
+            qtbot,
             lambda: grid_widget._model and grid_widget._model.rowCount() == 1,
             timeout_ms=1000,
         )

@@ -11,7 +11,6 @@ from PySide6.QtWidgets import QLabel, QWidget
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from tests.test_helpers import process_qt_events
 from ui.resizable_frame import ResizableFrame
 
 
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
 def cleanup_qt_state(qtbot: QtBot) -> None:
     """Ensure Qt state is cleaned up after each test."""
     yield
-    process_qt_events()
+    qtbot.wait(1)
 
 
 class TestResizableFrameInitialization:
@@ -184,7 +183,7 @@ class TestResizableFrameSignals:
         frame.height_changed.connect(lambda h: signal_received.append(h))
 
         frame.set_height(200)
-        process_qt_events()
+        qtbot.wait(1)
 
         # No signal expected from programmatic change
         assert len(signal_received) == 0
@@ -203,7 +202,7 @@ class TestResizableFrameSignals:
 
         # Manually emit to test connection
         frame.height_changed.emit(250)
-        process_qt_events()
+        qtbot.waitUntil(lambda: 250 in received_values, timeout=5000)
 
         assert 250 in received_values
 

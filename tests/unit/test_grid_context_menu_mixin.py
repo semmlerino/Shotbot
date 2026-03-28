@@ -22,7 +22,6 @@ import pytest
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMenu
 
-from tests.test_helpers import process_qt_events
 from ui.grid_context_menu_mixin import GridContextMenuMixin
 
 
@@ -118,29 +117,29 @@ class TestCreateIcon:
 class TestCopyPathToClipboard:
     """Tests for _copy_path_to_clipboard method."""
 
-    def test_copy_path_to_clipboard(self, qapp: QApplication) -> None:
+    def test_copy_path_to_clipboard(self, qapp: QApplication, qtbot) -> None:
         """_copy_path_to_clipboard copies path to system clipboard."""
         consumer = _MixinConsumer()
         test_path = "/some/test/path"
 
         consumer._copy_path_to_clipboard(test_path)
-        process_qt_events()
+        qtbot.waitUntil(lambda: QApplication.clipboard() is not None and QApplication.clipboard().text() == test_path)
 
         clipboard = QApplication.clipboard()
         assert clipboard is not None
         assert clipboard.text() == test_path
 
-    def test_copy_path_to_clipboard_multiple_times(self, qapp: QApplication) -> None:
+    def test_copy_path_to_clipboard_multiple_times(self, qapp: QApplication, qtbot) -> None:
         """_copy_path_to_clipboard updates clipboard on multiple calls."""
         consumer = _MixinConsumer()
 
         consumer._copy_path_to_clipboard("/path/one")
-        process_qt_events()
+        qtbot.waitUntil(lambda: QApplication.clipboard().text() == "/path/one")
         clipboard = QApplication.clipboard()
         assert clipboard.text() == "/path/one"
 
         consumer._copy_path_to_clipboard("/path/two")
-        process_qt_events()
+        qtbot.waitUntil(lambda: QApplication.clipboard().text() == "/path/two")
         assert clipboard.text() == "/path/two"
 
     def test_copy_path_to_clipboard_logs_debug(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,7 +161,7 @@ class TestCopyPathToClipboard:
 class TestBuildLaunchSubmenu:
     """Tests for _build_launch_submenu method."""
 
-    def test_build_launch_submenu_creates_actions(self) -> None:
+    def test_build_launch_submenu_creates_actions(self, qtbot) -> None:
         """_build_launch_submenu adds actions to menu."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -174,7 +173,7 @@ class TestBuildLaunchSubmenu:
         ]
 
         consumer._build_launch_submenu(menu, launch_apps, callback)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Menu should have a submenu
         assert len(menu.actions()) > 0
@@ -186,7 +185,7 @@ class TestBuildLaunchSubmenu:
         # Submenu should have the correct number of actions (one per app)
         assert len(submenu.actions()) == len(launch_apps)
 
-    def test_build_launch_submenu_action_labels(self) -> None:
+    def test_build_launch_submenu_action_labels(self, qtbot) -> None:
         """_build_launch_submenu creates actions with correct labels."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -198,7 +197,7 @@ class TestBuildLaunchSubmenu:
         ]
 
         consumer._build_launch_submenu(menu, launch_apps, callback)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Get actions before accessing submenu
         menu_actions = menu.actions()
@@ -216,7 +215,7 @@ class TestBuildLaunchSubmenu:
         assert "Nuke" in submenu_actions[1].text()
         assert "(N)" in submenu_actions[1].text()
 
-    def test_build_launch_submenu_action_icons(self) -> None:
+    def test_build_launch_submenu_action_icons(self, qtbot) -> None:
         """_build_launch_submenu adds icons to actions."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -227,7 +226,7 @@ class TestBuildLaunchSubmenu:
         ]
 
         consumer._build_launch_submenu(menu, launch_apps, callback)
-        process_qt_events()
+        qtbot.wait(1)
 
         menu_actions = menu.actions()
         submenu = menu_actions[0].menu()
@@ -237,7 +236,7 @@ class TestBuildLaunchSubmenu:
         action = submenu_actions[0]
         assert not action.icon().isNull()
 
-    def test_build_launch_submenu_callbacks_triggered(self) -> None:
+    def test_build_launch_submenu_callbacks_triggered(self, qtbot) -> None:
         """_build_launch_submenu callbacks are called with correct app_id."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -249,7 +248,7 @@ class TestBuildLaunchSubmenu:
         ]
 
         consumer._build_launch_submenu(menu, launch_apps, callback)
-        process_qt_events()
+        qtbot.wait(1)
 
         menu_actions = menu.actions()
         assert len(menu_actions) > 0
@@ -261,13 +260,13 @@ class TestBuildLaunchSubmenu:
         assert len(submenu_actions) > 0
         action = submenu_actions[0]
         action.trigger()
-        process_qt_events()
+        qtbot.waitUntil(lambda: callback.called)
 
         # Callback should be called with app_id "maya"
         callback.assert_called()
         assert callback.call_args[0][0] == "maya"
 
-    def test_build_launch_submenu_has_icon(self) -> None:
+    def test_build_launch_submenu_has_icon(self, qtbot) -> None:
         """_build_launch_submenu adds icon to the submenu itself."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -278,14 +277,14 @@ class TestBuildLaunchSubmenu:
         ]
 
         consumer._build_launch_submenu(menu, launch_apps, callback)
-        process_qt_events()
+        qtbot.wait(1)
 
         menu_actions = menu.actions()
         submenu = menu_actions[0].menu()
         assert submenu is not None
         assert not submenu.icon().isNull()
 
-    def test_build_launch_submenu_has_style(self) -> None:
+    def test_build_launch_submenu_has_style(self, qtbot) -> None:
         """_build_launch_submenu sets stylesheet on submenu."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -296,7 +295,7 @@ class TestBuildLaunchSubmenu:
         ]
 
         consumer._build_launch_submenu(menu, launch_apps, callback)
-        process_qt_events()
+        qtbot.wait(1)
 
         menu_actions = menu.actions()
         submenu = menu_actions[0].menu()
@@ -304,14 +303,14 @@ class TestBuildLaunchSubmenu:
         # The stylesheet should be set to CONTEXT_MENU_STYLE
         assert "QMenu" in submenu.styleSheet()
 
-    def test_build_launch_submenu_empty_list(self) -> None:
+    def test_build_launch_submenu_empty_list(self, qtbot) -> None:
         """_build_launch_submenu handles empty app list gracefully."""
         consumer = _MixinConsumer()
         menu = QMenu()
         callback = MagicMock()
 
         consumer._build_launch_submenu(menu, [], callback)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Submenu should still be added (even if empty)
         menu_actions = menu.actions()
@@ -325,7 +324,7 @@ class TestBuildLaunchSubmenu:
 class TestBuildStandardActions:
     """Tests for _build_standard_actions method."""
 
-    def test_build_standard_actions_adds_actions(self) -> None:
+    def test_build_standard_actions_adds_actions(self, qtbot) -> None:
         """_build_standard_actions adds actions to menu."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -336,12 +335,12 @@ class TestBuildStandardActions:
         ]
 
         consumer._build_standard_actions(menu, actions_config)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Menu should have the correct number of actions
         assert len(menu.actions()) == len(actions_config)
 
-    def test_build_standard_actions_labels(self) -> None:
+    def test_build_standard_actions_labels(self, qtbot) -> None:
         """_build_standard_actions creates actions with correct labels."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -355,12 +354,12 @@ class TestBuildStandardActions:
         ]
 
         consumer._build_standard_actions(menu, actions_config)
-        process_qt_events()
+        qtbot.wait(1)
 
         assert menu.actions()[0].text() == "Open Folder"
         assert menu.actions()[1].text() == "Copy Path"
 
-    def test_build_standard_actions_icons(self) -> None:
+    def test_build_standard_actions_icons(self, qtbot) -> None:
         """_build_standard_actions adds icons to actions."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -370,12 +369,12 @@ class TestBuildStandardActions:
         ]
 
         consumer._build_standard_actions(menu, actions_config)
-        process_qt_events()
+        qtbot.wait(1)
 
         action = menu.actions()[0]
         assert not action.icon().isNull()
 
-    def test_build_standard_actions_callbacks_triggered(self) -> None:
+    def test_build_standard_actions_callbacks_triggered(self, qtbot) -> None:
         """_build_standard_actions callbacks are called when triggered."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -389,22 +388,22 @@ class TestBuildStandardActions:
         ]
 
         consumer._build_standard_actions(menu, actions_config)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Trigger first action
         menu.actions()[0].trigger()
-        process_qt_events()
+        qtbot.waitUntil(lambda: callback1.called)
 
         callback1.assert_called_once()
         callback2.assert_not_called()
 
         # Trigger second action
         menu.actions()[1].trigger()
-        process_qt_events()
+        qtbot.waitUntil(lambda: callback2.called)
 
         callback2.assert_called_once()
 
-    def test_build_standard_actions_multiple_callbacks(self) -> None:
+    def test_build_standard_actions_multiple_callbacks(self, qtbot) -> None:
         """_build_standard_actions handles multiple callbacks independently."""
         consumer = _MixinConsumer()
         menu = QMenu()
@@ -418,7 +417,7 @@ class TestBuildStandardActions:
         ]
 
         consumer._build_standard_actions(menu, actions_config)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Trigger each action and verify only its callback is called
         for i, action in enumerate(menu.actions()):
@@ -428,7 +427,7 @@ class TestBuildStandardActions:
 
             # Trigger this action
             action.trigger()
-            process_qt_events()
+            qtbot.waitUntil(lambda cb=callbacks[i]: cb.called)
 
             # Verify only this callback was called
             callbacks[i].assert_called_once()
@@ -436,13 +435,13 @@ class TestBuildStandardActions:
                 if i != j:
                     cb.assert_not_called()
 
-    def test_build_standard_actions_empty_list(self) -> None:
+    def test_build_standard_actions_empty_list(self, qtbot) -> None:
         """_build_standard_actions handles empty config gracefully."""
         consumer = _MixinConsumer()
         menu = QMenu()
 
         consumer._build_standard_actions(menu, [])
-        process_qt_events()
+        qtbot.wait(1)
 
         # Menu should be empty
         assert len(menu.actions()) == 0

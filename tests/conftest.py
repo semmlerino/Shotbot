@@ -22,14 +22,7 @@ KEY DESIGN DECISIONS
    HOW: Create global _GLOBAL_QAPP at import time with offscreen platform.
    FALLBACK: If offscreen fails, falls back to "minimal" platform.
 
-2. QTBOT.WAIT() MONKEYPATCH (lines 131-207)
-   WHY: pytest-qt's wait() can cause re-entrant event loop crashes when called
-   with very short timeouts during fixture cleanup.
-   HOW: Intercept wait(0) and wait(1), replace with process_qt_events().
-   Waits of 2ms+ use original timing.
-   OPT-OUT: @pytest.mark.real_timing or SHOTBOT_TEST_NO_WAIT_PATCH=1
-
-3. XDIST GROUPING STRATEGY
+2. XDIST GROUPING STRATEGY
    WHY: Qt tests sharing QApplication must run on the same worker to prevent
    crashes from Qt state contamination.
    HOW: Module-based grouping via xdist_group markers. Tests in the same module
@@ -63,21 +56,16 @@ IMPORTANT MARKERS
 -----------------
 - @pytest.mark.qt                    Force Qt cleanup fixtures
 - @pytest.mark.qt_heavy              Isolate on single dedicated worker
-- @pytest.mark.real_timing           Bypass wait() patch (timing-sensitive tests)
 - @pytest.mark.skip_if_parallel      Skip test in parallel execution
 - @pytest.mark.real_subprocess       Opt Qt tests out of subprocess mocks; groups real-subprocess tests for xdist
 
 GLOBAL STATE
 ------------
-- _current_test_item: Set by pytest_runtest_setup, used by wait() patch to
-  check @pytest.mark.real_timing. Cleared by pytest_runtest_teardown.
 - _GLOBAL_QAPP: Session-scoped QApplication created at import time.
 
 ENVIRONMENT VARIABLES
 ---------------------
 - QT_QPA_PLATFORM=offscreen          Prevent real widgets appearing (auto-set)
-- SHOTBOT_TEST_NO_WAIT_PATCH=1       Disable qtbot.wait() interception
-- SHOTBOT_TEST_WAIT_DIAG=1           Log when short waits are intercepted
 - SHOTBOT_TEST_AGGRESSIVE_GC=1       Force gc.collect() after each test
 - SHOTBOT_SKIP_SMOKE=1               Skip smoke tests that need external deps
 
@@ -171,10 +159,6 @@ if TYPE_CHECKING:
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Track current test item for runtime marker checks (e.g., @pytest.mark.real_timing)
-# Set by pytest_runtest_call hook, cleared by pytest_runtest_teardown
-_current_test_item: pytest.Item | None = None
-
 
 # ==============================================================================
 # CRITICAL: Early Qt bootstrap (prevents mass-import crashes)
@@ -213,137 +197,11 @@ def qapp() -> Iterator[QApplication]:
     # Don't quit app as it may be used by other tests
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _patch_qtbot_short_waits() -> Iterator[None]:
-    """Intercept qtbot.wait for tiny delays to avoid pytest-qt re-entrancy crashes.
-
-    DESIGN PHILOSOPHY:
-    This is a SAFETY mechanism that prevents pytest-qt from entering nested
-    event loops when qtbot.wait() is called with very short timeouts (≤1ms).
-    These minimal waits typically indicate the intent to process pending events,
-    not to actually wait for time to pass.
-
-    BEHAVIOR:
-    - qtbot.wait(0) through qtbot.wait(1): Replaced with process_qt_events()
-    - qtbot.wait(2+): Original wait behavior preserved (real timing)
-
-    This conservative threshold (1ms vs previous 5ms) ensures that legitimate
-    short delays (2-5ms) use real timing, which is important for:
-    - Debounce/timeout testing
-    - Event ordering verification
-    - Real-world timing simulation
-
-    RECOMMENDED PATTERN:
-    Use process_qt_events() directly instead of qtbot.wait(1) for clarity:
-        from tests.test_helpers import process_qt_events
-        process_qt_events()  # Clear and explicit intent
-
-    OPT-OUT:
-    - Set SHOTBOT_TEST_NO_WAIT_PATCH=1 to disable this patch entirely
-    - Use @pytest.mark.real_timing to bypass the patch for specific tests
-
-    DIAGNOSTICS:
-    Set SHOTBOT_TEST_WAIT_DIAG=1 to log when short waits are intercepted.
-
-    IMPORTANT: This fixture MUST be in conftest.py (not a pytest_plugins module)
-    to ensure it's registered at the same time as qapp and runs at session scope.
-    """
-    # Allow opt-out for timing diagnostics
-    if os.environ.get("SHOTBOT_TEST_NO_WAIT_PATCH", "0") == "1":
-        yield
-        return
-
-    from pytestqt.qtbot import QtBot
-
-    original_wait = QtBot.wait
-    original_wait_until = QtBot.waitUntil
-
-    # Auto-enable diagnostics in CI environments
-    is_ci = (
-        os.environ.get("CI", "").lower() in ("true", "1", "yes")
-        or os.environ.get("GITHUB_ACTIONS") == "true"
-    )
-    log_intercepted = os.environ.get("SHOTBOT_TEST_WAIT_DIAG", "0") == "1" or is_ci
-
-    def _safe_wait(self, timeout: int = 0) -> None:
-        from tests.test_helpers import process_qt_events
-
-        # Honor @pytest.mark.real_timing - bypass patch entirely for timing-sensitive tests
-        if _current_test_item is not None:
-            if _current_test_item.get_closest_marker("real_timing"):
-                return original_wait(self, timeout)
-
-        if timeout <= 1:
-            # Intercept wait(0) and wait(1) - these indicate "process events" intent
-            # Diagnostic logging - auto-enabled in CI, opt-in locally
-            if log_intercepted:
-                import logging
-
-                test_name = _current_test_item.name if _current_test_item else "unknown"
-                logging.getLogger(__name__).info(
-                    "qtbot.wait(%d) intercepted in '%s'", timeout, test_name
-                )
-            process_qt_events()
-            return None
-        return original_wait(self, timeout)
-
-    def _safe_wait_until(
-        self,
-        callback: object,
-        timeout: int = 5000,
-    ) -> None:
-        import time
-
-        from tests.test_helpers import process_qt_events
-
-        if not callable(callback):
-            return original_wait_until(self, callback, timeout=timeout)
-
-        # Honor @pytest.mark.real_timing - bypass patch entirely for timing-sensitive tests
-        if _current_test_item is not None:
-            if _current_test_item.get_closest_marker("real_timing"):
-                return original_wait_until(self, callback, timeout=timeout)
-
-        deadline = time.perf_counter() + max(timeout, 0) / 1000.0
-        last_assertion: AssertionError | None = None
-
-        while True:
-            try:
-                result = callback()
-            except AssertionError as exc:
-                last_assertion = exc
-            else:
-                if result is None or bool(result):
-                    # Preserve pytest-qt's practical behavior: once the condition
-                    # becomes true, flush one more round of queued Qt callbacks
-                    # before returning so signal-driven state has a chance to land.
-                    process_qt_events()
-                    return None
-
-            if time.perf_counter() >= deadline:
-                if last_assertion is not None:
-                    raise last_assertion
-                raise TimeoutError(f"waitUntil timed out in {timeout} milliseconds")
-
-            # Pump Qt events without entering pytest-qt's nested event loop.
-            process_qt_events()
-            time.sleep(0.01)
-
-    QtBot.wait = _safe_wait  # type: ignore[assignment]
-    QtBot.waitUntil = _safe_wait_until  # type: ignore[assignment]
-    try:
-        yield
-    finally:
-        QtBot.wait = original_wait  # type: ignore[assignment]
-        QtBot.waitUntil = original_wait_until  # type: ignore[assignment]
-
-
 # ==============================================================================
 # Fixture Module Loading
 # ==============================================================================
 pytest_plugins = [
-    # NOTE: Qt fixtures (qapp, _patch_qtbot_short_waits) are now in conftest.py
-    # above, not in qt_bootstrap.py - this ensures they have access to _GLOBAL_QAPP
+    # NOTE: Qt fixtures (qapp) are in conftest.py above to access _GLOBAL_QAPP
     "tests.fixtures.qt_fixtures",
     "tests.fixtures.process_fixtures",
     "tests.fixtures.singleton_fixtures",
@@ -521,32 +379,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
-    """Setup hook: track current test item and handle skip conditions.
-
-    Sets _current_test_item EARLY so that fixture setup/teardown can access
-    markers like @pytest.mark.real_timing. This is important because the
-    qtbot.wait() patch needs to check this marker during fixture cleanup.
-    """
-    import logging
-
-    global _current_test_item  # noqa: PLW0603
-
-    # SAFETY CHECK: Previous test item should have been cleared in teardown
-    # If not, it indicates a hook failure - log prominently but recover
-    if _current_test_item is not None:
-        logging.getLogger(__name__).warning(
-            "INFRASTRUCTURE BUG: _current_test_item not cleared from previous test!\n"
-            "  Previous: %s\n"
-            "  Current: %s\n"
-            "This indicates pytest_runtest_teardown failed to run. Check fixture cleanup.",
-            _current_test_item.nodeid if _current_test_item else "unknown",
-            item.nodeid,
-        )
-        # Recover by clearing it - don't cascade failures
-        _current_test_item = None
-
-    _current_test_item = item
-
+    """Setup hook: handle skip conditions for parallel execution."""
     # Check if test has skip_if_parallel marker
     if item.get_closest_marker("skip_if_parallel"):
         # Check if running with xdist (parallel execution)
@@ -596,12 +429,3 @@ def pytest_unconfigure(config: pytest.Config) -> None:
     _GLOBAL_QAPP = None
 
 
-@pytest.hookimpl(trylast=True)
-def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> None:
-    """Clear current test item tracking AFTER fixture teardown.
-
-    Uses trylast=True to ensure this runs after all fixture teardown is complete.
-    This allows fixture cleanup code to still access markers like @pytest.mark.real_timing.
-    """
-    global _current_test_item  # noqa: PLW0603
-    _current_test_item = None

@@ -15,7 +15,6 @@ from PySide6.QtCore import Qt
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from dcc.scene_file import FileType, SceneFile
-from tests.test_helpers import process_qt_events
 from ui.right_panel import RightPanelWidget
 
 
@@ -93,10 +92,15 @@ class TestRightPanelWidgetShot:
         panel = RightPanelWidget()
         qtbot.addWidget(panel)
         panel.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         panel.set_shot(mock_shot)
-        process_qt_events()
+        qtbot.waitUntil(
+            lambda: all(
+                s._launch_btn.isEnabled()
+                for s in panel._dcc_accordion._sections.values()
+            )
+        )
 
         # DCC sections should be enabled
         for section in panel._dcc_accordion._sections.values():
@@ -149,7 +153,9 @@ class TestRightPanelWidgetFiles:
         qtbot.addWidget(panel)
 
         panel.set_files(sample_files)
-        process_qt_events()
+        qtbot.waitUntil(
+            lambda: panel._dcc_accordion._sections["3de"].get_selected_file() is not None
+        )
 
         # 3DE section should have 1 file
         threede_section = panel._dcc_accordion._sections["3de"]
@@ -166,10 +172,12 @@ class TestRightPanelWidgetFiles:
         panel = RightPanelWidget()
         qtbot.addWidget(panel)
         panel.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         panel.set_files(sample_files)
-        process_qt_events()
+        qtbot.waitUntil(
+            lambda: "v005" in panel._dcc_accordion._sections["3de"]._version_label.text()
+        )
 
         # 3DE section should show v005
         threede_section = panel._dcc_accordion._sections["3de"]
@@ -201,16 +209,15 @@ class TestRightPanelWidgetLaunchSignals:
         qtbot.addWidget(panel)
         panel.set_shot(mock_shot)
         panel.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Expand and click the 3de section
         section = panel._dcc_accordion._sections["3de"]
         section.set_expanded(True)
-        process_qt_events()
+        qtbot.wait(1)
 
         with qtbot.waitSignal(panel.launch_requested, timeout=1000) as blocker:
             qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
-            process_qt_events()
 
         assert blocker.args[0] == "3de"
 
@@ -226,16 +233,15 @@ class TestRightPanelWidgetLaunchSignals:
         panel.set_shot(mock_shot)
         panel.set_files(sample_files)
         panel.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Expand and click the 3de section
         section = panel._dcc_accordion._sections["3de"]
         section.set_expanded(True)
-        process_qt_events()
+        qtbot.wait(1)
 
         with qtbot.waitSignal(panel.launch_requested, timeout=1000) as blocker:
             qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
-            process_qt_events()
 
         app_name, options = blocker.args
         assert app_name == "3de"
@@ -293,7 +299,6 @@ class TestRightPanelWidgetShortcuts:
 
         with qtbot.waitSignal(panel.launch_requested, timeout=1000) as blocker:
             result = panel.handle_shortcut("N")
-            process_qt_events()
 
         assert result is True
         assert blocker.args[0] == "nuke"

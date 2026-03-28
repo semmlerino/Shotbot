@@ -18,7 +18,6 @@ from PySide6.QtTest import QSignalSpy
 
 from config import Config
 from shots.shot_item_model import ShotItemModel
-from tests.test_helpers import process_qt_events
 from type_definitions import Shot
 from ui.base_item_model import BaseItemRole
 
@@ -134,7 +133,7 @@ class TestThumbnailLoading:
         shot_item_model.set_visible_range(0, 1)
 
         # Process events to allow async loading
-        process_qt_events()
+        qtbot.wait(1)
 
         # Signal emission depends on cache manager behavior
         # We verify the signal exists and can be connected
@@ -161,7 +160,7 @@ class TestThumbnailLoading:
         # Trigger loading for same range multiple times
         for _ in range(3):
             shot_item_model.set_visible_range(0, 1)
-            process_qt_events()
+            qtbot.wait(1)
 
         # Verify states are consistent (no duplicate loading)
         for shot in test_shots[:2]:
@@ -179,7 +178,7 @@ class TestThumbnailLoading:
 
         # Set visible range to only first two items
         shot_item_model.set_visible_range(0, 1)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Check loading states - only visible items should be marked
         visible_states = [
@@ -215,7 +214,7 @@ class TestThumbnailLoading:
 
         # Trigger loading
         shot_item_model.set_visible_range(0, 0)
-        process_qt_events()
+        qtbot.wait(1)
 
         # After loading, thumbnail may be cached (depends on cache manager)
         # We verify the mechanism exists

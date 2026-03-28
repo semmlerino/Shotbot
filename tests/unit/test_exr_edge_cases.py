@@ -42,7 +42,7 @@ pytestmark = [
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and ThumbnailCache components after test setup."""
-    global CacheManager, QCoreApplication, process_qt_events  # noqa: PLW0603
+    global CacheManager, QCoreApplication  # noqa: PLW0603
     # Third-party imports
     from PySide6.QtCore import (
         QCoreApplication,
@@ -51,9 +51,6 @@ def setup_qt_imports() -> None:
     # Local application imports
     from cache.thumbnail_cache import (
         ThumbnailCache as CacheManager,
-    )
-    from tests.test_helpers import (
-        process_qt_events,
     )
 
 

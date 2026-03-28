@@ -15,7 +15,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 from dcc.dcc_accordion import DCCAccordion
 from dcc.dcc_config import DEFAULT_DCC_CONFIGS, DCCConfig
 from dcc.dcc_section_base import BaseDCCSection
-from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
@@ -135,12 +134,11 @@ class TestDCCAccordionLaunchSignal:
         section = accordion._sections["3de"]
         section.set_expanded(True)
         accordion.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Click launch on the section
         with qtbot.waitSignal(accordion.launch_requested, timeout=1000) as blocker:
             qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
-            process_qt_events()
 
         app_name, options = blocker.args
         assert app_name == "3de"
@@ -154,17 +152,16 @@ class TestDCCAccordionLaunchSignal:
         qtbot.addWidget(accordion)
         accordion.set_shot(mock_shot)
         accordion.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Test each section
         for app_name in ["3de", "nuke", "maya", "rv"]:
             section = accordion._sections[app_name]
             section.set_expanded(True)
-            process_qt_events()
+            qtbot.wait(1)
 
             with qtbot.waitSignal(accordion.launch_requested, timeout=1000) as blocker:
                 qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
-                process_qt_events()
 
             assert blocker.args[0] == app_name
             section.set_expanded(False)
@@ -255,10 +252,10 @@ class TestDCCAccordionVersionInfo:
         accordion = DCCAccordion()
         qtbot.addWidget(accordion)
         accordion.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         accordion.set_version_info("3de", "v005", "21m ago")
-        process_qt_events()
+        qtbot.wait(1)
 
         section = accordion._sections["3de"]
         assert section._version_label.isVisible()
@@ -269,12 +266,12 @@ class TestDCCAccordionVersionInfo:
         accordion = DCCAccordion()
         qtbot.addWidget(accordion)
         accordion.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         accordion.set_version_info("3de", "v005")
         accordion.set_version_info("nuke", "v012")
         accordion.clear_version_info()
-        process_qt_events()
+        qtbot.wait(1)
 
         for section in accordion._sections.values():
             assert not section._version_label.isVisible()

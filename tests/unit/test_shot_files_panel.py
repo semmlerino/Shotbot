@@ -28,7 +28,6 @@ from PySide6.QtWidgets import QApplication
 
 from dcc.scene_file import FileType, SceneFile
 from shots.shot_files_panel import FileListItem, FileTypeSection, ShotFilesPanel
-from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
@@ -130,7 +129,7 @@ def shot_files_panel(qtbot: QtBot) -> ShotFilesPanel:
 def cleanup_qt_state(qtbot: QtBot):
     """Ensure Qt state is cleaned up after each test."""
     yield
-    process_qt_events()
+    qtbot.wait(1)
 
 
 # ============================================================================
@@ -188,7 +187,7 @@ class TestFileListItemContextMenu:
 
         # Call the copy method directly (avoid triggering context menu)
         item._copy_path()
-        process_qt_events()
+        qtbot.waitUntil(lambda: QApplication.clipboard() is not None and QApplication.clipboard().text() == str(scene_file.path))
 
         # Check clipboard
         clipboard = QApplication.clipboard()
@@ -208,7 +207,7 @@ class TestFileListItemContextMenu:
         # Mock QDesktopServices to avoid actually opening folder
         mock_open = mocker.patch.object(QDesktopServices, "openUrl")
         item._open_folder()
-        process_qt_events()
+        qtbot.wait(1)
 
         mock_open.assert_called_once()
         # Verify it was called with a URI for the parent folder
@@ -273,7 +272,7 @@ class TestFileTypeSection:
         assert file_type_section._is_expanded is False
 
         file_type_section._toggle_expanded()
-        process_qt_events()
+        qtbot.wait(1)
 
         assert file_type_section._is_expanded is True
         # Check that visibility is set (actual visibility depends on parent being shown)
@@ -286,12 +285,12 @@ class TestFileTypeSection:
         """Test that toggle collapses expanded content."""
         # First expand
         file_type_section._toggle_expanded()
-        process_qt_events()
+        qtbot.wait(1)
         assert file_type_section._is_expanded is True
 
         # Then collapse
         file_type_section._toggle_expanded()
-        process_qt_events()
+        qtbot.wait(1)
 
         assert file_type_section._is_expanded is False
         # The content widget should be hidden programmatically
@@ -311,7 +310,7 @@ class TestFileTypeSectionFiles:
         ]
 
         file_type_section.set_files(files)
-        process_qt_events()
+        qtbot.wait(1)
 
         assert "(2)" in file_type_section._chip_button.text()
 
@@ -322,7 +321,7 @@ class TestFileTypeSectionFiles:
         files = [create_scene_file()]
 
         file_type_section.set_files(files)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Section should NOT be hidden when it has files
         assert file_type_section.isHidden() is False
@@ -333,12 +332,12 @@ class TestFileTypeSectionFiles:
         """Test that section is hidden when empty."""
         # First add files
         file_type_section.set_files([create_scene_file()])
-        process_qt_events()
+        qtbot.wait(1)
         assert file_type_section.isHidden() is False
 
         # Then clear
         file_type_section.set_files([])
-        process_qt_events()
+        qtbot.wait(1)
 
         # Section should be hidden when empty
         assert file_type_section.isHidden() is True
@@ -350,10 +349,10 @@ class TestFileTypeSectionFiles:
         file_type_section.set_files(
             [create_scene_file(), create_scene_file(name="other.3de")]
         )
-        process_qt_events()
+        qtbot.wait(1)
 
         file_type_section.clear()
-        process_qt_events()
+        qtbot.wait(1)
 
         assert "(0)" in file_type_section._chip_button.text()
         # Section should be hidden when cleared
@@ -407,11 +406,11 @@ class TestShotFilesPanelSetShot:
             FileType.NUKE: [],
         }
         shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
-        process_qt_events()
+        qtbot.wait(1)
 
         # Now clear
         shot_files_panel.set_shot(None)
-        process_qt_events()
+        qtbot.wait(1)
 
         # All sections should be hidden (empty)
         for section in shot_files_panel._sections.values():
@@ -426,7 +425,7 @@ class TestShotFilesPanelSetShot:
         mock_find = mocker.patch.object(shot_files_panel._finder, "find_all_files")
         mock_find.return_value = {}
         shot_files_panel.set_shot(shot)  # type: ignore[arg-type]
-        process_qt_events()
+        qtbot.wait(1)
 
         mock_find.assert_called_once_with(shot)
 
@@ -447,7 +446,7 @@ class TestShotFilesPanelSetShot:
             FileType.NUKE: [],
         }
         shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
-        process_qt_events()
+        qtbot.wait(1)
 
         # Check sections are updated (use isHidden which works without parent being shown)
         # Sections with files should NOT be hidden
@@ -468,7 +467,7 @@ class TestShotFilesPanelSetShot:
         mock_find.side_effect = Exception("Test error")
         # Should not raise
         shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
-        process_qt_events()
+        qtbot.wait(1)
 
         # All sections should be hidden (cleared on error)
         for section in shot_files_panel._sections.values():

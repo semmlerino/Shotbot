@@ -21,7 +21,6 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from launch.latest_file_finder_worker import LatestFileFinderWorker
-from tests.test_helpers import process_qt_events
 from utils import get_current_username
 
 
@@ -124,7 +123,7 @@ class TestLatestFileFinderWorkerSignals:
         worker.search_complete.connect(lambda s: received_complete.append(s))
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         assert len(received_complete) == 1
         assert received_complete[0] is True
@@ -152,7 +151,7 @@ class TestLatestFileFinderWorkerSearch:
         )
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         assert worker.maya_result is not None
         assert worker.maya_result.name == "scene_v002.ma"
@@ -171,7 +170,7 @@ class TestLatestFileFinderWorkerSearch:
         )
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         assert worker.threede_result is not None
         assert worker.threede_result.name == "track_v002.3de"
@@ -190,7 +189,7 @@ class TestLatestFileFinderWorkerSearch:
         )
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         assert worker.maya_result is None
         assert worker.threede_result is None
@@ -212,7 +211,7 @@ class TestLatestFileFinderWorkerSearch:
         worker.search_complete.connect(lambda s: complete_results.append(s))
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Results are None when search is disabled
         assert worker.maya_result is None
@@ -249,7 +248,7 @@ class TestLatestFileFinderWorkerCancellation:
         worker.search_complete.connect(lambda s: complete_results.append(s))
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         # search_complete should emit False for cancellation
         assert len(complete_results) == 1
@@ -285,7 +284,7 @@ class TestLatestFileFinderWorkerCancellation:
         mock_cls.return_value = mock_instance
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Maya search should be skipped because stop was requested after 3DE
         assert worker.maya_result is None
@@ -325,7 +324,7 @@ class TestLatestFileFinderWorkerErrorHandling:
         mock_finder_class.return_value = mock_finder
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         # search_complete should emit False on error
         assert len(complete_results) == 1
@@ -354,7 +353,7 @@ class TestLatestFileFinderWorkerErrorHandling:
         mock_finder_class.return_value = mock_finder
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         # search_complete should emit False on error
         assert len(complete_results) == 1
@@ -383,7 +382,7 @@ class TestLatestFileFinderWorkerProperties:
         )
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         result = worker.maya_result
         assert result is not None
@@ -403,7 +402,7 @@ class TestLatestFileFinderWorkerProperties:
         )
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         result = worker.threede_result
         assert result is not None
@@ -423,7 +422,7 @@ class TestLatestFileFinderWorkerProperties:
         )
 
         worker.do_work()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Maya was searched, should have result
         assert worker.maya_result is not None

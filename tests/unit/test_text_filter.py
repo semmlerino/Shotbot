@@ -34,7 +34,6 @@ from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel
 from tests.fixtures.model_fixtures import TestCacheManager
 from tests.fixtures.process_fixtures import TestProcessPool
-from tests.test_helpers import process_qt_events
 from threede import ThreeDEGridView, ThreeDEItemModel
 
 
@@ -60,7 +59,7 @@ class TestBaseGridViewTextFilterUI:
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     @pytest.fixture
     def shot_grid_view(
@@ -115,7 +114,7 @@ class TestBaseGridViewTextFilterUI:
         # Cleanup
         threede_item_model.clear_thumbnail_cache()
         threede_item_model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_text_filter_in_previous_shots_view(
         self, tmp_path: Path, qtbot: QtBot
@@ -142,9 +141,9 @@ class TestBaseGridViewTextFilterUI:
         # Cleanup
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         previous_model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
         previous_item_model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
 
 class TestMainWindowTextFilterHandlers:

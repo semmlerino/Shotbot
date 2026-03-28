@@ -26,7 +26,6 @@ from launch.command_launcher import CommandLauncher
 from launch.launch_request import LaunchRequest
 from launch.process_executor import ProcessExecutor
 from tests.fixtures.process_fixtures import PopenDouble
-from tests.test_helpers import process_qt_events
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -48,7 +47,7 @@ if TYPE_CHECKING:
 def ensure_qt_cleanup(qtbot: QtBot) -> None:
     """Flush Qt event queue after every test."""
     yield
-    process_qt_events()
+    qtbot.wait(1)
 
 
 @pytest.fixture(autouse=True)
@@ -123,7 +122,7 @@ class TestVerifySpawnCrash:
         crashed_process._terminated = True
 
         executor.verify_spawn(crashed_process, "3de")
-        process_qt_events()
+        qtbot.waitUntil(lambda: len(error_emissions) == 1, timeout=5000)
 
         assert len(error_emissions) == 1
         _ts, msg = error_emissions[0]
@@ -147,7 +146,7 @@ class TestVerifySpawnCrash:
         crashed_process._terminated = True
 
         executor.verify_spawn(crashed_process, "maya")
-        process_qt_events()
+        qtbot.waitUntil(lambda: len(completed_emissions) == 1, timeout=5000)
 
         assert len(completed_emissions) == 1
         success, _msg = completed_emissions[0]
@@ -169,7 +168,7 @@ class TestVerifySpawnCrash:
         running_process.poll = lambda: None  # type: ignore[method-assign]
 
         executor.verify_spawn(running_process, "nuke")
-        process_qt_events()
+        qtbot.waitUntil(lambda: len(progress_emissions) == 1, timeout=5000)
 
         assert len(progress_emissions) == 1
         _ts, msg = progress_emissions[0]
@@ -462,7 +461,7 @@ class TestProcessExecutorCleanup:
         assert len(executor._pending_timers) == 0
 
         executor.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_cleanup_idempotent_on_double_call(self, qtbot: QtBot) -> None:
         """Calling cleanup() twice does not raise."""

@@ -281,9 +281,9 @@ class TestThreeDESceneWorker:
 
             # Wait for the worker thread directly, then flush queued signals.
             _ = worker.wait(2000)
-            from tests.test_helpers import process_qt_events
 
-            process_qt_events()
+            qtbot.waitUntil(lambda: len(started_count) >= 1, timeout=5000)
+            qtbot.waitUntil(lambda: len(finished_scenes) >= 1, timeout=5000)
 
             # Check signals were emitted (at least once)
             assert len(started_count) >= 1
@@ -366,9 +366,9 @@ class TestThreeDESceneWorker:
 
             # Wait for the thread to finish, then flush queued signal delivery.
             _ = worker.wait(3000)
-            from tests.test_helpers import process_qt_events
 
-            process_qt_events()
+            qtbot.waitUntil(lambda: len(started_count) >= 1, timeout=5000)
+            qtbot.waitUntil(lambda: len(finished_scenes) >= 1, timeout=5000)
 
             # Verify signals were emitted (may be >= 1 due to test setup)
             assert len(started_count) >= 1
@@ -428,9 +428,7 @@ class TestThreeDESceneWorker:
             # under xdist load. Waiting on the thread and then flushing queued
             # signals is sufficient for this contract test.
             _ = worker.wait(3000)
-            from tests.test_helpers import process_qt_events
-
-            process_qt_events()
+            qtbot.wait(1)
 
             # Should have error message (if we got here)
             # Under parallel load, this assertion is best-effort
@@ -480,13 +478,7 @@ class TestWorkerInterruption:
             worker.start()
 
             # Wait for the worker to start processing
-            from tests.test_helpers import SynchronizationHelpers
-
-            SynchronizationHelpers.wait_for_condition(
-                lambda: cancel_flag_called[0] >= 0,
-                timeout_ms=1000,
-                poll_interval_ms=10,
-            )
+            qtbot.waitUntil(lambda: cancel_flag_called[0] >= 0, timeout=1000)
 
             # Cancel and wait
             worker.requestInterruption()

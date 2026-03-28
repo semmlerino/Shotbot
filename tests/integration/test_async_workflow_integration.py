@@ -29,7 +29,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Local application imports
 from shots.shot_info_panel import ShotInfoPanel
 from shots.shot_item_model import ShotItemModel
-from tests.test_helpers import process_qt_events
 from type_definitions import Shot
 from workers.runnable_tracker import get_tracker
 
@@ -53,7 +52,7 @@ class TestAsyncWorkflowIntegration:
         # CRITICAL: Without this, deleteLater() may delete widgets while
         # background threads are still emitting signals, causing segfaults
         get_tracker().wait_for_all(timeout_ms=2000)
-        process_qt_events()  # Process pending Qt events
+        qtbot.wait(1)  # Process pending Qt events
 
     @pytest.fixture
     def temp_setup(self, tmp_path: Path) -> tuple[Path, list[Path]]:
@@ -333,7 +332,7 @@ class TestAsyncCallbackIntegration:
         # CRITICAL: Without this, deleteLater() may delete widgets while
         # background threads are still emitting signals, causing segfaults
         get_tracker().wait_for_all(timeout_ms=2000)
-        process_qt_events()  # Process pending Qt events
+        qtbot.wait(1)  # Process pending Qt events
 
     def test_model_reset_during_async_callbacks(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

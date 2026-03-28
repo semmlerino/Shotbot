@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtCore import QObject
 
-from tests.test_helpers import cleanup_qthread_properly, process_qt_events
+from tests.test_helpers import cleanup_qthread_properly
 from workers.thread_safe_worker import ThreadSafeWorker, WorkerState
 
 
@@ -273,8 +273,10 @@ class TestErrorHandling:
             with qtbot.waitSignal(worker.worker_stopped, timeout=3000):
                 worker.start()
 
-            process_qt_events()
-            assert worker.get_state() in {WorkerState.STOPPED, WorkerState.DELETED}
+            qtbot.waitUntil(
+                lambda: worker.get_state() in {WorkerState.STOPPED, WorkerState.DELETED},
+                timeout=5000,
+            )
         finally:
             cleanup_qthread_properly(worker)
 
@@ -290,8 +292,7 @@ class TestErrorHandling:
             with qtbot.waitSignal(worker.worker_error, timeout=3000):
                 worker.start()
 
-            process_qt_events()
-            assert len(received) == 1
+            qtbot.waitUntil(lambda: len(received) == 1, timeout=5000)
             assert "deliberate failure" in received[0]
         finally:
             cleanup_qthread_properly(worker)
@@ -323,15 +324,14 @@ class TestSignalConnections:
             with qtbot.waitSignal(worker.worker_stopped, timeout=3000):
                 worker.start()
 
-            process_qt_events()
-            assert receiver.called, "Slot was not called after safe_connect()"
+            qtbot.waitUntil(lambda: bool(receiver.called), timeout=5000)
         finally:
             cleanup_qthread_properly(worker)
             receiver.deleteLater()
-            process_qt_events()
+            qtbot.wait(1)
 
     @pytest.mark.timeout(10)
-    def test_safe_connect_deduplicates_connections(self) -> None:
+    def test_safe_connect_deduplicates_connections(self, qtbot: QtBot) -> None:
         """Calling safe_connect() twice with the same pair does not duplicate."""
         worker = InstantWorker()
         receiver = SignalReceiver()
@@ -343,7 +343,7 @@ class TestSignalConnections:
         assert worker.connection_count == 1
 
         receiver.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     @pytest.mark.timeout(10)
     def test_disconnect_all_removes_all_tracked_connections(self, qtbot: QtBot) -> None:
@@ -358,7 +358,7 @@ class TestSignalConnections:
         assert worker.connection_count == 0
 
         receiver.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     @pytest.mark.timeout(10)
     def test_disconnect_all_prevents_slot_from_being_called(self, qtbot: QtBot) -> None:
@@ -373,12 +373,14 @@ class TestSignalConnections:
             with qtbot.waitSignal(worker.worker_stopped, timeout=3000):
                 worker.start()
 
-            process_qt_events()
-            assert not receiver.called, "Slot was called even after disconnect_all()"
+            qtbot.waitUntil(
+                lambda: not receiver.called,
+                timeout=5000,
+            )
         finally:
             cleanup_qthread_properly(worker)
             receiver.deleteLater()
-            process_qt_events()
+            qtbot.wait(1)
 
     @pytest.mark.timeout(10)
     def test_disconnect_all_is_idempotent(self) -> None:

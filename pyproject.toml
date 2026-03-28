@@ -341,7 +341,6 @@ markers = [
     "integration_safe: Integration tests safe to run in all environments",
     "skip_if_parallel: Skip when running in parallel mode due to Qt state pollution",
     "allow_dialogs: Suppress strict dialog failure for a test",
-    "real_timing: Bypass short-wait patch for timing-sensitive tests",
     "smoke: Fast, dependency-light tests for cross-version compatibility checks",
     "quarantine: Quarantined tests — excluded from default CI (flaky, crash-prone, or under rewrite)",
 ]

@@ -5,9 +5,6 @@ test doubles and helper classes for proper Qt testing without crashes.
 
 Key Components:
     - SignalDouble: Signal test double for non-Qt objects (re-exported from fixtures)
-    - process_qt_events: Process pending Qt events (preferred over qtbot.wait)
-    - Factory fixtures and helpers
-    - SynchronizationHelpers: Helpers to replace time.sleep() in tests
     - cleanup_qthread_properly: Proper QThread cleanup for test hygiene
 
 Note: ThreadSafeTestImage is available from tests.fixtures.test_doubles.
@@ -15,18 +12,13 @@ Note: ThreadSafeTestImage is available from tests.fixtures.test_doubles.
 
 from __future__ import annotations
 
-# Standard library imports
-import time
 from typing import TYPE_CHECKING, Any
 
-# Third-party imports
 from PySide6.QtCore import (
     QCoreApplication,
     QEvent,
-    QEventLoop,
     QThread,
 )
-from PySide6.QtWidgets import QApplication
 
 from tests.fixtures.model_fixtures import SignalDouble  # noqa: F401 (re-export)
 
@@ -38,77 +30,6 @@ from tests.fixtures.process_fixtures import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
-
-    # Lazy import to avoid circular dependency (test_doubles imports from synchronization)
-
-
-def process_qt_events(duration_ms: int = 5, iterations: int = 2) -> None:
-    """Process pending Qt events.
-
-    This helper processes Qt events in multiple iterations to ensure
-    all pending events are handled. Use this instead of qtbot.wait(1)
-    for event processing.
-
-    NOTE: This does NOT flush DeferredDelete events. For end-of-test cleanup
-    that includes DeferredDelete flushing, use the qt_cleanup fixture.
-
-    Args:
-        duration_ms: Maximum time to spend processing events per iteration.
-        iterations: Number of event processing rounds.
-
-    """
-    app = QApplication.instance()
-    if app is None:
-        return
-    for _ in range(iterations):
-        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, duration_ms)
-
-
-# SignalDouble is now imported from tests.fixtures.test_doubles (see imports above)
-
-
-# ---------------------------------------------------------------------------
-# Synchronization helpers (migrated from tests/helpers/synchronization.py)
-# ---------------------------------------------------------------------------
-
-
-class SynchronizationHelpers:
-    """Helper methods for proper test synchronization without time.sleep()."""
-
-    @staticmethod
-    def wait_for_condition(
-        condition: Callable[[], bool],
-        timeout_ms: int = 1000,
-        poll_interval_ms: int = 10,
-    ) -> bool:
-        """Wait for a condition to become true with polling.
-
-        Args:
-            condition: Function that returns True when condition is met
-            timeout_ms: Maximum time to wait in milliseconds
-            poll_interval_ms: How often to check condition in milliseconds
-
-        Returns:
-            True if condition was met, False if timeout
-
-        Example:
-            # Instead of: time.sleep(0.1)
-            # Use: wait_for_condition(lambda: widget.isVisible(), timeout_ms=100)
-
-        """
-        start_time = time.perf_counter()
-        timeout_sec = timeout_ms / 1000.0
-        poll_interval_sec = poll_interval_ms / 1000.0
-
-        while time.perf_counter() - start_time < timeout_sec:
-            if condition():
-                return True
-            time.sleep(poll_interval_sec)  # Small sleep for polling
-
-        return False
-
-
-# simulate_work_without_sleep is imported from process_doubles (canonical location)
 
 
 # ---------------------------------------------------------------------------

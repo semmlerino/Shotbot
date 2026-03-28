@@ -17,7 +17,6 @@ from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QListView, QWidget
 
 from scrub.scrub_event_filter import ScrubEventFilter
-from tests.test_helpers import process_qt_events
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
@@ -30,7 +29,7 @@ def mock_view(qtbot) -> QListView:
     qtbot.addWidget(view)
     view.resize(400, 400)
     view.show()
-    process_qt_events()
+    qtbot.wait(1)
     return view
 
 
@@ -163,7 +162,7 @@ class TestHoverDelayBehavior:
         assert scrub_filter._hover_timer.isActive()
 
     def test_start_hover_delay_ends_previous_scrub(
-        self, scrub_filter: ScrubEventFilter
+        self, scrub_filter: ScrubEventFilter, qtbot
     ) -> None:
         """Test starting new hover delay ends previous scrub."""
         # Set up existing scrub state
@@ -179,7 +178,7 @@ class TestHoverDelayBehavior:
         new_index = QModelIndex()
         rect = QRect(0, 0, 200, 100)
         scrub_filter._start_hover_delay(new_index, rect)
-        process_qt_events()
+        qtbot.waitUntil(lambda: len(ended_signals) == 1, timeout=5000)
 
         assert not scrub_filter._is_scrubbing
         assert len(ended_signals) == 1
@@ -227,7 +226,7 @@ class TestCancelScrub:
         assert scrub_filter._pending_rect is None
 
     def test_cancel_scrub_emits_ended_signal(
-        self, scrub_filter: ScrubEventFilter
+        self, scrub_filter: ScrubEventFilter, qtbot
     ) -> None:
         """Test cancel_scrub emits scrub_ended when scrubbing."""
         current_index = QModelIndex()
@@ -238,9 +237,7 @@ class TestCancelScrub:
         scrub_filter.scrub_ended.connect(ended_signals.append)
 
         scrub_filter._cancel_scrub()
-        process_qt_events()
-
-        assert len(ended_signals) == 1
+        qtbot.waitUntil(lambda: len(ended_signals) == 1, timeout=5000)
 
     def test_cancel_scrub_clears_scrub_state(
         self, scrub_filter: ScrubEventFilter
@@ -257,7 +254,7 @@ class TestCancelScrub:
         assert scrub_filter._current_rect is None
 
     def test_cancel_scrub_no_signal_if_not_scrubbing(
-        self, scrub_filter: ScrubEventFilter
+        self, scrub_filter: ScrubEventFilter, qtbot
     ) -> None:
         """Test cancel_scrub doesn't emit if not scrubbing."""
         scrub_filter._is_scrubbing = False
@@ -267,7 +264,7 @@ class TestCancelScrub:
         scrub_filter.scrub_ended.connect(ended_signals.append)
 
         scrub_filter._cancel_scrub()
-        process_qt_events()
+        qtbot.wait(1)
 
         assert len(ended_signals) == 0
 
@@ -388,7 +385,7 @@ class TestEdgeCases:
         view = QListView()
         qtbot.addWidget(view)
         view.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         filter_obj = ScrubEventFilter(view=view)
         view.viewport().installEventFilter(filter_obj)

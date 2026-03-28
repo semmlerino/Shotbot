@@ -44,7 +44,6 @@ from config import Config
 
 # Local application imports
 from previous_shots.worker import PreviousShotsWorker
-from tests.test_helpers import SynchronizationHelpers
 from type_definitions import Shot
 
 
@@ -340,11 +339,12 @@ class TestPreviousShotsWorkerWorkflow:
         def slow_find_approved(
             active_shots: list[Shot], shows_root: Any = None
         ) -> list[Shot]:
-            # Wait for stop request to be processed
-            SynchronizationHelpers.wait_for_condition(
-                lambda: worker.should_stop(),
-                timeout_ms=200,
-            )
+            # Wait for stop request to be processed (runs in background thread)
+            deadline = time.perf_counter() + 0.2
+            while time.perf_counter() < deadline:
+                if worker.should_stop():
+                    break
+                time.sleep(0.01)
             if worker.should_stop():
                 return []
             time.sleep(0.01)

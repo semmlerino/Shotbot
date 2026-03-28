@@ -17,7 +17,6 @@ from PySide6.QtGui import QWheelEvent
 from config import Config
 from previous_shots.view import PreviousShotsView
 from shots.shot_grid_view import ShotGridView
-from tests.test_helpers import process_qt_events
 from threede import ThreeDEGridView
 
 
@@ -58,7 +57,7 @@ class TestSignal:
 
 # Test fixtures following Factory Pattern (UNIFIED_TESTING_GUIDE)
 @pytest.fixture
-def model_cleanups() -> Generator[list[Callable[[], None]], None, None]:
+def model_cleanups(qtbot: QtBot) -> Generator[list[Callable[[], None]], None, None]:
     """Track non-widget Qt models created by the test and dispose them explicitly.
 
     qtbot only manages QWidget lifetimes. The backing Qt models created in this
@@ -74,8 +73,7 @@ def model_cleanups() -> Generator[list[Callable[[], None]], None, None]:
         except (RuntimeError, TypeError, AttributeError):
             pass
 
-    process_qt_events()
-    process_qt_events()
+    qtbot.wait(1)
 
 
 @pytest.fixture
@@ -390,7 +388,7 @@ class TestCommonViewBehavior:
                     assert view._visibility_timer.isActive()
 
         view.close()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_show_filter_combo_exists(
         self,

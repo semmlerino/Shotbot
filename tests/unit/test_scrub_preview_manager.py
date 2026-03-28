@@ -19,11 +19,11 @@ from PySide6.QtGui import QImage, QPixmap
 from scrub.plate_frame_provider import PlateSource
 from scrub.scrub_preview_manager import ScrubPreviewManager, ScrubState
 from tests.fixtures.qt_fixtures import make_mock_index
-from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
+    from pytestqt.qtbot import QtBot
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
@@ -268,7 +268,7 @@ class TestEndScrub:
         # Should not raise
         manager.end_scrub(QModelIndex())
 
-    def test_end_scrub_clears_state(self, qapp: QApplication) -> None:
+    def test_end_scrub_clears_state(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test end_scrub clears scrub state and emits scrub_ended and request_repaint."""
         manager = ScrubPreviewManager()
 
@@ -292,7 +292,7 @@ class TestEndScrub:
         manager._active_index = index
 
         manager.end_scrub(index)
-        process_qt_events()
+        qtbot.waitUntil(lambda: 5 not in manager._scrub_states, timeout=5000)
 
         assert 5 not in manager._scrub_states
         assert "test/shot" not in manager._key_to_row
@@ -344,7 +344,7 @@ class TestCleanup:
 class TestOnFrameReady:
     """Tests for _on_frame_ready handler."""
 
-    def test_on_frame_ready_updates_current_pixmap(self, qapp: QApplication) -> None:
+    def test_on_frame_ready_updates_current_pixmap(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test _on_frame_ready updates current pixmap."""
         manager = ScrubPreviewManager()
 
@@ -364,7 +364,7 @@ class TestOnFrameReady:
         # Call handler
         image = QImage(100, 100, QImage.Format.Format_ARGB32)
         manager._on_frame_ready("test/shot", 1050, image)
-        process_qt_events()
+        qtbot.waitUntil(lambda: state.current_pixmap is not None, timeout=5000)
 
         assert state.current_pixmap is not None
 

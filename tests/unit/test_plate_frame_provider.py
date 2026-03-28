@@ -22,11 +22,11 @@ from scrub.plate_frame_provider import (
     PlateFrameProvider,
     PlateSource,
 )
-from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
+    from pytestqt.qtbot import QtBot
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
@@ -239,7 +239,7 @@ class TestPlateFrameProvider:
         result = provider.get_cached_frame("test/shot", 1001)
         assert result is None
 
-    def test_extract_frame_skips_if_already_cached(self, qapp: QApplication) -> None:
+    def test_extract_frame_skips_if_already_cached(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test extract_frame emits signal immediately if cached."""
         provider = PlateFrameProvider()
 
@@ -263,7 +263,7 @@ class TestPlateFrameProvider:
         )
 
         provider.extract_frame("test/shot", source, 1001)
-        process_qt_events()
+        qtbot.waitUntil(lambda: ("test/shot", 1001) in signals_received, timeout=5000)
 
         # Should have emitted immediately from cache
         assert ("test/shot", 1001) in signals_received
@@ -417,7 +417,7 @@ class TestPlateFrameProvider:
         assert stats["shot_count"] == 1
         assert stats["total_frames"] == 2
 
-    def test_on_extraction_finished_caches_and_emits(self, qapp: QApplication) -> None:
+    def test_on_extraction_finished_caches_and_emits(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test _on_extraction_finished caches frame and emits signal."""
         provider = PlateFrameProvider()
 
@@ -435,7 +435,7 @@ class TestPlateFrameProvider:
         # Simulate extraction complete
         image = QImage(100, 100, QImage.Format.Format_ARGB32)
         provider._on_extraction_finished("test/shot", 1001, image)
-        process_qt_events()
+        qtbot.waitUntil(lambda: provider.has_cached_frame("test/shot", 1001), timeout=5000)
 
         # Should be cached
         assert provider.has_cached_frame("test/shot", 1001)
@@ -446,7 +446,7 @@ class TestPlateFrameProvider:
         # Should be removed from pending
         assert ("test/shot", 1001) not in provider._pending_extractions
 
-    def test_on_extraction_failed_emits_signal(self, qapp: QApplication) -> None:
+    def test_on_extraction_failed_emits_signal(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test _on_extraction_failed emits failure signal."""
         provider = PlateFrameProvider()
 
@@ -462,7 +462,7 @@ class TestPlateFrameProvider:
         provider.frame_failed.connect(on_failed)
 
         provider._on_extraction_failed("test/shot", 1001, "Test error")
-        process_qt_events()
+        qtbot.waitUntil(lambda: len(failures_received) == 1, timeout=5000)
 
         # Should have emitted failure
         assert len(failures_received) == 1

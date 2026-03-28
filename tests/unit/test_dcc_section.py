@@ -17,7 +17,6 @@ from dcc.dcc_config import DEFAULT_DCC_CONFIGS, CheckboxConfig, DCCConfig
 from dcc.dcc_section_file import FileDCCSection
 from dcc.dcc_section_rv import RVSection, create_dcc_section
 from dcc.scene_file import FileType, SceneFile
-from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
@@ -135,7 +134,7 @@ class TestDCCSectionInit:
         section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Verify shortcut badge is NOT present in header (only in Quick Launch now)
         from PySide6.QtWidgets import QLabel
@@ -170,11 +169,10 @@ class TestDCCSectionLaunch:
         section.set_enabled(True)
         section.set_expanded(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
             qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
-            process_qt_events()
 
         app_name, options = blocker.args
         assert app_name == "3de"
@@ -189,11 +187,11 @@ class TestDCCSectionLaunch:
         section.set_enabled(True)
         section.set_expanded(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Click launch
         qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
-        process_qt_events()
+        qtbot.waitUntil(lambda: not section._launch_btn.isEnabled())
 
         # Button should be disabled during launch
         assert not section._launch_btn.isEnabled()
@@ -282,13 +280,13 @@ class TestDCCSectionVersionInfo:
         section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         if age is not None:
             section.set_version_info(version, age)
         else:
             section.set_version_info(version)
-        process_qt_events()
+        qtbot.waitUntil(lambda: section._version_label.isVisible() == expect_visible)
 
         assert section._version_label.isVisible() == expect_visible
         for text in expect_texts:
@@ -318,11 +316,11 @@ class TestDCCSectionEnableDisable:
         section.set_enabled(True)
         section.set_expanded(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Click launch - button temporarily disabled
         qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Simulate reset after launch
         section._reset_button_state()
@@ -341,7 +339,7 @@ class TestDCCSectionEmbeddedFiles:
         section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         # Section created with file table
         assert section._dcc_file_table is not None
@@ -349,7 +347,7 @@ class TestDCCSectionEmbeddedFiles:
 
         # Set files populates table and updates header
         section.set_files(sample_scene_files)
-        process_qt_events()
+        qtbot.waitUntil(lambda: section._dcc_file_table._file_model.rowCount() == 2)
 
         assert section._dcc_file_table._file_model.rowCount() == 2
         header_text = section._dcc_file_table._files_header_btn.text()
@@ -363,7 +361,7 @@ class TestDCCSectionEmbeddedFiles:
         qtbot.addWidget(section)
 
         section.set_files(sample_scene_files)
-        process_qt_events()
+        qtbot.waitUntil(lambda: section.get_selected_file() is not None)
 
         selected = section.get_selected_file()
         # First file in list (latest) should be selected by default
@@ -388,16 +386,15 @@ class TestDCCSectionEmbeddedFiles:
         qtbot.addWidget(section)
         section.set_expanded(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         section.set_files(sample_scene_files)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Click the second row in the table
         with qtbot.waitSignal(section.file_selected, timeout=1000):
             index = section._dcc_file_table._file_model.index(1, 0)
             section._dcc_file_table._file_table.clicked.emit(index)
-            process_qt_events()
 
     def test_default_configs_create_correct_types(self, qtbot: QtBot) -> None:
         """3DE, Maya, Nuke create FileDCCSection; RV creates RVSection."""
@@ -422,16 +419,15 @@ class TestDCCSectionFileDoubleClick:
         section.set_enabled(True)
         section.set_expanded(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         section.set_files(sample_scene_files)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Double-click the first row — verify launch_requested emitted with correct app name
         with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
             index = section._dcc_file_table._file_model.index(0, 0)
             section._dcc_file_table._file_table.doubleClicked.emit(index)
-            process_qt_events()
 
         app_name, _options = blocker.args
         assert app_name == "test_dcc"
@@ -440,7 +436,6 @@ class TestDCCSectionFileDoubleClick:
         with qtbot.waitSignal(section.file_selected, timeout=1000) as blocker:
             index = section._dcc_file_table._file_model.index(1, 0)
             section._dcc_file_table._file_table.doubleClicked.emit(index)
-            process_qt_events()
 
         selected_file = blocker.args[0]
         assert selected_file.version == 3
@@ -458,10 +453,10 @@ class TestDCCSectionFileDoubleClick:
         section.set_enabled(True)
         section.set_expanded(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         section.set_files(sample_scene_files)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Store initial state
         initial_selected = section.get_selected_file()
@@ -471,7 +466,7 @@ class TestDCCSectionFileDoubleClick:
 
         invalid_index = QModelIndex()  # Invalid index
         section._dcc_file_table.on_file_double_clicked(invalid_index)
-        process_qt_events()
+        qtbot.waitUntil(lambda: section.get_selected_file() == initial_selected)
 
         # State should be unchanged
         assert section.get_selected_file() == initial_selected
@@ -500,16 +495,15 @@ class TestDCCSectionFileContextMenu:
         qtbot.addWidget(section)
         section.set_enabled(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         section.set_files(sample_scene_files)
-        process_qt_events()
+        qtbot.wait(1)
 
         file = sample_scene_files[0]
 
         with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
             section._dcc_file_table.launch_file(file)
-            process_qt_events()
 
         app_name, _options = blocker.args
         assert app_name == "test_dcc"
@@ -525,10 +519,10 @@ class TestDCCSectionFileContextMenu:
         qtbot.addWidget(section)
         section.set_expanded(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         section.set_files(sample_scene_files)
-        process_qt_events()
+        qtbot.wait(1)
 
         # Request context menu at position that doesn't correspond to a row
         from PySide6.QtCore import QPoint
@@ -537,7 +531,7 @@ class TestDCCSectionFileContextMenu:
         invalid_pos = QPoint(10, 9999)
         # This should not raise an exception
         section._dcc_file_table.show_file_context_menu(invalid_pos)
-        process_qt_events()
+        qtbot.wait(1)
 
 
 class TestDCCSectionFileCopyPath:
@@ -564,10 +558,12 @@ class TestDCCSectionFileCopyPath:
         section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         section._dcc_file_table.copy_file_path(sample_scene_file)
-        process_qt_events()
+        qtbot.waitUntil(
+            lambda: QApplication.clipboard().text() == "/path/to/scene_v005.3de"
+        )
 
         clipboard = QApplication.clipboard()
         assert clipboard.text() == "/path/to/scene_v005.3de"
@@ -604,11 +600,10 @@ class TestRVSection:
         section.set_enabled(True)
         section.set_expanded(True)
         section.show()
-        process_qt_events()
+        qtbot.wait(1)
 
         with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
             qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
-            process_qt_events()
 
         app_name, _options = blocker.args
         assert app_name == "rv"

@@ -16,7 +16,6 @@ from PySide6.QtTest import QSignalSpy, QTest
 
 # Local application imports
 from config import Config
-from tests.test_helpers import process_qt_events
 from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 from type_definitions import ThreeDEScene
 
@@ -298,7 +297,7 @@ class TestThreeDEGridViewAppLaunchSignals:
             # Show widget and focus list_view (QAction requires visible widget)
             threede_grid.show()
             threede_grid.list_view.setFocus()
-            process_qt_events()
+            qtbot.wait(1)
 
             # Simulate Enter key press via QTest on list_view (QAction is scoped there)
             with qtbot.waitSignal(threede_grid.app_launch_requested, timeout=1000):

@@ -19,7 +19,6 @@ from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout
 
 # Local application imports
 from config import Config
-from tests.test_helpers import process_qt_events
 from ui.log_viewer import LogViewer
 
 
@@ -172,7 +171,7 @@ class TestLogViewer:
         # Add multiple entries to trigger scrolling
         for i in range(5):
             log_viewer.add_command(f"12:{i:02d}:00", f"Command {i}")
-            process_qt_events()
+            qtbot.wait(1)
 
         # Test scroll is at maximum (bottom)
         scroll_bar = log_viewer.log_text.verticalScrollBar()

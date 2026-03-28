@@ -26,7 +26,6 @@ from cache.shot_cache import ShotDataCache
 from config import Config
 from previous_shots.model import PreviousShotsModel
 from tests.fixtures.model_fixtures import TestShot, TestShotModel
-from tests.test_helpers import SynchronizationHelpers, process_qt_events
 from type_definitions import Shot
 
 
@@ -201,7 +200,7 @@ class TestPreviousShootsCacheIntegration:
         if worker is not None:
             worker.request_stop()
             worker.wait(2000)  # Wait up to 2 seconds for thread to finish
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_cache_data_consistency(self, cache_manager: ShotDataCache) -> None:
         """Test cache data format consistency."""
@@ -321,7 +320,7 @@ class TestPreviousShootsCacheIntegration:
         finally:
             # CRITICAL CLEANUP: Stop and wait for any worker threads
             model._cleanup_worker_safely()
-            process_qt_events()
+            qtbot.wait(1)
 
     def test_model_cache_integration_on_refresh(
         self, previous_shots_model: PreviousShotsModel, qtbot: object, mocker
@@ -351,12 +350,11 @@ class TestPreviousShootsCacheIntegration:
             assert result is True
 
             # Wait for scan to finish
-            SynchronizationHelpers.wait_for_condition(
+            qtbot.waitUntil(
                 lambda: not previous_shots_model.is_scanning(),
-                timeout_ms=5000,
-                poll_interval_ms=50,
+                timeout=5000,
             )
-            process_qt_events()  # Flush any remaining queued signals
+            qtbot.wait(1)  # Flush any remaining queued signals
 
             assert not previous_shots_model.is_scanning(), (
                 "Timeout waiting for scan to finish"
@@ -372,7 +370,7 @@ class TestPreviousShootsCacheIntegration:
         finally:
             # CRITICAL CLEANUP: Stop and wait for any worker threads
             previous_shots_model._cleanup_worker_safely()
-            process_qt_events()
+            qtbot.wait(1)
 
 
 @pytest.mark.slow

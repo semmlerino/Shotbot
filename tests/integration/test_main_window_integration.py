@@ -19,7 +19,6 @@ from tests.fixtures.process_fixtures import (
     PopenDouble,
     TestProcessPool,
 )
-from tests.test_helpers import process_qt_events
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -104,12 +103,12 @@ def _close_windows(windows: list[Any], qtbot: Any) -> None:
             if not window.isHidden():
                 with contextlib.suppress(RuntimeError):
                     window.hide()
-            process_qt_events()
+            qtbot.wait(1)
 
     windows.clear()
 
     for _ in range(3):
-        process_qt_events()
+        qtbot.wait(1)
 
 
 # Test doubles are imported from tests.fixtures.model_fixtures above.
@@ -215,7 +214,7 @@ def main_window_with_real_components(
         if not window.isHidden():
             with contextlib.suppress(RuntimeError):
                 window.hide()
-        process_qt_events()
+        qtbot.wait(1)
 
 
 # ---------------------------------------------------------------------------
@@ -256,7 +255,7 @@ class TestCrossTabSynchronization:
         window.shot_item_model.set_shots(shots)
 
         window.tab_widget.setCurrentIndex(0)
-        process_qt_events()
+        qtbot.wait(1)
 
         assert window.tab_widget.currentIndex() == 0
 
@@ -270,7 +269,7 @@ class TestCrossTabSynchronization:
 
         # Switch to 3DE tab and select a scene
         window.tab_widget.setCurrentIndex(1)
-        process_qt_events()
+        qtbot.wait(1)
 
         scene = ThreeDEScene(
             show="TEST",
@@ -290,12 +289,12 @@ class TestCrossTabSynchronization:
 
         # Switch to Previous Shots tab — panel should clear (no selection)
         window.tab_widget.setCurrentIndex(2)
-        process_qt_events()
+        qtbot.wait(1)
         assert window.right_panel._current_shot is None
 
         # Back to My Shots — panel clears since no selection is active
         window.tab_widget.setCurrentIndex(0)
-        process_qt_events()
+        qtbot.wait(1)
         assert window.right_panel._current_shot is None
 
         # Re-select or deselect/reselect to verify panel updates
@@ -342,7 +341,7 @@ class TestCrossTabSynchronization:
             loader.wait()
             loader.deleteLater()
 
-        process_qt_events()
+        qtbot.wait(1)
 
         test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs(
@@ -356,14 +355,14 @@ class TestCrossTabSynchronization:
         success, _ = window.shot_model.refresh_shots()
         assert success, "refresh_shots should succeed"
 
-        process_qt_events()
+        qtbot.wait(1)
 
         shot_item_model = window.shot_item_model
         assert shot_item_model.rowCount() == 3
 
         # Filtering is now handled by the proxy model
         window.shot_proxy.set_show_filter("SHOW1")
-        process_qt_events()
+        qtbot.wait(1)
         assert window.shot_proxy.rowCount() == 2
 
         window.shot_proxy.set_show_filter(None)
@@ -791,5 +790,3 @@ def cleanup_test_environment(temp_dir: Path) -> None:
             shutil.rmtree(temp_dir, ignore_errors=True)
     except Exception as e:  # noqa: BLE001
         print(f"Cleanup warning: {e}")
-
-

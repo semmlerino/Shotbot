@@ -30,7 +30,6 @@ from tests.fixtures.model_fixtures import (
     FakeShotModel,
     create_test_shot,
 )
-from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
@@ -83,7 +82,7 @@ class TestPreviousShotsModel:
         # Manual cleanup for QObject
         if hasattr(model, "deleteLater"):
             model.deleteLater()
-            process_qt_events()
+            qtbot.wait(1)
 
     @pytest.fixture
     def test_finder(self) -> FakePreviousShotsFinder:
@@ -115,7 +114,7 @@ class TestPreviousShotsModel:
         # Cleanup worker thread BEFORE deleteLater to prevent Qt crashes
         model._cleanup_worker_safely()
         model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     @pytest.fixture
     def model_with_real_cache(
@@ -132,7 +131,7 @@ class TestPreviousShotsModel:
         # Cleanup worker thread BEFORE deleteLater to prevent Qt crashes
         model._cleanup_worker_safely()
         model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_model_initialization(
         self,
@@ -425,7 +424,7 @@ class TestPreviousShotsModel:
         assert shots[0].show == "show1"
 
     def test_cache_loading_error_recovery(
-        self, temp_cache_dir: Path, test_shot_model: FakeShotModel, qtbot
+        self, temp_cache_dir: Path, test_shot_model: FakeShotModel, qtbot: QtBot
     ) -> None:
         """Test handling of corrupted cache data."""
         # Create invalid cache file
@@ -438,7 +437,7 @@ class TestPreviousShotsModel:
         model = PreviousShotsModel(test_shot_model, cache_manager)
         assert len(model.get_shots()) == 0
         model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_clear_cache_functionality(
         self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path, mocker
@@ -539,7 +538,7 @@ class TestPreviousShotsModel:
         assert shots_updated_spy.count() == 1
 
         model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_on_cache_shots_migrated_merges_without_filesystem_scan(
         self,
@@ -578,7 +577,7 @@ class TestPreviousShotsModel:
 
         mock_worker_cls = mocker.patch("previous_shots.model.PreviousShotsWorker")
         test_cache_manager.shots_migrated.emit(migrated_payload)
-        process_qt_events()
+        qtbot.waitUntil(lambda: shots_updated_spy.count() == 1)
 
         # Worker constructor must never have been called
         mock_worker_cls.assert_not_called()
@@ -603,7 +602,7 @@ class TestPreviousShotsModel:
         reloaded.deleteLater()
 
         model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_on_cache_shots_migrated_deduplicates_existing_shots(
         self,
@@ -636,7 +635,7 @@ class TestPreviousShotsModel:
         shots_updated_spy = QSignalSpy(model.shots_updated)
 
         test_cache_manager.shots_migrated.emit(migrated_payload)
-        process_qt_events()
+        qtbot.waitUntil(lambda: shots_updated_spy.count() == 1)
 
         shots = model.get_shots()
         # Exactly 2 shots: original + the one new one
@@ -649,7 +648,7 @@ class TestPreviousShotsModel:
         assert shots_updated_spy.count() == 1
 
         model.deleteLater()
-        process_qt_events()
+        qtbot.wait(1)
 
     def test_on_cache_shots_migrated_empty_payload_is_noop(
         self,
