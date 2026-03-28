@@ -301,6 +301,16 @@ class MainWindow(QtWidgetMixin, QMainWindow):
 
     def _connect_signals(self) -> None:
         """Connect signals."""
+        self._connect_shot_model_signals()
+        self._connect_filter_signals()
+        self._connect_launch_signals()
+        self._connect_pin_signals()
+        self._connect_controller_signals()
+        self._connect_right_panel_signals()
+        self._connect_sort_signals()
+
+    def _connect_shot_model_signals(self) -> None:
+        """Connect shot model error, recovery, and status signals."""
         # Shot model -> RefreshCoordinator connections
         self.refresh_coordinator.setup_signals()
         _ = self.shot_model.error_occurred.connect(self._on_shot_error)
@@ -313,6 +323,8 @@ class MainWindow(QtWidgetMixin, QMainWindow):
         )
         # Note: background_load_finished had body `pass` — connection removed
 
+    def _connect_filter_signals(self) -> None:
+        """Connect show/text filters for My Shots and Previous Shots grids."""
         # Shot selection - handled by ShotSelectionController when active
         # Controller handles shot_selected, shot_double_clicked, recover_crashes_requested
 
@@ -349,6 +361,8 @@ class MainWindow(QtWidgetMixin, QMainWindow):
             self.filter_coordinator.on_previous_shots_updated  # pyright: ignore[reportAny]
         )
 
+    def _connect_launch_signals(self) -> None:
+        """Connect app launch signals from all 3 grids and visibility signals."""
         _ = self.shot_grid.app_launch_requested.connect(
             lambda app_name: self.command_launcher.launch(  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
                 LaunchRequest(app_name=app_name)  # pyright: ignore[reportUnknownArgumentType]
@@ -379,12 +393,16 @@ class MainWindow(QtWidgetMixin, QMainWindow):
             )
         )
 
+    def _connect_pin_signals(self) -> None:
+        """Connect pin requests from shot and previous shots grids."""
         # Pin sort-order refresh — fallback path when view has no pin_manager set
         _ = self.shot_grid.pin_shot_requested.connect(self._on_shot_grid_pin_requested)
         _ = self.previous_shots_grid.pin_shot_requested.connect(
             self._on_previous_shots_pin_requested
         )
 
+    def _connect_controller_signals(self) -> None:
+        """Connect cross-controller coordination and tab change signals."""
         _ = self.shot_selection_controller.settings_save_requested.connect(
             self.settings_controller.save_settings
         )
@@ -398,6 +416,9 @@ class MainWindow(QtWidgetMixin, QMainWindow):
         _ = self.tab_widget.currentChanged.connect(
             self.threede_controller.on_tab_activated
         )  # pyright: ignore[reportAny]
+
+    def _connect_right_panel_signals(self) -> None:
+        """Connect right panel launch/status signals and search pending state."""
         _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
         _ = self.right_panel.status_message.connect(self.update_status)
 
@@ -409,6 +430,8 @@ class MainWindow(QtWidgetMixin, QMainWindow):
             lambda: self.right_panel.set_search_pending(False)
         )
 
+    def _connect_sort_signals(self) -> None:
+        """Connect sort order change signals with partial() for model binding."""
         # Thumbnail size synchronization handled by ThumbnailSizeManager
 
         # Sort order changes - connect view signals to model and settings persistence

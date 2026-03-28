@@ -236,14 +236,14 @@ class PlateFrameProvider(QObject):
 
         """
         # Lazy import to avoid circular import with utils -> file_discovery
-        from discovery import FileDiscovery
+        from discovery import find_plate_exr_sequence, find_plate_mov_proxy
 
         # Check cache first
         if workspace_path in self._plate_sources:
             return self._plate_sources[workspace_path]
 
         # Try to find MOV proxy first (preferred - faster extraction)
-        mov_path = FileDiscovery.find_plate_mov_proxy(workspace_path)
+        mov_path = find_plate_mov_proxy(workspace_path)
         if mov_path:
             # Get duration for time-based seeking
             # type: ignore - basedpyright can't resolve new ImageUtils methods
@@ -251,7 +251,7 @@ class PlateFrameProvider(QObject):
 
             # Try to get frame range from Shot or filesystem
             # For MOV, we'll use the EXR sequence to get frame range if available
-            exr_info = FileDiscovery.find_plate_exr_sequence(workspace_path)
+            exr_info = find_plate_exr_sequence(workspace_path)
             frame_start = exr_info[1] or 1001
             frame_end = exr_info[2] or 1100
 
@@ -274,9 +274,7 @@ class PlateFrameProvider(QObject):
             return source
 
         # Fall back to EXR sequence
-        exr_path, frame_start, frame_end = FileDiscovery.find_plate_exr_sequence(
-            workspace_path
-        )
+        exr_path, frame_start, frame_end = find_plate_exr_sequence(workspace_path)
         if exr_path:
             source = PlateSource(
                 source_path=exr_path,

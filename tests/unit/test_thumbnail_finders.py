@@ -127,7 +127,9 @@ class TestFindFirstJpegInVersionTree:
 
         assert result is None
 
-    def test_returns_none_when_jpeg_base_path_missing(self, tmp_path: Path, mocker) -> None:
+    def test_returns_none_when_jpeg_base_path_missing(
+        self, tmp_path: Path, mocker
+    ) -> None:
         """Returns None when the version/jpeg directory doesn't exist."""
         base_path = tmp_path / "undistorted_plate"
         # Create version dir but not the jpeg subdir
@@ -549,7 +551,7 @@ class TestFindUndistortedJpegThumbnail:
         jpeg_file.write_bytes(b"JPEG")
 
         mocker.patch(
-            "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
+            "discovery.thumbnail_finders.discover_plate_directories",
             return_value=[("FG01", 0)],
         )
         mocker.patch(
@@ -566,7 +568,9 @@ class TestFindUndistortedJpegThumbnail:
 
         assert result == jpeg_file
 
-    def test_returns_none_when_no_plates_discovered(self, tmp_path: Path, mocker) -> None:
+    def test_returns_none_when_no_plates_discovered(
+        self, tmp_path: Path, mocker
+    ) -> None:
         """Returns None when FileDiscovery finds no plate directories."""
         mm_default = (
             tmp_path
@@ -582,7 +586,7 @@ class TestFindUndistortedJpegThumbnail:
         mm_default.mkdir(parents=True)
 
         mocker.patch(
-            "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
+            "discovery.thumbnail_finders.discover_plate_directories",
             return_value=[],
         )
         result = find_undistorted_jpeg_thumbnail(
@@ -621,7 +625,7 @@ class TestFindUserWorkspaceJpegThumbnail:
         jpeg_file.write_bytes(b"JPG")
 
         mocker.patch(
-            "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
+            "discovery.thumbnail_finders.discover_plate_directories",
             return_value=[("FG01", 0)],
         )
         mocker.patch(

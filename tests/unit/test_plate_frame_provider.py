@@ -239,7 +239,9 @@ class TestPlateFrameProvider:
         result = provider.get_cached_frame("test/shot", 1001)
         assert result is None
 
-    def test_extract_frame_skips_if_already_cached(self, qapp: QApplication, qtbot: QtBot) -> None:
+    def test_extract_frame_skips_if_already_cached(
+        self, qapp: QApplication, qtbot: QtBot
+    ) -> None:
         """Test extract_frame emits signal immediately if cached."""
         provider = PlateFrameProvider()
 
@@ -417,7 +419,9 @@ class TestPlateFrameProvider:
         assert stats["shot_count"] == 1
         assert stats["total_frames"] == 2
 
-    def test_on_extraction_finished_caches_and_emits(self, qapp: QApplication, qtbot: QtBot) -> None:
+    def test_on_extraction_finished_caches_and_emits(
+        self, qapp: QApplication, qtbot: QtBot
+    ) -> None:
         """Test _on_extraction_finished caches frame and emits signal."""
         provider = PlateFrameProvider()
 
@@ -435,7 +439,9 @@ class TestPlateFrameProvider:
         # Simulate extraction complete
         image = QImage(100, 100, QImage.Format.Format_ARGB32)
         provider._on_extraction_finished("test/shot", 1001, image)
-        qtbot.waitUntil(lambda: provider.has_cached_frame("test/shot", 1001), timeout=5000)
+        qtbot.waitUntil(
+            lambda: provider.has_cached_frame("test/shot", 1001), timeout=5000
+        )
 
         # Should be cached
         assert provider.has_cached_frame("test/shot", 1001)
@@ -446,7 +452,9 @@ class TestPlateFrameProvider:
         # Should be removed from pending
         assert ("test/shot", 1001) not in provider._pending_extractions
 
-    def test_on_extraction_failed_emits_signal(self, qapp: QApplication, qtbot: QtBot) -> None:
+    def test_on_extraction_failed_emits_signal(
+        self, qapp: QApplication, qtbot: QtBot
+    ) -> None:
         """Test _on_extraction_failed emits failure signal."""
         provider = PlateFrameProvider()
 
@@ -496,9 +504,11 @@ class TestDiscoverPlateSource:
         qapp: QApplication,
     ) -> None:
         """Test discover_plate_source finds MOV proxy."""
-        mock_mov_proxy = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
-        mock_exr_seq = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
-        mock_get_duration = mocker.patch("scrub.plate_frame_provider.utils_module.ImageUtils.get_mov_duration")
+        mock_mov_proxy = mocker.patch("discovery.find_plate_mov_proxy")
+        mock_exr_seq = mocker.patch("discovery.find_plate_exr_sequence")
+        mock_get_duration = mocker.patch(
+            "scrub.plate_frame_provider.utils_module.ImageUtils.get_mov_duration"
+        )
         provider = PlateFrameProvider()
 
         mov_path = Path("/shows/test/plate/v001/mov/plate.mov")
@@ -520,8 +530,8 @@ class TestDiscoverPlateSource:
         qapp: QApplication,
     ) -> None:
         """Test discover_plate_source falls back to EXR sequence."""
-        mock_mov_proxy = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
-        mock_exr_seq = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
+        mock_mov_proxy = mocker.patch("discovery.find_plate_mov_proxy")
+        mock_exr_seq = mocker.patch("discovery.find_plate_exr_sequence")
         provider = PlateFrameProvider()
 
         exr_path = Path("/shows/test/plate/v001/exr/plate.1001.exr")
@@ -540,8 +550,8 @@ class TestDiscoverPlateSource:
         qapp: QApplication,
     ) -> None:
         """Test discover_plate_source caches None if no source found."""
-        mock_mov_proxy = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
-        mock_exr_seq = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
+        mock_mov_proxy = mocker.patch("discovery.find_plate_mov_proxy")
+        mock_exr_seq = mocker.patch("discovery.find_plate_exr_sequence")
         provider = PlateFrameProvider()
 
         mock_mov_proxy.return_value = None

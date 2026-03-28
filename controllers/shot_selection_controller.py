@@ -80,13 +80,13 @@ class ShotDiscoveryWorker(TrackedQRunnable):
 
         try:
             # Import here to avoid circular imports
-            from discovery import PlateDiscovery
+            from discovery import get_available_plates
             from shots.shot_file_finder import ShotFileFinder
 
             # Discover plates
             plates: list[str] = []
             if not self._cancelled:
-                plates = PlateDiscovery.get_available_plates(self.shot.workspace_path)
+                plates = get_available_plates(self.shot.workspace_path)
 
             # Discover files (result is dict[FileType, list[SceneFile]])
             files_by_type = {}
@@ -329,9 +329,7 @@ class ShotSelectionController(QObject):
             assert current_scene is not None  # Type narrowing
             workspace_path = current_scene.workspace_path
             full_name = current_scene.full_name
-        logger.info(
-            f"Scanning for crash files in shot workspace: {workspace_path}"
-        )
+        logger.info(f"Scanning for crash files in shot workspace: {workspace_path}")
 
         from controllers.crash_recovery import execute_crash_recovery
 

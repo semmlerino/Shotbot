@@ -15,7 +15,7 @@ from pathlib import Path
 from config import (
     Config,  # noqa: F401  # pyright: ignore[reportUnusedImport] — monkeypatched by tests
 )
-from discovery.file_discovery import FileDiscovery
+from discovery.file_discovery import discover_plate_directories
 from logging_mixin import get_module_logger
 from paths import build_workspace_path
 from paths.validators import PathValidators
@@ -344,7 +344,7 @@ def find_undistorted_jpeg_thumbnail(
         return None
 
     # Discover available camera/plate directories using priority order
-    plate_dirs = FileDiscovery.discover_plate_directories(mm_default_path)
+    plate_dirs = discover_plate_directories(mm_default_path)
 
     # Try each plate directory in priority order
     for plate_name, _priority in plate_dirs:
@@ -393,7 +393,7 @@ def _find_jpeg_in_nuke_output(
         if not nuke_outputs.exists():
             continue
 
-        plate_dirs = FileDiscovery.discover_plate_directories(nuke_outputs)
+        plate_dirs = discover_plate_directories(nuke_outputs)
 
         for plate_name, _priority in plate_dirs:
             plate_dir = find_path_case_insensitive(nuke_outputs, plate_name)

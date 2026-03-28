@@ -1,4 +1,4 @@
-"""Unit tests for PlateDiscovery module following UNIFIED_TESTING_GUIDE.
+"""Unit tests for plate discovery module following UNIFIED_TESTING_GUIDE.
 
 This test suite provides comprehensive coverage for the NEW plate-based Nuke workflow,
 including plate priority sorting, script version detection, and script path construction.
@@ -21,7 +21,11 @@ from pathlib import Path
 import pytest
 
 # Local application imports
-from discovery import PlateDiscovery
+from discovery import (
+    discover_plate_directories,
+    get_available_plates,
+    get_highest_resolution_dir,
+)
 
 
 pytestmark = pytest.mark.unit
@@ -55,7 +59,7 @@ class TestPlatePriorityOrdering:
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
 
         # Get available plates (should only return FG and BG, not PL/BC/EL/COMP)
-        result = PlateDiscovery.get_available_plates(str(workspace_path))
+        result = get_available_plates(str(workspace_path))
 
         # Should only include primary plates (FG, BG)
         assert result == ["FG01", "BG01"], "Only FG and BG plates should be returned"
@@ -76,9 +80,7 @@ class TestPlatePriorityOrdering:
 
         # When discovering plates dynamically, PL should have higher priority (0.5 vs 1)
         # Note: get_available_plates filters to FG/BG only, so we test internal discovery
-        from discovery import FileDiscovery
-
-        all_plates = FileDiscovery.discover_plate_directories(str(plate_base))
+        all_plates = discover_plate_directories(str(plate_base))
 
         # Should find both plates
         plate_names = [name for name, _priority in all_plates]
@@ -103,7 +105,7 @@ class TestPlatePriorityOrdering:
             plate_dir.mkdir(parents=True, exist_ok=True)
 
         # Get available primary plates
-        result = PlateDiscovery.get_available_plates(str(workspace_path))
+        result = get_available_plates(str(workspace_path))
 
         # FG01 should be first (highest priority)
         assert result[0] == "FG01", "FG01 should have highest priority"
@@ -118,9 +120,7 @@ class TestPlatePriorityOrdering:
         for plate_name in plates:
             (plate_base / plate_name).mkdir(parents=True, exist_ok=True)
 
-        from discovery import FileDiscovery
-
-        all_plates = FileDiscovery.discover_plate_directories(str(plate_base))
+        all_plates = discover_plate_directories(str(plate_base))
 
         # Should only find known plate types (FG, BG)
         plate_names = [name for name, _priority in all_plates]
@@ -139,7 +139,7 @@ class TestPlatePriorityOrdering:
         for plate_name in ["FG03", "FG01", "FG02", "BG02", "BG01"]:
             (plate_base / plate_name).mkdir(parents=True, exist_ok=True)
 
-        result = PlateDiscovery.get_available_plates(str(workspace_path))
+        result = get_available_plates(str(workspace_path))
 
         # Should have 5 plates total
         assert len(result) == 5, "Should find all 5 plates"
@@ -168,7 +168,7 @@ class TestPlatePriorityOrdering:
         for plate_name in plates:
             (plate_base / plate_name).mkdir(parents=True, exist_ok=True)
 
-        result = PlateDiscovery.get_available_plates(str(workspace_path))
+        result = get_available_plates(str(workspace_path))
 
         # Should only include FG and BG plates (filters out PL, COMP)
         assert "FG01" in result
@@ -198,7 +198,7 @@ class TestEdgeCases:
         for res_name, _pixels in resolutions:
             (plate_dir / res_name).mkdir(parents=True, exist_ok=True)
 
-        result = PlateDiscovery.get_highest_resolution_dir(plate_dir)
+        result = get_highest_resolution_dir(plate_dir)
 
         assert result is not None
         assert result.name == "4312x2304", "Should select highest resolution"
@@ -213,7 +213,7 @@ class TestEdgeCases:
         # Create non-resolution directory
         (plate_dir / "other_folder").mkdir()
 
-        result = PlateDiscovery.get_highest_resolution_dir(plate_dir)
+        result = get_highest_resolution_dir(plate_dir)
 
         assert result is None, "Should return None when no resolution directories found"
 
@@ -231,7 +231,7 @@ class TestEdgeCases:
         # Create one valid resolution
         (plate_dir / "1920x1080").mkdir()
 
-        result = PlateDiscovery.get_highest_resolution_dir(plate_dir)
+        result = get_highest_resolution_dir(plate_dir)
 
         assert result is not None
         assert result.name == "1920x1080", "Should only match valid resolution pattern"
@@ -241,7 +241,7 @@ class TestEdgeCases:
         workspace_path = tmp_path / "workspace"
 
         # Test with empty workspace (simulates permission/access issues)
-        result = PlateDiscovery.get_available_plates(str(workspace_path))
+        result = get_available_plates(str(workspace_path))
 
         # Should return empty list, not crash
         assert result == []
