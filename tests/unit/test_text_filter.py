@@ -36,7 +36,6 @@ from tests.fixtures.model_fixtures import TestCacheManager
 from tests.fixtures.process_fixtures import TestProcessPool
 from tests.test_helpers import process_qt_events
 from threede import ThreeDEGridView, ThreeDEItemModel
-from type_definitions import Shot
 
 
 if TYPE_CHECKING:
@@ -46,74 +45,6 @@ if TYPE_CHECKING:
     from main_window import MainWindow
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
-
-
-class TestPreviousShotsModelTextFiltering:
-    """Test Text filter methods in PreviousShotsModel."""
-
-    @pytest.fixture
-    def shot_model(self, tmp_path: Path) -> ShotModel:
-        """Create a base ShotModel."""
-        model = ShotModel(
-            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
-            load_cache=False,
-        )
-        model._process_pool = TestProcessPool(allow_main_thread=True)
-        return model
-
-    @pytest.fixture
-    def previous_shots_model(
-        self, tmp_path: Path, shot_model: ShotModel, qtbot: QtBot
-    ) -> Generator[PreviousShotsModel, None, None]:
-        """Create PreviousShotsModel."""
-        model = PreviousShotsModel(
-            shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2")
-        )
-        yield model
-        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
-        model.deleteLater()
-        process_qt_events()
-
-    @pytest.fixture
-    def test_previous_shots(self) -> list[Shot]:
-        """Create test previous shots with various names."""
-        return [
-            Shot("show1", "seq10", "dm_010", "/workspace/show1/seq10/dm_010"),
-            Shot("show1", "seq11", "DM_011", "/workspace/show1/seq11/DM_011"),
-            Shot("show2", "seq20", "other_020", "/workspace/show2/seq20/other_020"),
-        ]
-
-    def test_previous_shots_text_filtering(
-        self, previous_shots_model: PreviousShotsModel, test_previous_shots: list[Shot]
-    ) -> None:
-        """Test filtering previous shots by text."""
-        previous_shots_model._previous_shots = test_previous_shots
-
-        # Filter to "dm"
-        previous_shots_model.set_text_filter("dm")
-        filtered = previous_shots_model.get_filtered_shots()
-        assert len(filtered) == 2
-        assert all("dm" in shot.shot.lower() for shot in filtered)
-
-        # Filter to "other"
-        previous_shots_model.set_text_filter("other")
-        filtered = previous_shots_model.get_filtered_shots()
-        assert len(filtered) == 1
-        assert filtered[0].shot == "other_020"
-
-    def test_previous_shots_combined_filters(
-        self, previous_shots_model: PreviousShotsModel, test_previous_shots: list[Shot]
-    ) -> None:
-        """Test combining show and text filters for previous shots."""
-        previous_shots_model._previous_shots = test_previous_shots
-
-        # Both filters: show1 AND dm
-        previous_shots_model.set_show_filter("show1")
-        previous_shots_model.set_text_filter("dm")
-        filtered = previous_shots_model.get_filtered_shots()
-        assert len(filtered) == 2
-        assert all(shot.show == "show1" for shot in filtered)
-        assert all("dm" in shot.shot.lower() for shot in filtered)
 
 
 class TestBaseGridViewTextFilterUI:

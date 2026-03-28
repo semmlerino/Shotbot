@@ -230,12 +230,12 @@ class RefreshCoordinator(QObject, LoggingMixin):
 
     def _do_refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
+        from shots.shot_filter import get_available_shows
+
         # Always use Model/View implementation; proxy handles filtering
         self.main_window.shot_item_model.set_shots(self.main_window.shot_model.shots)
-        # Populate show filter with available shows.
-        # Pass shows as a sorted list — ShotModel.get_available_shows() returns set[str]
-        # which doesn't satisfy the HasAvailableShows protocol (requires list[str]),
-        # so we convert here explicitly.
+        # Populate show filter with available shows using the free function directly
+        # on the shots list — model-level filter methods are handled by proxy models.
         self.main_window.shot_grid.populate_show_filter(
-            sorted(self.main_window.shot_model.get_available_shows())
+            sorted(get_available_shows(self.main_window.shot_model.shots))
         )

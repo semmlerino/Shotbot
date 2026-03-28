@@ -498,15 +498,16 @@ class ThreeDEController(LoggingMixin):
     def update_ui(self) -> None:
         """Update the 3DE UI elements with current scenes."""
         scene_model = self.window.threede_scene_model
-        active_show = scene_model.get_show_filter()
+        proxy = self.window.threede_proxy
+        active_show = proxy.get_show_filter()
         available_shows = scene_model.get_unique_shows()
         if active_show is not None and active_show not in available_shows:
-            scene_model.set_show_filter(None)
+            proxy.set_show_filter(None)
 
-        active_artist = scene_model.get_artist_filter()
+        active_artist = proxy.get_artist_filter()
         available_artists = scene_model.get_unique_artists()
         if active_artist is not None and active_artist not in available_artists:
-            scene_model.set_artist_filter(None)
+            proxy.set_artist_filter(None)
 
         self.window.threede_shot_grid.populate_show_filter(available_shows)
         self.window.threede_shot_grid.populate_artist_filter(available_artists)

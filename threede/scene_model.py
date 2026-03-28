@@ -32,9 +32,6 @@ class ThreeDESceneModel:
         self.cache_manager: SceneDiskCache = cache_manager
         # Get excluded users dynamically (current user + any additional)
         self._excluded_users: set[str] = get_excluded_users()
-        # Show/artist filtering
-        self._filter_show: str | None = None
-        self._filter_artist: str | None = None
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
             _ = self._load_from_cache()
@@ -69,22 +66,6 @@ class ThreeDESceneModel:
     def to_dict(self) -> list[ThreeDESceneDict]:
         """Convert scenes to dictionary format for caching."""
         return [scene.to_dict() for scene in self.scenes]
-
-    def set_show_filter(self, show: str | None) -> None:
-        """Set the show filter."""
-        self._filter_show = show
-
-    def get_show_filter(self) -> str | None:
-        """Get the current show filter."""
-        return self._filter_show
-
-    def set_artist_filter(self, artist: str | None) -> None:
-        """Set the artist filter."""
-        self._filter_artist = artist
-
-    def get_artist_filter(self) -> str | None:
-        """Get the current artist filter."""
-        return self._filter_artist
 
     def deduplicate_scenes_by_shot(
         self,

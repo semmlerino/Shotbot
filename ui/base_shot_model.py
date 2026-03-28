@@ -12,14 +12,12 @@ from PySide6.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
     from cache.shot_cache import ShotDataCache
-    from managers.hide_manager import HideManager
     from protocols import ProcessPoolInterface
     from type_definitions import PerformanceMetricsDict, RefreshResult, Shot
 
 # Local application imports
 from logging_mixin import LoggingMixin
 from qt_abc_meta import QABCMeta
-from shots.shot_filter import compose_filters, get_available_shows
 from shots.shot_parser import OptimizedShotParser
 from utils import ValidationUtils
 from workers.process_pool_manager import ProcessPoolManager
@@ -75,10 +73,6 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         # Use OptimizedShotParser for improved performance
         self._parser: OptimizedShotParser = OptimizedShotParser()
         self._selected_shot: Shot | None = None
-        self._filter_show: str | None = None  # Show filter
-        self._filter_text: str | None = None  # Text filter for real-time search
-        self._hide_manager: HideManager | None = None
-        self._show_hidden: bool = False
 
         # Initialize process pool - use provided instance or default singleton
         self._process_pool: ProcessPoolInterface = (
@@ -333,82 +327,6 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
             "loading_in_progress": False,
             "session_warmed": len(self.shots) > 0,
         }
-
-    def set_show_filter(self, show: str | None) -> None:
-        """Set the show filter.
-
-        Args:
-            show: Show name to filter by or None for all shows
-
-        """
-        self._filter_show = show
-        self.logger.info(f"Show filter set to: {show or 'All Shows'}")
-
-    def get_show_filter(self) -> str | None:
-        """Get the current show filter."""
-        return self._filter_show
-
-    def set_text_filter(self, text: str | None) -> None:
-        """Set the text filter for real-time search.
-
-        Args:
-            text: Text to filter by (case-insensitive substring match) or None for no filter
-
-        """
-        self._filter_text = text
-        self.logger.info(f"Text filter set to: '{text or ''}'")
-
-    def get_text_filter(self) -> str | None:
-        """Get the current text filter."""
-        return self._filter_text
-
-    def set_hide_manager(self, hide_manager: HideManager) -> None:
-        """Set the hide manager.
-
-        Args:
-            hide_manager: Hide manager for tracking hidden shots
-
-        """
-        self._hide_manager = hide_manager
-
-    def set_show_hidden(self, show: bool) -> None:
-        """Set whether to include hidden shots in filtered results.
-
-        Args:
-            show: True to include hidden shots, False to exclude them
-
-        """
-        self._show_hidden = show
-
-    def get_filtered_shots(self) -> list[Shot]:
-        """Get shots filtered by show, text, and hide filters.
-
-        Applies show filter, text filter, and hide filter (AND logic).
-
-        Returns:
-            Filtered list of shots
-
-        """
-        filtered = compose_filters(
-            self.shots, show=self._filter_show, text=self._filter_text
-        )
-
-        if self._hide_manager and not self._show_hidden:
-            filtered = [s for s in filtered if not self._hide_manager.is_hidden(s)]
-
-        self.logger.debug(
-            f"Filtered {len(self.shots)} shots to {len(filtered)} (show='{self._filter_show}', text='{self._filter_text}', show_hidden={self._show_hidden})"
-        )
-        return filtered
-
-    def get_available_shows(self) -> set[str]:
-        """Get all unique show names from current shots.
-
-        Returns:
-            Set of unique show names
-
-        """
-        return get_available_shows(self.shots)
 
     @abstractmethod
     def load_shots(self) -> RefreshResult:

@@ -68,7 +68,6 @@ def build_tabs(
         notes_manager=notes_manager,
         hide_manager=hide_manager,
     )
-    shot_model.set_hide_manager(hide_manager)
     shot_item_model.set_shots(shot_model.shots)  # ALL shots, unfiltered
     shot_proxy = ShotProxyModel(parent)
     shot_proxy.set_pin_manager(pin_manager)

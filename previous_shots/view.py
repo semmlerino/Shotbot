@@ -232,28 +232,6 @@ class PreviousShotsView(BaseShotGridView):
         # Update status with shot count
         self._update_status()
 
-    @override
-    def populate_show_filter(self, shows: list[str] | object) -> None:
-        """Populate the show filter combo box with available shows.
-
-        Args:
-            shows: Either a list of show names or a PreviousShotsModel to extract shows from
-
-        """
-        # Handle model object (for compatibility with base signature)
-        if not isinstance(shows, list):
-            # Import needed for runtime check
-            from previous_shots.model import PreviousShotsModel
-
-            if isinstance(shows, PreviousShotsModel):
-                show_list = list(shows.get_available_shows())
-                super().populate_show_filter(show_list)
-            return
-
-        # Handle list of strings directly (type narrowed by isinstance)
-        # Cast to satisfy type checker - shows is list[str] after isinstance check
-        super().populate_show_filter(cast("list[str]", shows))
-
     @Slot()  # pyright: ignore[reportAny]
     def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""

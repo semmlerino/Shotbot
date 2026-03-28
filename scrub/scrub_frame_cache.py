@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
+from typing import cast
 
 from PySide6.QtCore import QMutex, QMutexLocker, QThread
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QApplication
+
+from cachetools import LRUCache
 
 
 logger = logging.getLogger(__name__)
@@ -47,8 +50,12 @@ class ScrubFrameCache:
         self._max_shots: int = max_shots
 
         # Primary cache: shot_key -> OrderedDict[frame_num -> QImage]
-        # OrderedDict maintains LRU order (most recent at end)
-        self._image_cache: OrderedDict[str, OrderedDict[int, QImage]] = OrderedDict()
+        # LRUCache handles shot-level eviction automatically.
+        # Inner OrderedDict maintains LRU order for frame-level eviction.
+        # pyright: ignore needed because vendored cachetools lacks type stubs.
+        self._image_cache: LRUCache[str, OrderedDict[int, QImage]] = LRUCache(  # pyright: ignore[reportInvalidTypeArguments]
+            maxsize=max_shots
+        )
 
         # Pixmap cache: shot_key -> dict[frame_num -> QPixmap]
         # Only populated on main thread when get_pixmap is called
@@ -81,18 +88,6 @@ class ScrubFrameCache:
             )
             raise RuntimeError(msg)
 
-    def _evict_oldest_shot(self) -> None:
-        """Evict the oldest (least recently used) shot from cache.
-
-        Must be called with lock held.
-        """
-        if self._image_cache:
-            # OrderedDict.popitem(last=False) removes the oldest item
-            oldest_key, _ = self._image_cache.popitem(last=False)
-            # Also remove from pixmap cache
-            _ = self._pixmap_cache.pop(oldest_key, None)
-            logger.debug(f"Evicted oldest shot from scrub cache: {oldest_key}")
-
     def _evict_oldest_frame(self, shot_key: str) -> None:
         """Evict the oldest frame from a shot's frame cache.
 
@@ -103,7 +98,10 @@ class ScrubFrameCache:
 
         """
         if shot_key in self._image_cache:
-            frame_cache = self._image_cache[shot_key]
+            frame_cache = cast(
+                "OrderedDict[int, QImage]",
+                self._image_cache[shot_key],  # pyright: ignore[reportUnknownMemberType]
+            )
             if frame_cache:
                 oldest_frame, _ = frame_cache.popitem(last=False)
                 # Also remove from pixmap cache
@@ -121,15 +119,15 @@ class ScrubFrameCache:
 
         """
         with QMutexLocker(self._lock):
-            # Create shot entry if needed
+            # Create shot entry if needed; LRUCache evicts oldest shot automatically
             if shot_key not in self._image_cache:
-                # Check if we need to evict a shot
-                if len(self._image_cache) >= self._max_shots:
-                    self._evict_oldest_shot()
                 self._image_cache[shot_key] = OrderedDict()
                 self._pixmap_cache[shot_key] = {}
 
-            frame_cache = self._image_cache[shot_key]
+            frame_cache = cast(
+                "OrderedDict[int, QImage]",
+                self._image_cache[shot_key],  # pyright: ignore[reportUnknownMemberType]
+            )
 
             # Check if we need to evict a frame (only if this is a new frame)
             if (
@@ -142,9 +140,6 @@ class ScrubFrameCache:
             frame_cache[frame] = image
             # Move to end to mark as recently used
             frame_cache.move_to_end(frame)
-
-            # Move shot to end (most recently used)
-            self._image_cache.move_to_end(shot_key)
 
             # Invalidate corresponding pixmap (will be regenerated on demand)
             if shot_key in self._pixmap_cache:
@@ -165,13 +160,15 @@ class ScrubFrameCache:
             if shot_key not in self._image_cache:
                 return None
 
-            frame_cache = self._image_cache[shot_key]
+            frame_cache = cast(
+                "OrderedDict[int, QImage]",
+                self._image_cache[shot_key],  # pyright: ignore[reportUnknownMemberType]
+            )
             if frame not in frame_cache:
                 return None
 
-            # Mark as recently used
+            # Mark frame as recently used
             frame_cache.move_to_end(frame)
-            self._image_cache.move_to_end(shot_key)
 
             return frame_cache[frame]
 
@@ -202,9 +199,12 @@ class ScrubFrameCache:
 
             # Convert from QImage if available
             if shot_key in self._image_cache:
-                frame_cache = self._image_cache[shot_key]
+                frame_cache = cast(
+                    "OrderedDict[int, QImage]",
+                    self._image_cache[shot_key],  # pyright: ignore[reportUnknownMemberType]
+                )
                 if frame in frame_cache:
-                    image = frame_cache[frame]
+                    image: QImage = frame_cache[frame]
                     pixmap = QPixmap.fromImage(image)
 
                     # Cache the pixmap
@@ -212,9 +212,8 @@ class ScrubFrameCache:
                         self._pixmap_cache[shot_key] = {}
                     self._pixmap_cache[shot_key][frame] = pixmap
 
-                    # Mark as recently used
+                    # Mark frame as recently used
                     frame_cache.move_to_end(frame)
-                    self._image_cache.move_to_end(shot_key)
 
                     return pixmap
 
@@ -234,7 +233,11 @@ class ScrubFrameCache:
         with QMutexLocker(self._lock):
             if shot_key not in self._image_cache:
                 return False
-            return frame in self._image_cache[shot_key]
+            frame_cache = cast(
+                "OrderedDict[int, QImage]",
+                self._image_cache[shot_key],  # pyright: ignore[reportUnknownMemberType]
+            )
+            return frame in frame_cache
 
     def get_cached_frames(self, shot_key: str) -> list[int]:
         """Get list of cached frame numbers for a shot (thread-safe).
@@ -249,7 +252,11 @@ class ScrubFrameCache:
         with QMutexLocker(self._lock):
             if shot_key not in self._image_cache:
                 return []
-            return list(self._image_cache[shot_key].keys())
+            frame_cache = cast(
+                "OrderedDict[int, QImage]",
+                self._image_cache[shot_key],  # pyright: ignore[reportUnknownMemberType]
+            )
+            return list(frame_cache.keys())
 
     def clear_shot(self, shot_key: str) -> None:
         """Clear all cached frames for a shot (thread-safe).
@@ -259,7 +266,7 @@ class ScrubFrameCache:
 
         """
         with QMutexLocker(self._lock):
-            _ = self._image_cache.pop(shot_key, None)
+            _ = self._image_cache.pop(shot_key, None)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
             _ = self._pixmap_cache.pop(shot_key, None)
 
     def clear_all(self) -> None:
@@ -276,7 +283,11 @@ class ScrubFrameCache:
 
         """
         with QMutexLocker(self._lock):
-            total_frames = sum(len(frames) for frames in self._image_cache.values())
+            image_values = cast(
+                "list[OrderedDict[int, QImage]]",
+                list(self._image_cache.values()),  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+            )
+            total_frames = sum(len(frames) for frames in image_values)
             total_pixmaps = sum(len(frames) for frames in self._pixmap_cache.values())
             return {
                 "shot_count": len(self._image_cache),

@@ -163,8 +163,14 @@ class ThreeDEProxyDouble:
     def set_show_filter(self, show: str | None) -> None:
         self._show_filter = show
 
+    def get_show_filter(self) -> str | None:
+        return self._show_filter
+
     def set_artist_filter(self, artist: str | None) -> None:
         self._artist_filter = artist
+
+    def get_artist_filter(self) -> str | None:
+        return self._artist_filter
 
     def set_text_filter(self, text: str | None) -> None:
         self._text_filter = text

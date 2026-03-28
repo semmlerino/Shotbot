@@ -8,7 +8,10 @@ import threading
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, cast
+
+# Third-party imports
+from cachetools import TTLCache
 
 # Local application imports
 from config import Config
@@ -29,7 +32,12 @@ class VersionUtils:
     VERSION_PATTERN: re.Pattern[str] = re.compile(r"^v(\d{3})$")
 
     # Cache for version directory listings
-    _version_cache: ClassVar[dict[str, tuple[list[tuple[int, str]], float]]] = {}
+    # TTLCache handles both expiry (ttl=60s) and LRU eviction (maxsize=500) automatically.
+    # timer=time.time allows tests to mock version_utils.time.time for TTL control.
+    # pyright: ignore needed because vendored cachetools lacks type stubs.
+    _version_cache: ClassVar[TTLCache[str, list[tuple[int, str]]]] = TTLCache(  # pyright: ignore[reportInvalidTypeArguments]
+        maxsize=500, ttl=_VERSION_CACHE_TTL, timer=lambda: time.time()
+    )
     _version_cache_lock: ClassVar[threading.Lock] = (
         threading.Lock()
     )  # Thread-safety for version cache
@@ -63,14 +71,16 @@ class VersionUtils:
             return []
 
         path_str = str(base_path)
-        current_time = time.time()
 
-        # Check cache first with lock
+        # Check cache first with lock.
+        # cast() used because vendored cachetools lacks type stubs.
         with VersionUtils._version_cache_lock:
-            if path_str in VersionUtils._version_cache:
-                version_dirs, timestamp = VersionUtils._version_cache[path_str]
-                if current_time - timestamp < _VERSION_CACHE_TTL:
-                    return version_dirs.copy()  # Return a copy to prevent modification
+            cached = cast(
+                "list[tuple[int, str]] | None",
+                VersionUtils._version_cache.get(path_str),  # pyright: ignore[reportUnknownMemberType]
+            )
+            if cached is not None:
+                return list(cached)  # Return a copy to prevent modification
 
         # Cache miss - scan filesystem (outside lock)
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path
@@ -94,44 +104,9 @@ class VersionUtils:
 
         # Cache the result with lock
         with VersionUtils._version_cache_lock:
-            VersionUtils._version_cache[path_str] = (version_dirs.copy(), current_time)
-
-            # Check cache size
-            cache_size = len(VersionUtils._version_cache)
-
-        # Clean cache if it gets too large (outside lock) - increased from 100 to 500
-        if cache_size > 500:
-            VersionUtils._cleanup_version_cache()
+            VersionUtils._version_cache[path_str] = version_dirs.copy()
 
         return version_dirs
-
-    @staticmethod
-    def _cleanup_version_cache() -> None:
-        """Clean expired entries from version cache.
-
-        Optimized to keep frequently accessed version directories.
-
-        Uses atomic update strategy to prevent race conditions during cleanup.
-        """
-        with VersionUtils._version_cache_lock:
-            # Only clean if cache is significantly over limit
-            if len(VersionUtils._version_cache) <= 250:
-                return
-
-            # Sort by timestamp to keep most recently accessed
-            sorted_items = sorted(
-                VersionUtils._version_cache.items(),
-                key=lambda x: x[1][1],  # Sort by timestamp
-                reverse=True,  # Most recent first
-            )
-
-            # Atomic update: create new dict and replace in single operation
-            # This prevents other threads from seeing an empty cache mid-operation
-            VersionUtils._version_cache = dict(sorted_items[:250])
-
-            logger.debug(
-                f"Cleaned version cache, kept {len(VersionUtils._version_cache)} most recent entries",
-            )
 
     @staticmethod
     def get_latest_version(base_path: str | Path) -> str | None:

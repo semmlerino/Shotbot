@@ -1,11 +1,11 @@
-"""Thumbnail caching with stat result LRU cache.
+"""Thumbnail caching with stat result TTL cache.
 
 Manages persistent JPEG thumbnails derived from source images (EXR, PNG, JPEG,
 MOV frame extraction). Thumbnails do not expire — they persist until manually
 cleared.
 
 Thread Safety:
-- QMutex (self._lock): Guards the in-process stat result LRU cache.
+- QMutex (self._lock): Guards the in-process stat result TTL cache.
   Image processing and file I/O happen outside the lock to reduce contention.
 """
 
@@ -13,15 +13,15 @@ from __future__ import annotations
 
 # Standard library imports
 import contextlib
-import time
-from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, cast, final
 
-# Third-party imports
 from PIL import Image
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
+
+# Third-party imports
+from cachetools import TTLCache
 
 # Local application imports
 from exceptions import ThumbnailError
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 THUMBNAIL_SIZE = 256
 THUMBNAIL_QUALITY = 85
 STAT_CACHE_TTL = 2.0  # Cache stat results for 2 seconds to reduce filesystem I/O
-STAT_CACHE_MAX_SIZE = 1000  # Maximum entries in stat cache (LRU eviction)
+STAT_CACHE_MAX_SIZE = 1000  # Maximum entries in stat cache (TTL+LRU eviction)
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ class ThumbnailCacheLoader(TrackedQRunnable):
 
 @final
 class ThumbnailCache(LoggingMixin):
-    """Thumbnail caching with stat result LRU cache."""
+    """Thumbnail caching with stat result TTL cache."""
 
     def __init__(
         self,
@@ -121,8 +121,12 @@ class ThumbnailCache(LoggingMixin):
         # Thread safety — guards _stat_cache only
         self._lock = QMutex()
 
-        # Stat result LRU cache: {path_str: (size, mtime, cache_time)}
-        self._stat_cache: OrderedDict[str, tuple[int, float, float]] = OrderedDict()
+        # Stat result TTL+LRU cache: {path_str: (size, mtime)}
+        # TTLCache handles both entry expiry (ttl=2.0s) and LRU eviction (maxsize=1000).
+        # pyright: ignore needed because vendored cachetools lacks type stubs.
+        self._stat_cache: TTLCache[str, tuple[int, float]] = TTLCache(  # pyright: ignore[reportInvalidTypeArguments]
+            maxsize=STAT_CACHE_MAX_SIZE, ttl=STAT_CACHE_TTL
+        )
 
         self.thumbnails_dir = cache_dir / "thumbnails"
         self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
@@ -136,8 +140,7 @@ class ThumbnailCache(LoggingMixin):
     def _get_file_stat_cached(self, path: Path) -> tuple[int, float] | None:
         """Get file size and mtime with caching to reduce filesystem I/O.
 
-        Uses LRU eviction to prevent unbounded memory growth. Cache is limited
-        to STAT_CACHE_MAX_SIZE entries, evicting oldest when full.
+        Uses TTLCache for automatic expiry and LRU eviction.
 
         Args:
             path: File path to stat
@@ -147,19 +150,16 @@ class ThumbnailCache(LoggingMixin):
 
         """
         path_str = str(path)
-        current_time = time.time()
 
-        # Check cache first (inside lock for thread safety)
+        # Check cache first (inside lock for thread safety).
+        # cast() used because vendored cachetools lacks type stubs.
         with QMutexLocker(self._lock):
-            if path_str in self._stat_cache:
-                size, mtime, cache_time = self._stat_cache[path_str]
-                # Return cached result if still valid
-                if current_time - cache_time < STAT_CACHE_TTL:
-                    # Move to end (mark as recently used for LRU)
-                    self._stat_cache.move_to_end(path_str)
-                    return (size, mtime)
-                # Expired - will re-stat below
-                del self._stat_cache[path_str]
+            cached = cast(
+                "tuple[int, float] | None",
+                self._stat_cache.get(path_str),  # pyright: ignore[reportUnknownMemberType]
+            )
+            if cached is not None:
+                return cached
 
         # Cache miss or expired - do actual stat
         try:
@@ -167,13 +167,9 @@ class ThumbnailCache(LoggingMixin):
             size = stat_result.st_size
             mtime = stat_result.st_mtime
 
-            # Cache the result with LRU eviction (inside lock for thread safety)
+            # Cache the result (inside lock for thread safety)
             with QMutexLocker(self._lock):
-                # Evict oldest entries if cache is full
-                while len(self._stat_cache) >= STAT_CACHE_MAX_SIZE:
-                    _ = self._stat_cache.popitem(last=False)  # Remove oldest (first)
-
-                self._stat_cache[path_str] = (size, mtime, current_time)
+                self._stat_cache[path_str] = (size, mtime)
 
             return (size, mtime)
 
@@ -443,7 +439,7 @@ class ThumbnailCache(LoggingMixin):
 
             # Invalidate stat cache for immediate visibility (minimal lock)
             with QMutexLocker(self._lock):
-                _ = self._stat_cache.pop(str(output_path), None)
+                _ = self._stat_cache.pop(str(output_path), None)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
 
             self.logger.debug(f"Cached QImage thumbnail: {output_path}")
             return output_path

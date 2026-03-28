@@ -224,6 +224,10 @@ class ThreeDEProxyModel(BaseProxyModel):
             self._artist_filter = artist
             self.invalidate()
 
+    def get_artist_filter(self) -> str | None:
+        """Return the current artist filter value."""
+        return self._artist_filter
+
     def set_sort_order(self, order: str) -> None:
         """Set sort order ('name' or 'date')."""
         if self._sort_order != order:

@@ -382,12 +382,13 @@ class TestCrossTabSynchronization:
         shot_item_model = window.shot_item_model
         assert shot_item_model.rowCount() == 3
 
-        shot_item_model.set_show_filter(window.shot_model, "SHOW1")
+        # Filtering is now handled by the proxy model
+        window.shot_proxy.set_show_filter("SHOW1")
         process_qt_events()
-        assert shot_item_model.rowCount() == 2
+        assert window.shot_proxy.rowCount() == 2
 
-        shot_item_model.set_show_filter(window.shot_model, None)
-        assert shot_item_model.rowCount() == 3
+        window.shot_proxy.set_show_filter(None)
+        assert window.shot_proxy.rowCount() == 3
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ extending BaseItemModel with shot-specific behavior.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Protocol
+from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, Signal
 
@@ -21,18 +21,6 @@ if TYPE_CHECKING:
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
     from type_definitions import RefreshResult, Shot
-
-
-class _ShowFilterable(Protocol):
-    """Protocol for shot model objects that support show filtering."""
-
-    def set_show_filter(self, show: str | None) -> None:
-        """Apply show filter."""
-        ...
-
-    def get_filtered_shots(self) -> list[Shot]:
-        """Get shots after applying the current filter."""
-        ...
 
 
 class ShotItemModel(BaseItemModel["Shot"]):
@@ -101,27 +89,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
         return super().get_custom_role_data(item, role)
 
     # ============= Shot-specific methods =============
-
-    def set_show_filter(self, shot_model: _ShowFilterable, show: str | None) -> None:
-        """Apply show filter to item model (legacy compatibility).
-
-        Note: In production, filtering is handled by ShotProxyModel.
-        This method is retained for test compatibility with direct item model usage.
-
-        Args:
-            shot_model: Shot model to get filtered shots from
-            show: Show name to filter by or None for all shows
-
-        """
-        # Apply filter on the underlying model
-        shot_model.set_show_filter(show)
-
-        # Get filtered shots and update items
-        filtered_shots = shot_model.get_filtered_shots()
-        self.set_items(filtered_shots)  # pyright: ignore[reportUnknownArgumentType]
-
-        filter_display = show if show is not None else "All Shows"
-        self.logger.info(f"Applied show filter (compat): {filter_display}")
 
     def refresh_shots(self, shots: list[Shot]) -> RefreshResult:
         """Refresh with new shots, detecting changes.

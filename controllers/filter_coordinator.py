@@ -91,7 +91,10 @@ class FilterCoordinator(LoggingMixin):
 
     def on_previous_shots_updated(self) -> None:
         """Handle previous shots updated signal."""
-        self._previous_shots_grid.populate_show_filter(self._previous_shots_model)
+        from shots.shot_filter import get_available_shows
+
+        shows = sorted(get_available_shows(self._previous_shots_model.get_shots()))
+        self._previous_shots_grid.populate_show_filter(shows)
         self.logger.debug("Previous shots updated, refreshed show filter")
 
     def on_sort_order_changed(

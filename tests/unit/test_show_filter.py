@@ -42,153 +42,6 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
-class TestShotItemModelFiltering:
-    """Test Show filter methods in ShotItemModel."""
-
-    @pytest.fixture
-    def shot_model(self, tmp_path: Path) -> ShotModel:
-        """Create a ShotModel with test process pool."""
-        model = ShotModel(
-            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
-            load_cache=False,
-        )
-        model._process_pool = TestProcessPool(allow_main_thread=True)
-        return model
-
-    @pytest.fixture
-    def shot_item_model(
-        self, tmp_path: Path, qtbot: QtBot
-    ) -> Generator[ShotItemModel, None, None]:
-        """Create ShotItemModel for testing."""
-        model = ShotItemModel(
-            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache")
-        )
-        yield model
-        model.clear_thumbnail_cache()
-        model.deleteLater()
-
-    @pytest.fixture
-    def test_shots(self) -> list[Shot]:
-        """Create test shots from different shows."""
-        return [
-            Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
-            Shot("show1", "seq2", "shot2", "/workspace/show1/seq2/shot2"),
-            Shot("show2", "seq3", "shot3", "/workspace/show2/seq3/shot3"),
-        ]
-
-    def test_set_show_filter_updates_display(
-        self,
-        shot_item_model: ShotItemModel,
-        shot_model: ShotModel,
-        test_shots: list[Shot],
-        qtbot: QtBot,
-    ) -> None:
-        """Test that set_show_filter updates the displayed shots."""
-        shot_model.shots = test_shots
-        shot_item_model.set_shots(test_shots)
-
-        # Filter to show1 and check model state
-        shot_item_model.set_show_filter(shot_model, "show1")
-        assert shot_item_model.rowCount() == 2
-        for i in range(shot_item_model.rowCount()):
-            shot = shot_item_model.get_item_at_index(shot_item_model.index(i, 0))
-            assert shot is not None
-            assert shot.show == "show1"
-
-        # Filter to show2 and check model state
-        shot_item_model.set_show_filter(shot_model, "show2")
-        assert shot_item_model.rowCount() == 1
-        shot = shot_item_model.get_item_at_index(shot_item_model.index(0, 0))
-        assert shot is not None
-        assert shot.show == "show2"
-
-    def test_set_show_filter_none_shows_all(
-        self,
-        shot_item_model: ShotItemModel,
-        shot_model: ShotModel,
-        test_shots: list[Shot],
-        qtbot: QtBot,
-    ) -> None:
-        """Test that setting filter to None shows all shots."""
-        shot_model.shots = test_shots
-        shot_item_model.set_shots(test_shots)
-
-        # Apply filter
-        shot_item_model.set_show_filter(shot_model, "show1")
-        assert shot_item_model.rowCount() == 2
-
-        # Clear filter — check that all shots are visible again
-        shot_item_model.set_show_filter(shot_model, None)
-        assert shot_item_model.rowCount() == 3
-
-
-class TestPreviousShotsModelFiltering:
-    """Test Show filter methods in PreviousShotsModel."""
-
-    @pytest.fixture
-    def shot_model(self, tmp_path: Path) -> ShotModel:
-        """Create a base ShotModel."""
-        model = ShotModel(
-            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
-            load_cache=False,
-        )
-        model._process_pool = TestProcessPool(allow_main_thread=True)
-        return model
-
-    @pytest.fixture
-    def previous_shots_model(
-        self, tmp_path: Path, shot_model: ShotModel, qtbot: QtBot
-    ) -> Generator[PreviousShotsModel, None, None]:
-        """Create PreviousShotsModel."""
-        model = PreviousShotsModel(
-            shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2")
-        )
-        yield model
-        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
-        model.deleteLater()
-
-    @pytest.fixture
-    def test_previous_shots(self) -> list[Shot]:
-        """Create test approved shots."""
-        return [
-            Shot("show1", "seq10", "shot10", "/workspace/show1/seq10/shot10"),
-            Shot("show1", "seq11", "shot11", "/workspace/show1/seq11/shot11"),
-            Shot("show2", "seq20", "shot20", "/workspace/show2/seq20/shot20"),
-        ]
-
-    def test_previous_shots_filtering(
-        self, previous_shots_model: PreviousShotsModel, test_previous_shots: list[Shot]
-    ) -> None:
-        """Test filtering previous shots by show."""
-        # Set up previous shots
-        previous_shots_model._previous_shots = test_previous_shots
-
-        # Test no filter
-        filtered = previous_shots_model.get_filtered_shots()
-        assert len(filtered) == 3
-
-        # Filter to show1
-        previous_shots_model.set_show_filter("show1")
-        filtered = previous_shots_model.get_filtered_shots()
-        assert len(filtered) == 2
-        assert all(shot.show == "show1" for shot in filtered)
-
-        # Filter to show2
-        previous_shots_model.set_show_filter("show2")
-        filtered = previous_shots_model.get_filtered_shots()
-        assert len(filtered) == 1
-        assert filtered[0].show == "show2"
-
-    def test_previous_shots_available_shows(
-        self, previous_shots_model: PreviousShotsModel, test_previous_shots: list[Shot]
-    ) -> None:
-        """Test getting available shows from previous shots."""
-        previous_shots_model._previous_shots = test_previous_shots
-
-        shows = previous_shots_model.get_available_shows()
-        assert shows == {"show1", "show2"}
-
-
 class TestShotGridViewShowFilter:
     """Test Show filter UI in ShotGridView."""
 
@@ -230,20 +83,10 @@ class TestShotGridViewShowFilter:
         assert shot_grid_view.show_combo.count() == 1  # "All Shows" initially
         assert shot_grid_view.show_combo.itemText(0) == "All Shows"
 
-    def test_populate_show_filter(
-        self, shot_grid_view: ShotGridView, shot_model: ShotModel
-    ) -> None:
+    def test_populate_show_filter(self, shot_grid_view: ShotGridView) -> None:
         """Test populating show filter combo box."""
-        # Set up test shots
-        test_shots = [
-            Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
-            Shot("show2", "seq2", "shot2", "/workspace/show2/seq2/shot2"),
-            Shot("show3", "seq3", "shot3", "/workspace/show3/seq3/shot3"),
-        ]
-        shot_model.shots = test_shots
-
-        # Populate filter
-        shot_grid_view.populate_show_filter(shot_model)
+        # Populate filter with a sorted list of shows
+        shot_grid_view.populate_show_filter(["show1", "show2", "show3"])
 
         # Check combo box items
         assert shot_grid_view.show_combo.count() == 4  # All Shows + 3 shows
@@ -328,18 +171,10 @@ class TestPreviousShotsViewShowFilter:
     def test_populate_show_filter_previous_shots(
         self,
         previous_shots_view: PreviousShotsView,
-        previous_shots_model: PreviousShotsModel,
     ) -> None:
         """Test populating show filter for previous shots."""
-        # Set up test previous shots
-        test_shots = [
-            Shot("showA", "seq1", "shot1", "/workspace/showA/seq1/shot1"),
-            Shot("showB", "seq2", "shot2", "/workspace/showB/seq2/shot2"),
-        ]
-        previous_shots_model._previous_shots = test_shots
-
-        # Populate filter
-        previous_shots_view.populate_show_filter(previous_shots_model)
+        # Populate filter with a sorted list of shows
+        previous_shots_view.populate_show_filter(["showA", "showB"])
 
         # Check combo box items
         assert previous_shots_view.show_combo.count() == 3  # All Shows + 2 shows

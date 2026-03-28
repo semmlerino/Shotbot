@@ -27,8 +27,6 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
-    from tests.fixtures.process_fixtures import TestProcessPool
-    from ui.base_shot_model import BaseShotModel
 
 pytestmark = [
     pytest.mark.unit,
@@ -79,20 +77,6 @@ def shot_item_model(qapp: QApplication, cache_manager: object) -> ShotItemModel:
     return ShotItemModel(cache_manager=cache_manager)
 
 
-@pytest.fixture
-def base_shot_model(
-    cache_manager: object, test_process_pool: TestProcessPool
-) -> BaseShotModel:
-    """Create a real BaseShotModel with test process pool."""
-    from ui.base_shot_model import (
-        BaseShotModel,
-    )
-
-    return BaseShotModel(
-        cache_manager=cache_manager,
-        load_cache=False,
-        process_pool=test_process_pool,
-    )
 
 
 # ============================================================================
@@ -239,80 +223,6 @@ class TestThumbnailLoading:
         assert isinstance(shot_item_model._thumbnail_loader.thumbnail_cache, dict)
 
 
-class TestShowFiltering:
-    """Test show filtering behavior."""
-
-    def test_show_filter_updates_visible_items(
-        self,
-        shot_item_model: ShotItemModel,
-        base_shot_model: BaseShotModel,
-        qtbot: QtBot,
-        test_shots: list[Shot],
-    ) -> None:
-        """Test filter changes item visibility."""
-        # Set initial shots in base model
-        base_shot_model.shots = test_shots
-        shot_item_model.set_shots(test_shots)
-
-        assert shot_item_model.rowCount() == 4
-
-        # Apply filter for show1
-        shot_item_model.set_show_filter(base_shot_model, "show1")
-
-        # Should only show show1 shots (2 items)
-        assert shot_item_model.rowCount() == 2
-
-        # Verify filtered shots are correct
-        for i in range(shot_item_model.rowCount()):
-            shot = shot_item_model.get_item_at_index(shot_item_model.index(i, 0))
-            assert shot is not None
-            assert shot.show == "show1"
-
-    def test_show_filter_all_shows_returns_all(
-        self,
-        shot_item_model: ShotItemModel,
-        base_shot_model: BaseShotModel,
-        qtbot: QtBot,
-        test_shots: list[Shot],
-    ) -> None:
-        """Test 'All' filter shows everything."""
-        base_shot_model.shots = test_shots
-        shot_item_model.set_shots(test_shots)
-
-        # Apply specific filter first
-        shot_item_model.set_show_filter(base_shot_model, "show1")
-        assert shot_item_model.rowCount() == 2
-
-        # Apply "All Shows" filter (None)
-        shot_item_model.set_show_filter(base_shot_model, None)
-
-        # Should show all shots
-        assert shot_item_model.rowCount() == 4
-
-    def test_show_filter_specific_show(
-        self,
-        shot_item_model: ShotItemModel,
-        base_shot_model: BaseShotModel,
-        qtbot: QtBot,
-        test_shots: list[Shot],
-    ) -> None:
-        """Test specific show filters correctly."""
-        base_shot_model.shots = test_shots
-        shot_item_model.set_shots(test_shots)
-
-        # Filter for show2
-        shot_item_model.set_show_filter(base_shot_model, "show2")
-
-        # Verify row count reflects the filter
-        assert shot_item_model.rowCount() == 2
-
-        # Verify all visible shots are from show2
-        for i in range(shot_item_model.rowCount()):
-            shot = shot_item_model.get_item_at_index(shot_item_model.index(i, 0))
-            assert shot is not None
-            assert shot.show == "show2"
-
-
 class TestDataAccess:
     """Test data access methods."""
 
@@ -347,25 +257,17 @@ class TestDataAccess:
         sequence = shot_item_model.data(index, BaseItemRole.SequenceRole)
         assert sequence == shot.sequence
 
-    def test_rowCount_matches_filtered_shots(
+    def test_rowCount_matches_shots(
         self,
         shot_item_model: ShotItemModel,
-        base_shot_model: BaseShotModel,
         qtbot: QtBot,
         test_shots: list[Shot],
     ) -> None:
-        """Test row count reflects filters."""
-        base_shot_model.shots = test_shots
+        """Test row count matches the loaded shots."""
         shot_item_model.set_shots(test_shots)
 
-        # Initial count
+        # Row count should match all loaded shots
         assert shot_item_model.rowCount() == 4
-
-        # Apply filter
-        shot_item_model.set_show_filter(base_shot_model, "show1")
-
-        # Row count should reflect filtered list
-        assert shot_item_model.rowCount() == 2
 
 
 class TestShotSpecificMethods:

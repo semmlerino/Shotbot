@@ -284,30 +284,6 @@ class TestShotModel(QObject):
         self._selected_shot = None
         self.shots_updated.emit()
 
-    def set_show_filter(self, show: str | None) -> None:
-        """Set the show filter.
-
-        Args:
-            show: Show name to filter by or None for all shows
-
-        """
-        self._filter_show = show
-
-    def get_filtered_shots(self) -> list[TestShot]:
-        """Get shots filtered by the current show filter.
-
-        Returns:
-            Filtered list of shots
-
-        """
-        if not hasattr(self, "_filter_show"):
-            self._filter_show = None
-
-        if self._filter_show is None:
-            return self._shots.copy()
-
-        return [shot for shot in self._shots if shot.show == self._filter_show]
-
     def get_available_shows(self) -> set[str]:
         """Get all unique show names from current shots.
 

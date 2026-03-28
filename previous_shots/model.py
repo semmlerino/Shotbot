@@ -16,7 +16,6 @@ from cache.shot_cache import ShotDataCache
 from logging_mixin import LoggingMixin
 from previous_shots.finder import ParallelShotsFinder
 from previous_shots.worker import PreviousShotsWorker
-from shots.shot_filter import compose_filters, get_available_shows
 from type_definitions import Shot
 from utils import safe_disconnect
 
@@ -68,8 +67,6 @@ class PreviousShotsModel(LoggingMixin, QObject):
         self._previous_shots: list[Shot] = []
         self._is_scanning = False
         self._worker: PreviousShotsWorker | None = None
-        self._filter_show: str | None = None  # Show filter
-        self._filter_text: str | None = None  # Text filter for real-time search
 
         # THREAD SAFETY: Lock for protecting _is_scanning flag
         self._scan_lock = QMutex()
@@ -380,62 +377,6 @@ class PreviousShotsModel(LoggingMixin, QObject):
         details = self._finder.get_shot_details(shot)
         # All fields in ShotDetailsDict are str, so this cast is safe
         return cast("dict[str, str]", dict(details))
-
-    def set_show_filter(self, show: str | None) -> None:
-        """Set the show filter.
-
-        Args:
-            show: Show name to filter by or None for all shows
-
-        """
-        self._filter_show = show
-        self.logger.info(f"Show filter set to: {show or 'All Shows'}")
-
-    def get_show_filter(self) -> str | None:
-        """Get the current show filter."""
-        return self._filter_show
-
-    def set_text_filter(self, text: str | None) -> None:
-        """Set the text filter for real-time search.
-
-        Args:
-            text: Text to filter by (case-insensitive substring match) or None for no filter
-
-        """
-        self._filter_text = text
-        self.logger.info(f"Text filter set to: '{text or ''}'")
-
-    def get_text_filter(self) -> str | None:
-        """Get the current text filter."""
-        return self._filter_text
-
-    def get_filtered_shots(self) -> list[Shot]:
-        """Get shots filtered by show and text filters.
-
-        Applies both show filter and text filter (AND logic).
-
-        Returns:
-            Filtered list of shots
-
-        """
-        filtered = compose_filters(
-            self._previous_shots, show=self._filter_show, text=self._filter_text
-        )
-
-        self.logger.debug(
-            f"Filtered {len(self._previous_shots)} shots to {len(filtered)} "
-            f"(show='{self._filter_show}', text='{self._filter_text}')"
-        )
-        return filtered
-
-    def get_available_shows(self) -> set[str]:
-        """Get all unique show names from current shots.
-
-        Returns:
-            Set of unique show names
-
-        """
-        return get_available_shows(self._previous_shots)
 
     def _load_from_cache(self) -> list[Shot]:
         """Load previous shots from persistent cache, merging migrated + scanned.

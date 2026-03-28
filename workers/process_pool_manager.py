@@ -20,7 +20,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar, Literal, final
+from typing import ClassVar, Literal, cast, final
 
 from PySide6.QtCore import (
     QCoreApplication,
@@ -29,6 +29,9 @@ from PySide6.QtCore import (
     QObject,
     QThread,
 )
+
+# Third-party imports
+from cachetools import LRUCache
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -250,8 +253,10 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         super().__init__()
 
-        self._cache: dict[str, tuple[str, float, float]] = {}  # key -> (result, timestamp, ttl)
-        self._cache_max_size = 500
+        # LRUCache evicts least-recently-used entries when maxsize is reached.
+        # Values are (result, expiry_time) tuples for per-entry TTL support.
+        # pyright: ignore needed because vendored cachetools lacks type stubs.
+        self._cache: LRUCache[str, tuple[str, float]] = LRUCache(maxsize=500)  # pyright: ignore[reportInvalidTypeArguments]
         self._cache_lock = QMutex()
         # Instance-level mutex and shutdown flag for thread-safe shutdown
         self._mutex = QMutex()
@@ -335,13 +340,17 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         cache_key = f"{command}|login={use_login_shell}"
 
-        # Check cache first
+        # Check cache first.
+        # cast() used because vendored cachetools lacks type stubs.
         if cache_ttl > 0:
             with QMutexLocker(self._cache_lock):
-                entry = self._cache.get(cache_key)
+                entry = cast(
+                    "tuple[str, float] | None",
+                    self._cache.get(cache_key),  # pyright: ignore[reportUnknownMemberType]
+                )
                 if entry is not None:
-                    result, timestamp, entry_ttl = entry
-                    if time.monotonic() - timestamp < entry_ttl:
+                    result, expiry_time = entry
+                    if time.monotonic() < expiry_time:
                         return result
                     del self._cache[cache_key]
 
@@ -390,17 +399,10 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
             result = proc_result.stdout
 
-            # Cache result
+            # Cache result with per-entry expiry time; LRUCache handles size eviction
             if cache_ttl > 0:
                 with QMutexLocker(self._cache_lock):
-                    self._cache[cache_key] = (result, time.monotonic(), cache_ttl)
-                    # Size eviction: trim oldest entries if over limit
-                    if len(self._cache) > self._cache_max_size:
-                        sorted_keys = sorted(
-                            self._cache, key=lambda k: self._cache[k][1]
-                        )
-                        for k in sorted_keys[:100]:
-                            del self._cache[k]
+                    self._cache[cache_key] = (result, time.monotonic() + cache_ttl)
 
             return result
 
@@ -420,7 +422,11 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 self._cache.clear()
                 logger.info("Cleared entire command cache")
             else:
-                keys: list[str] = [k for k in self._cache if pattern in k]
+                keys: list[str] = [
+                    cast("str", k)
+                    for k in self._cache  # pyright: ignore[reportUnknownVariableType]
+                    if pattern in cast("str", k)
+                ]
                 for k in keys:
                     del self._cache[k]
                 logger.info(
