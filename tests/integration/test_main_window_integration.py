@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 import time
-from collections.abc import Generator, Iterator
+from collections.abc import Callable, Generator, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
@@ -42,10 +42,6 @@ def setup_qt_imports() -> None:
 
 pytestmark = [
     pytest.mark.qt,
-    # This module still tears down real MainWindow graphs unreliably enough to
-    # crash the interpreter after tests pass. Keep it out of the default gate
-    # until it is rewritten around stricter window-lifecycle fixtures.
-    pytest.mark.quarantine,
     pytest.mark.allow_dialogs,
     pytest.mark.permissive_process_pool,
     pytest.mark.usefixtures("suppress_qmessagebox"),
@@ -53,7 +49,7 @@ pytestmark = [
 
 
 # ---------------------------------------------------------------------------
-# Shared window-cleanup helper
+# Shared window-cleanup helpers
 # ---------------------------------------------------------------------------
 
 
@@ -73,53 +69,52 @@ def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def _stop_window_background_work(window: Any) -> None:
-    """Stop background workers/timers associated with a MainWindow."""
+def _cleanup_main_window(window: Any) -> None:
+    """Full cleanup of a MainWindow instance for test teardown.
 
-    if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
-        with contextlib.suppress(RuntimeError):
-            window.auto_refresh_timer.stop()
-
-    if hasattr(window, "command_launcher"):
-        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            window.command_launcher.cleanup()
-
-    if (
-        hasattr(window, "threede_worker")
-        and window.threede_worker
-        and window.threede_worker.isRunning()
-    ):
-        with contextlib.suppress(RuntimeError):
-            window.threede_worker.quit()
-            window.threede_worker.wait(1000)
-
-    shot_model = getattr(window, "shot_model", None)
-    if shot_model is not None:
-        with contextlib.suppress(RuntimeError, AttributeError):
-            shot_model.cleanup()
-
-
-def _close_windows(windows: list[Any]) -> None:
-    """Close a list of MainWindow instances with proper Qt cleanup."""
-    for window in windows:
-        if window:
-            _stop_window_background_work(window)
-            with contextlib.suppress(RuntimeError):
-                window.close()
-            if not window.isHidden():
-                with contextlib.suppress(RuntimeError):
-                    window.hide()
-
-    windows.clear()
+    Calls window.cleanup() which follows MainWindow._perform_cleanup() ordering:
+    1. Mark closing, 2. Controllers, 3. Session warmer,
+    4. Managers, 5. Models, 6. Process events + GC.
+    Then close/hide the widget and drain deferred deletes.
+    """
+    with contextlib.suppress(RuntimeError):
+        window.cleanup()
+    with contextlib.suppress(RuntimeError):
+        window.close()
+    with contextlib.suppress(RuntimeError):
+        if not window.isHidden():
+            window.hide()
     drain_qt_events(passes=3)
-
-
-# Test doubles are imported from tests.fixtures.model_fixtures above.
 
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def create_main_window(qtbot: QtBot) -> Generator[Callable[..., Any], None, None]:
+    """Factory fixture: creates MainWindow instances with proper lifecycle cleanup.
+
+    Usage::
+
+        def test_foo(create_main_window, tmp_path):
+            window = create_main_window(tmp_path / "cache")
+            # ... test logic ...
+            # cleanup is automatic on fixture teardown
+    """
+    windows: list[Any] = []
+
+    def _create(cache_dir: Path) -> Any:
+        window = MainWindow(cache_dir=cache_dir)
+        qtbot.addWidget(window)
+        windows.append(window)
+        return window
+
+    yield _create
+
+    for window in reversed(windows):
+        _cleanup_main_window(window)
 
 
 @pytest.fixture
@@ -158,15 +153,23 @@ def main_window_with_real_components(
     mock_notification_manager = MagicMock()
 
     monkeypatch.setattr(NotificationManager, "error", mock_notification_manager.error)
-    monkeypatch.setattr(NotificationManager, "warning", mock_notification_manager.warning)
+    monkeypatch.setattr(
+        NotificationManager, "warning", mock_notification_manager.warning
+    )
     monkeypatch.setattr(NotificationManager, "info", mock_notification_manager.info)
-    monkeypatch.setattr(NotificationManager, "success", mock_notification_manager.success)
+    monkeypatch.setattr(
+        NotificationManager, "success", mock_notification_manager.success
+    )
 
     # Use MagicMock for ProgressManager
     mock_progress_manager = MagicMock()
     monkeypatch.setattr(ProgressManager, "operation", mock_progress_manager.operation)
-    monkeypatch.setattr(ProgressManager, "start_operation", mock_progress_manager.start_operation)
-    monkeypatch.setattr(ProgressManager, "finish_operation", mock_progress_manager.finish_operation)
+    monkeypatch.setattr(
+        ProgressManager, "start_operation", mock_progress_manager.start_operation
+    )
+    monkeypatch.setattr(
+        ProgressManager, "finish_operation", mock_progress_manager.finish_operation
+    )
 
     import types
 
@@ -210,14 +213,7 @@ def main_window_with_real_components(
             else:
                 sys.modules[module_name] = original_module
 
-        _stop_window_background_work(window)
-
-        with contextlib.suppress(RuntimeError):
-            window.close()
-        if not window.isHidden():
-            with contextlib.suppress(RuntimeError):
-                window.hide()
-        drain_qt_events()
+        _cleanup_main_window(window)
 
 
 # ---------------------------------------------------------------------------
@@ -229,15 +225,12 @@ def main_window_with_real_components(
 class TestCrossTabSynchronization:
     """Test data synchronization across all three tabs."""
 
-    @pytest.fixture(autouse=True)
-    def setup_and_teardown(self, qtbot: QtBot) -> None:
-        """Clean up Qt widgets and process events between tests."""
-        self.test_windows: list[Any] = []
-        yield
-        _close_windows(self.test_windows)
-
     def test_shot_selection_syncs_info_panel_across_tabs(
-        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
+        self,
+        qapp: QApplication,
+        qtbot: QtBot,
+        tmp_path: Path,
+        create_main_window: Any,
     ) -> None:
         """Verify info panel updates across all three tabs.
 
@@ -246,9 +239,7 @@ class TestCrossTabSynchronization:
         - Switching to 3DE tab and selecting a scene updates info panel
         - Tab switching clears info panel when new tab has no selection
         """
-        window = MainWindow(cache_dir=tmp_path / "cache")
-        qtbot.addWidget(window)
-        self.test_windows.append(window)
+        window = create_main_window(tmp_path / "cache")
 
         shots = [
             Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
@@ -306,7 +297,12 @@ class TestCrossTabSynchronization:
         assert window.right_panel._current_shot == second_shot
 
     def test_show_filter_affects_all_tabs(
-        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path, monkeypatch: Any
+        self,
+        qapp: QApplication,
+        qtbot: QtBot,
+        tmp_path: Path,
+        monkeypatch: Any,
+        create_main_window: Any,
     ) -> None:
         """Test that show filtering propagates correctly within a tab."""
         from shots.shot_model import AsyncShotLoader
@@ -325,9 +321,7 @@ class TestCrossTabSynchronization:
         temp_cache_dir.mkdir()
         with monkeypatch.context() as mp:
             mp.setattr(QTimer, "singleShot", lambda *_args, **_kwargs: None)
-            window = MainWindow(cache_dir=temp_cache_dir)
-        qtbot.addWidget(window)
-        self.test_windows.append(window)
+            window = create_main_window(temp_cache_dir)
 
         AsyncShotLoader.__init__ = original_init_async
 
@@ -393,7 +387,11 @@ class TestMainWindowUICoordination:
         assert "nuke" in window.right_panel._dcc_accordion._sections
 
     def test_launcher_execution_workflow(
-        self, main_window_with_real_components: Any, qtbot: Any, tmp_path: Path, mocker: Any
+        self,
+        main_window_with_real_components: Any,
+        qtbot: Any,
+        tmp_path: Path,
+        mocker: Any,
     ) -> None:
         """Test that the launch button delegates to CommandLauncher."""
         window = main_window_with_real_components
@@ -539,14 +537,13 @@ class TestUserWorkflows:
     """Integration tests for critical user workflows in ShotBot."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self, tmp_path: Path, qtbot: Any, mocker: Any) -> Iterator[None]:
+    def _setup(self, tmp_path: Path, mocker: Any) -> Iterator[None]:
         """Set up test environment with realistic data structures."""
         self.temp_dir = tmp_path / "shotbot"
         self.temp_dir.mkdir()
         self.config_dir = self.temp_dir / "config"
         self.cache_dir = self.temp_dir / "cache"
         self.shows_dir = self.temp_dir / "shows"
-        self.test_windows: list[Any] = []
 
         for directory in [self.config_dir, self.cache_dir, self.shows_dir]:
             directory.mkdir(parents=True, exist_ok=True)
@@ -598,9 +595,7 @@ class TestUserWorkflows:
         )
         self.mock_progress.return_value = self.progress_operation
 
-        yield
-
-        _close_windows(self.test_windows)
+        return
 
     def _create_test_process(self, pid: int, name: str) -> PopenDouble:
         process = PopenDouble([name], returncode=0, stdout=f"{name} output", stderr="")
@@ -650,11 +645,11 @@ class TestUserWorkflows:
         return shot_path
 
     @pytest.mark.qt
-    def test_launch_nuke_with_shot(self, qtbot: Any, mocker: Any) -> None:
+    def test_launch_nuke_with_shot(
+        self, qtbot: Any, mocker: Any, create_main_window: Any
+    ) -> None:
         """Test complete workflow of selecting a shot and launching Nuke."""
-        main_window = MainWindow(cache_dir=self.cache_dir)
-        qtbot.addWidget(main_window)
-        self.test_windows.append(main_window)
+        main_window = create_main_window(self.cache_dir)
 
         shot_data = self.test_shots[0]
         actual_workspace_path = self._create_realistic_shot_structure(shot_data)
@@ -682,9 +677,7 @@ class TestUserWorkflows:
         )
         from launch.launch_request import LaunchRequest
 
-        success = main_window.command_launcher.launch(
-            LaunchRequest(app_name="nuke")
-        )
+        success = main_window.command_launcher.launch(LaunchRequest(app_name="nuke"))
 
         assert success is True
 
@@ -703,7 +696,11 @@ class TestUserWorkflows:
 
     @pytest.mark.qt
     def test_thumbnail_loading_workflow(
-        self, qtbot: Any, monkeypatch: pytest.MonkeyPatch, mocker: Any
+        self,
+        qtbot: Any,
+        monkeypatch: pytest.MonkeyPatch,
+        mocker: Any,
+        create_main_window: Any,
     ) -> None:
         """Test thumbnail loading and display workflow."""
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -717,10 +714,7 @@ class TestUserWorkflows:
             "workers.process_pool_manager.ProcessPoolManager.get_instance",
             return_value=test_pool,
         )
-        main_window = MainWindow(cache_dir=self.cache_dir)
-
-        qtbot.addWidget(main_window)
-        self.test_windows.append(main_window)
+        main_window = create_main_window(self.cache_dir)
 
         from PySide6.QtCore import QMutexLocker
 
