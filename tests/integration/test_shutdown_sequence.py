@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtCore import QMutexLocker, QObject, Signal
 
+from tests.test_helpers import drain_qt_events
+
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -89,7 +91,7 @@ class TestSignalDeliveryDuringShutdown:
         # Emit after disconnect should not crash
         # (would crash if handler was called with deleted object)
         emitter.emit_test()
-        qtbot.wait(1)
+        drain_qt_events()
 
         # Handler should not have received second signal
         assert len(received) == 1
