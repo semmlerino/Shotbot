@@ -189,13 +189,22 @@ class SingletonRegistry:
                         deps.add(dep)
             graph[entry.import_path] = deps
 
-        # Topological sort
+        # Level-by-level topological sort with numeric tiebreaker within each level
         ts = TopologicalSorter(graph)
-        sorted_paths = list(ts.static_order())
+        ts.prepare()
+        result: list[SingletonEntry] = []
+        while ts.is_active():
+            # get_ready() returns all nodes at the current level
+            level_paths = ts.get_ready()
+            # Sort within level by numeric cleanup_order for deterministic ordering
+            level_entries = [entry_map[p] for p in level_paths if p in entry_map]
+            level_entries.sort(key=lambda e: e.cleanup_order)
+            result.extend(level_entries)
+            # Mark all as done to advance to next level
+            for path in level_paths:
+                ts.done(path)
 
-        # Map back to entries, preserving numeric order as tiebreaker within same level
-        # static_order already respects the graph; we just need to look up entries
-        return [entry_map[path] for path in sorted_paths if path in entry_map]
+        return result
 
     @classmethod
     def verify_no_dependency_cycles(cls) -> None:
