@@ -150,6 +150,21 @@ def _is_expected_thread(thread_name: str) -> bool:
     return any(thread_name.startswith(prefix) for prefix in _EXPECTED_THREAD_PREFIXES)
 
 
+def _read_zombie_baseline() -> dict[str, int]:
+    """Snapshot current zombie metrics. Returns empty dict if zombie_registry unavailable."""
+    try:
+        from workers.zombie_registry import get_zombie_metrics
+
+        return dict(get_zombie_metrics())
+    except (ImportError, AttributeError, TypeError):
+        return {}
+
+
+def _zombies_created_during(before: dict[str, int], after: dict[str, int]) -> int:
+    """Return how many new zombies were created between two metric snapshots."""
+    return after.get("created", 0) - before.get("created", 0)
+
+
 @pytest.fixture  # Not autouse — activated by _qt_auto_fixtures dispatcher
 def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[None]:
     """Ensure Qt state is clean between tests.
@@ -220,6 +235,8 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         )
         if STRICT_CLEANUP:
             raise
+
+    zombie_baseline = _read_zombie_baseline()
 
     yield
 
@@ -337,6 +354,17 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
                 f"SHOTBOT_TEST_ALLOW_THREAD_LEAKS=1",
                 pytrace=False,
             )
+
+        zombie_after = _read_zombie_baseline()
+        new_zombies = _zombies_created_during(zombie_baseline, zombie_after)
+        if new_zombies > 0 and FAIL_ON_THREAD_LEAK:
+            marker = request.node.get_closest_marker("thread_leak_ok")
+            if marker is None:
+                pytest.fail(
+                    f"{new_zombies} worker(s) were abandoned to the zombie registry during this test. "
+                    f"Use cleanup_qthread_properly() or mark the test @pytest.mark.thread_leak_ok.",
+                    pytrace=False,
+                )
 
 
 # ---------------------------------------------------------------------------
