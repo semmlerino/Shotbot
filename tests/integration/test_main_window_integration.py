@@ -93,21 +93,17 @@ def _cleanup_main_window(window: Any) -> None:
 
 
 @pytest.fixture
-def create_main_window(qtbot: QtBot) -> Generator[Callable[..., Any], None, None]:
-    """Factory fixture: creates MainWindow instances with proper lifecycle cleanup.
+def create_main_window() -> Generator[Callable[..., Any], None, None]:
+    """Factory fixture: creates MainWindow instances with full lifecycle ownership.
 
-    Usage::
-
-        def test_foo(create_main_window, tmp_path):
-            window = create_main_window(tmp_path / "cache")
-            # ... test logic ...
-            # cleanup is automatic on fixture teardown
+    Does NOT use qtbot.addWidget — we manage cleanup() → close() → deleteLater()
+    → drain ourselves.  This avoids double-teardown (our cleanup + qtbot's) which
+    leaves stale deferred deletes that crash later tests' event loops.
     """
     windows: list[Any] = []
 
     def _create(cache_dir: Path) -> Any:
         window = MainWindow(cache_dir=cache_dir)
-        qtbot.addWidget(window)
         windows.append(window)
         return window
 
@@ -192,7 +188,6 @@ def main_window_with_real_components(
     sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
     window = MainWindow(cache_dir=real_cache_manager)
-    qtbot.addWidget(window)
 
     window._test_process_pool = test_pool
     window._test_progress_manager = mock_progress_manager
@@ -334,11 +329,9 @@ class TestCrossTabSynchronization:
             loader = window.shot_model._loader_host.take_unlocked()
             window.shot_model._loading_in_progress = False
         if loader is not None:
-            loader.stop()
-            loader.wait()
-            loader.deleteLater()
+            from tests.test_helpers import cleanup_qthread_properly
 
-        drain_qt_events()
+            cleanup_qthread_properly(loader)
 
         test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs(
@@ -352,7 +345,14 @@ class TestCrossTabSynchronization:
         success, _ = window.shot_model.refresh_shots()
         assert success, "refresh_shots should succeed"
 
-        drain_qt_events()
+        # refresh_shots() emits shots_changed → RefreshCoordinator → UI updates
+        # which may trigger background thumbnail loads and cache writes.
+        # Drain events + GC to settle all cascading work before continuing.
+        import gc
+
+        drain_qt_events(passes=2)
+        gc.collect()
+        drain_qt_events(passes=2)
 
         shot_item_model = window.shot_item_model
         assert shot_item_model.rowCount() == 3
