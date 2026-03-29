@@ -26,6 +26,7 @@ from cache.shot_cache import ShotDataCache
 from config import Config
 from previous_shots.model import PreviousShotsModel
 from tests.fixtures.model_fixtures import TestShot, TestShotModel
+from tests.test_helpers import drain_qt_events
 from type_definitions import Shot
 
 
@@ -200,7 +201,8 @@ class TestPreviousShootsCacheIntegration:
         if worker is not None:
             worker.request_stop()
             worker.wait(2000)  # Wait up to 2 seconds for thread to finish
-        qtbot.wait(1)
+        model.deleteLater()
+        drain_qt_events()
 
     def test_cache_data_consistency(self, cache_manager: ShotDataCache) -> None:
         """Test cache data format consistency."""

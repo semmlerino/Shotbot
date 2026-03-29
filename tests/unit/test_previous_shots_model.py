@@ -40,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.fixtures.model_fixtures import TestCacheManager
+from tests.test_helpers import drain_qt_events
 
 
 pytestmark = [
@@ -82,7 +83,7 @@ class TestPreviousShotsModel:
         # Manual cleanup for QObject
         if hasattr(model, "deleteLater"):
             model.deleteLater()
-            qtbot.wait(1)
+            drain_qt_events()
 
     @pytest.fixture
     def test_finder(self) -> FakePreviousShotsFinder:
@@ -114,7 +115,7 @@ class TestPreviousShotsModel:
         # Cleanup worker thread BEFORE deleteLater to prevent Qt crashes
         model._cleanup_worker_safely()
         model.deleteLater()
-        qtbot.wait(1)
+        drain_qt_events()
 
     @pytest.fixture
     def model_with_real_cache(
@@ -131,7 +132,7 @@ class TestPreviousShotsModel:
         # Cleanup worker thread BEFORE deleteLater to prevent Qt crashes
         model._cleanup_worker_safely()
         model.deleteLater()
-        qtbot.wait(1)
+        drain_qt_events()
 
     def test_model_initialization(
         self,
@@ -437,7 +438,7 @@ class TestPreviousShotsModel:
         model = PreviousShotsModel(test_shot_model, cache_manager)
         assert len(model.get_shots()) == 0
         model.deleteLater()
-        qtbot.wait(1)
+        drain_qt_events()
 
     def test_clear_cache_functionality(
         self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path, mocker
@@ -538,7 +539,7 @@ class TestPreviousShotsModel:
         assert shots_updated_spy.count() == 1
 
         model.deleteLater()
-        qtbot.wait(1)
+        drain_qt_events()
 
     def test_on_cache_shots_migrated_merges_without_filesystem_scan(
         self,
@@ -600,9 +601,10 @@ class TestPreviousShotsModel:
         assert ("showA", "seqA", "shot001") in reloaded_keys
         assert ("showA", "seqA", "shot002") in reloaded_keys
         reloaded.deleteLater()
+        drain_qt_events()
 
         model.deleteLater()
-        qtbot.wait(1)
+        drain_qt_events()
 
     def test_on_cache_shots_migrated_deduplicates_existing_shots(
         self,
@@ -648,7 +650,7 @@ class TestPreviousShotsModel:
         assert shots_updated_spy.count() == 1
 
         model.deleteLater()
-        qtbot.wait(1)
+        drain_qt_events()
 
     def test_on_cache_shots_migrated_empty_payload_is_noop(
         self,

@@ -17,6 +17,7 @@ from previous_shots.item_model import PreviousShotsItemModel
 
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.fixtures.model_fixtures import SignalDouble, TestCacheManager
+from tests.test_helpers import drain_qt_events
 from type_definitions import Shot
 
 
@@ -55,6 +56,7 @@ def model(qtbot, tmp_path):
     yield model
     # Manual cleanup for QObject (not a widget)
     model.deleteLater()
+    drain_qt_events()
 
 
 @pytest.fixture

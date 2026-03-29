@@ -49,6 +49,9 @@ if TYPE_CHECKING:
 
     from type_definitions import Shot
 
+from tests.test_helpers import drain_qt_events
+
+
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
@@ -158,6 +161,7 @@ class TestPreviousShotsView:
         yield view
         _prepare_view_for_cleanup(view)
         _schedule_delete_later(item_model)
+        drain_qt_events()
 
     def test_grid_initialization(
         self,
@@ -552,7 +556,9 @@ class TestPreviousShotsViewIntegration:
         # Cleanup
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         _prepare_view_for_cleanup(view)
+        previous_model._cleanup_worker_safely()
         _schedule_delete_later(item_model, previous_model, shot_model)
+        drain_qt_events()
 
     def test_integration_grid_creation(
         self, integration_grid: PreviousShotsView, qtbot: QtBot
