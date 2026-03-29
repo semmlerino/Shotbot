@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, final
 
@@ -145,6 +144,7 @@ class MainWindow(QtWidgetMixin, QMainWindow):
         self._last_selected_shot_name: str | None = None
         self._setup_ui()
         self._init_controllers()
+        self._init_tab_coordinators()
         self._setup_menu()
         self._connect_signals()
         self.settings_controller.load_settings()
@@ -195,6 +195,41 @@ class MainWindow(QtWidgetMixin, QMainWindow):
         )
 
         self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)
+
+    def _init_tab_coordinators(self) -> None:
+        """Initialize per-tab signal wiring coordinators."""
+        from controllers.my_shots_tab_coordinator import MyShotsTabCoordinator
+        from controllers.previous_shots_tab_coordinator import (
+            PreviousShotsTabCoordinator,
+        )
+        from controllers.threede_tab_coordinator import ThreeDETabCoordinator
+
+        self._my_shots_coordinator = MyShotsTabCoordinator(
+            shot_grid=self.shot_grid,
+            shot_proxy=self.shot_proxy,
+            filter_coordinator=self.filter_coordinator,
+            command_launcher=self.command_launcher,
+            pin_manager=self.pin_manager,
+        )
+        self._my_shots_coordinator.connect_signals()
+
+        self._threede_coordinator = ThreeDETabCoordinator(
+            threede_shot_grid=self.threede_shot_grid,
+            threede_item_model=self.threede_item_model,
+            filter_coordinator=self.filter_coordinator,
+            command_launcher=self.command_launcher,
+        )
+        self._threede_coordinator.connect_signals()
+
+        self._previous_shots_coordinator = PreviousShotsTabCoordinator(
+            previous_shots_grid=self.previous_shots_grid,
+            previous_shots_proxy=self.previous_shots_proxy,
+            previous_shots_item_model=self.previous_shots_item_model,
+            filter_coordinator=self.filter_coordinator,
+            command_launcher=self.command_launcher,
+            pin_manager=self.pin_manager,
+        )
+        self._previous_shots_coordinator.connect_signals()
 
     def _setup_ui(self) -> None:
         """Set up the main UI."""
@@ -300,14 +335,10 @@ class MainWindow(QtWidgetMixin, QMainWindow):
         self.refresh_action = build_menu(self, self, self._refresh_shots)
 
     def _connect_signals(self) -> None:
-        """Connect signals."""
+        """Connect cross-tab signals. Tab-specific wiring handled by tab coordinators."""
         self._connect_shot_model_signals()
-        self._connect_filter_signals()
-        self._connect_launch_signals()
-        self._connect_pin_signals()
         self._connect_controller_signals()
         self._connect_right_panel_signals()
-        self._connect_sort_signals()
 
     def _connect_shot_model_signals(self) -> None:
         """Connect shot model error, recovery, and status signals."""
@@ -322,84 +353,6 @@ class MainWindow(QtWidgetMixin, QMainWindow):
             lambda: self.status_bar.showMessage("Fetching fresh data...")
         )
         # Note: background_load_finished had body `pass` — connection removed
-
-    def _connect_filter_signals(self) -> None:
-        """Connect show/text filters for My Shots and Previous Shots grids."""
-        # Shot selection - handled by ShotSelectionController when active
-        # Controller handles shot_selected, shot_double_clicked, recover_crashes_requested
-
-        # My Shots filter signals
-        _ = self.shot_grid.show_filter_requested.connect(
-            partial(
-                self.filter_coordinator.apply_show_filter, self.shot_proxy, "My Shots"
-            )  # pyright: ignore[reportAny]
-        )
-        _ = self.shot_grid.text_filter_requested.connect(
-            partial(
-                self.filter_coordinator.apply_text_filter, self.shot_proxy, "My Shots"
-            )  # pyright: ignore[reportAny]
-        )
-
-        # Previous Shots filter signals
-        _ = self.previous_shots_grid.show_filter_requested.connect(
-            partial(
-                self.filter_coordinator.apply_show_filter,
-                self.previous_shots_proxy,
-                "Previous Shots",
-            )  # pyright: ignore[reportAny]
-        )
-        _ = self.previous_shots_grid.text_filter_requested.connect(
-            partial(
-                self.filter_coordinator.apply_text_filter,
-                self.previous_shots_proxy,
-                "Previous Shots",
-            )  # pyright: ignore[reportAny]
-        )
-
-        # Previous shots model updates (repopulate show filter when shots change)
-        _ = self.previous_shots_item_model.shots_updated.connect(
-            self.filter_coordinator.on_previous_shots_updated  # pyright: ignore[reportAny]
-        )
-
-    def _connect_launch_signals(self) -> None:
-        """Connect app launch signals from all 3 grids and visibility signals."""
-        _ = self.shot_grid.app_launch_requested.connect(
-            lambda app_name: self.command_launcher.launch(  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
-                LaunchRequest(app_name=app_name)  # pyright: ignore[reportUnknownArgumentType]
-            )
-        )
-        _ = self.shot_grid.shot_visibility_changed.connect(
-            lambda: self.shot_proxy.invalidate()
-        )
-        _ = self.shot_grid.show_hidden_changed.connect(self.shot_proxy.set_show_hidden)
-
-        # 3DE scene selection - handled by controller
-        # Controller handles its own signal connections in __init__
-        # Handle app launch with scene context (signal emits app_name, scene)
-        _ = self.threede_shot_grid.app_launch_requested.connect(
-            lambda app_name, scene: self.command_launcher.launch(  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
-                LaunchRequest(app_name=app_name, scene=scene)  # pyright: ignore[reportUnknownArgumentType]
-            )
-        )
-
-        # 3DE show filter - handled by controller
-        # Controller handles show filter in its own signal setup
-
-        # Previous shots selection - handled by ShotSelectionController when active
-        # Controller handles shot_selected and shot_double_clicked
-        _ = self.previous_shots_grid.app_launch_requested.connect(
-            lambda app_name: self.command_launcher.launch(  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
-                LaunchRequest(app_name=app_name)  # pyright: ignore[reportUnknownArgumentType]
-            )
-        )
-
-    def _connect_pin_signals(self) -> None:
-        """Connect pin requests from shot and previous shots grids."""
-        # Pin sort-order refresh — fallback path when view has no pin_manager set
-        _ = self.shot_grid.pin_shot_requested.connect(self._on_shot_grid_pin_requested)
-        _ = self.previous_shots_grid.pin_shot_requested.connect(
-            self._on_previous_shots_pin_requested
-        )
 
     def _connect_controller_signals(self) -> None:
         """Connect cross-controller coordination and tab change signals."""
@@ -430,26 +383,6 @@ class MainWindow(QtWidgetMixin, QMainWindow):
             lambda: self.right_panel.set_search_pending(False)
         )
 
-    def _connect_sort_signals(self) -> None:
-        """Connect sort order change signals with partial() for model binding."""
-        # Thumbnail size synchronization handled by ThumbnailSizeManager
-
-        # Sort order changes - connect view signals to model and settings persistence
-        _ = self.threede_shot_grid.sort_order_changed.connect(
-            partial(
-                self.filter_coordinator.on_sort_order_changed,
-                "threede_scenes",
-                self.threede_item_model,
-            )
-        )
-        _ = self.previous_shots_grid.sort_order_changed.connect(
-            partial(
-                self.filter_coordinator.on_sort_order_changed,
-                "previous_shots",
-                self.previous_shots_item_model,
-            )
-        )
-
     # ---------------------------------------------------------------------------
     # Inlined from DataEventHandler
     # ---------------------------------------------------------------------------
@@ -463,16 +396,6 @@ class MainWindow(QtWidgetMixin, QMainWindow):
         """Handle data recovery notification from shot model."""
         logger.warning(f"Data recovery: {title} - {details}")
         NotificationManager.warning(title, details)
-
-    def _on_shot_grid_pin_requested(self, shot: Shot) -> None:
-        """Handle pin request from the My Shots grid."""
-        self.pin_manager.pin_shot(shot)
-        self.shot_proxy.refresh_sort()
-
-    def _on_previous_shots_pin_requested(self, shot: Shot) -> None:
-        """Handle pin request from the Previous Shots grid."""
-        self.pin_manager.pin_shot(shot)
-        self.previous_shots_proxy.refresh_sort()
 
     # ---------------------------------------------------------------------------
     # Inlined from LaunchCoordinator
