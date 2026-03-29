@@ -17,6 +17,7 @@ from PySide6.QtGui import QWheelEvent
 from config import Config
 from previous_shots.view import PreviousShotsView
 from shots.shot_grid_view import ShotGridView
+from tests.test_helpers import drain_qt_events
 from threede import ThreeDEGridView
 
 
@@ -73,7 +74,7 @@ def model_cleanups(qtbot: QtBot) -> Generator[list[Callable[[], None]], None, No
         except (RuntimeError, TypeError, AttributeError):
             pass
 
-    qtbot.wait(1)
+    drain_qt_events()
 
 
 @pytest.fixture
@@ -126,8 +127,13 @@ def make_model(
             item_model.set_items(shots)
             model_cleanups.extend(
                 [
-                    lambda: shot_model.cleanup() if hasattr(shot_model, "cleanup") else None,
-                    item_model.deleteLater,
+                    lambda model=shot_model: (
+                        model.cleanup() if hasattr(model, "cleanup") else None
+                    ),
+                    lambda model=item_model: (
+                        model.cleanup() if hasattr(model, "cleanup") else None,
+                        model.deleteLater(),
+                    ),
                 ]
             )
             return item_model
@@ -160,8 +166,13 @@ def make_model(
             item_model.set_items(scenes)
             model_cleanups.extend(
                 [
-                    lambda: scene_model.cleanup() if hasattr(scene_model, "cleanup") else None,
-                    item_model.deleteLater,
+                    lambda model=scene_model: (
+                        model.cleanup() if hasattr(model, "cleanup") else None
+                    ),
+                    lambda model=item_model: (
+                        model.cleanup() if hasattr(model, "cleanup") else None,
+                        model.deleteLater(),
+                    ),
                 ]
             )
             return item_model
@@ -186,12 +197,17 @@ def make_model(
             item_model.set_items(shots)
             model_cleanups.extend(
                 [
-                    lambda: shot_model.cleanup() if hasattr(shot_model, "cleanup") else None,
-                    lambda: (
-                        prev_model.cleanup(),
-                        prev_model.deleteLater(),
+                    lambda model=shot_model: (
+                        model.cleanup() if hasattr(model, "cleanup") else None
                     ),
-                    item_model.deleteLater,
+                    lambda model=prev_model: (
+                        model.cleanup(),
+                        model.deleteLater(),
+                    ),
+                    lambda model=item_model: (
+                        model.cleanup() if hasattr(model, "cleanup") else None,
+                        model.deleteLater(),
+                    ),
                 ]
             )
             return item_model

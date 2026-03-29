@@ -113,14 +113,18 @@ def cleanup_qthread_properly(
     # This is CRITICAL - without deleteLater(), the Qt C++ object accumulates
     thread.deleteLater()
 
-    # Step 4: Process events to flush the deletion queue
-    # This ensures the Qt C++ object is actually deleted NOW, not later
-    QCoreApplication.processEvents()
+    # Step 4-6: Flush the deletion queue and cascading deferred deletes
+    drain_qt_events(passes=2)
 
-    # Step 5: Process deferred deletes explicitly
-    # This handles any objects that were marked for deferred deletion
-    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
-    # Step 6: Process events again for cascading cleanups
-    # Child objects may have been scheduled for deletion in step 5
+def drain_qt_events(passes: int = 2) -> None:
+    """Process pending Qt events without entering pytest-qt nested wait loops.
+
+    This is safer for teardown paths than ``qtbot.wait(1)`` because it avoids
+    spinning a nested event loop while widgets and workers are mid-destruction.
+    Multiple passes ensure cascading ``deleteLater()`` calls are flushed.
+    """
+    for _ in range(max(1, passes)):
+        QCoreApplication.processEvents()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
     QCoreApplication.processEvents()

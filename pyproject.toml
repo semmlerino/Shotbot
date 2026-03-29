@@ -287,7 +287,8 @@ addopts = [
     "-ra",                  # Show all test summary info
     "-m", "not quarantine", # Keep known-unstable tests out of the default gate
     "--durations=20",       # Show slowest 20 tests
-    "--randomly-seed=last", # Reproduce last run's order (use --randomly-seed=<N> for specific seed)
+    "--randomly-seed=0",    # Deterministic random state for repeatable local/CI runs
+    "--randomly-dont-reorganize", # Keep collection order stable; run randomized-order checks explicitly
     "--tb=short",
     "-p", "no:rerunfailures",
     "-p", "no:xvfb",

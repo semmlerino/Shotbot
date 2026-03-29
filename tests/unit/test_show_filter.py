@@ -32,6 +32,7 @@ from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel
 from tests.fixtures.model_fixtures import TestCacheManager
 from tests.fixtures.process_fixtures import TestProcessPool
+from tests.test_helpers import drain_qt_events
 from type_definitions import Shot
 
 
@@ -63,8 +64,10 @@ class TestShotGridViewShowFilter:
             cache_manager=TestCacheManager(cache_dir=tmp_path / "cache")
         )
         yield model
-        model.clear_thumbnail_cache()
+        if hasattr(model, "cleanup"):
+            model.cleanup()
         model.deleteLater()
+        drain_qt_events()
 
     @pytest.fixture
     def shot_grid_view(
@@ -136,7 +139,10 @@ class TestPreviousShotsViewShowFilter:
         )
         yield model
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
+        if hasattr(model, "cleanup"):
+            model.cleanup()
         model.deleteLater()
+        drain_qt_events()
 
     @pytest.fixture
     def previous_shots_item_model(
@@ -147,7 +153,10 @@ class TestPreviousShotsViewShowFilter:
             previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache3")
         )
         yield model
+        if hasattr(model, "cleanup"):
+            model.cleanup()
         model.deleteLater()
+        drain_qt_events()
 
     @pytest.fixture
     def previous_shots_view(

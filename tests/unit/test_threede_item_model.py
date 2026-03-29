@@ -6,7 +6,7 @@ and proper resource cleanup.
 """
 
 # Standard library imports
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from concurrent.futures import Future
 from pathlib import Path
 
@@ -21,6 +21,7 @@ from config import Config
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.fixtures.model_fixtures import TestCacheManager
+from tests.test_helpers import drain_qt_events
 from threede import ThreeDEItemModel
 from type_definitions import ThreeDEScene
 
@@ -29,12 +30,15 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 @pytest.fixture
-def model(qtbot: QtBot, tmp_path: Path) -> ThreeDEItemModel:
+def model(qtbot: QtBot, tmp_path: Path) -> Generator[ThreeDEItemModel, None, None]:
     """Create a ThreeDEItemModel instance for testing."""
     # Use test double instead of Mock(spec=)
     cache_manager = TestCacheManager(cache_dir=tmp_path / "cache")
-    return ThreeDEItemModel(cache_manager=cache_manager)
-    # Models are not widgets, don't add to qtbot
+    item_model = ThreeDEItemModel(cache_manager=cache_manager)
+    yield item_model
+    item_model.cleanup()
+    item_model.deleteLater()
+    drain_qt_events()
 
 
 @pytest.fixture

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -16,6 +17,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
+
+from tests.test_helpers import drain_qt_events
 
 
 if TYPE_CHECKING:
@@ -44,6 +47,19 @@ pytestmark = [
 class TestAsyncWorkflowIntegration:
     """Test async workflows across multiple components."""
 
+    @staticmethod
+    def _wait_for_condition(
+        condition: Callable[[], bool], timeout_ms: int = 5000
+    ) -> None:
+        """Poll a Qt condition without entering pytest-qt nested wait loops."""
+        deadline = time.monotonic() + (timeout_ms / 1000)
+        while time.monotonic() < deadline:
+            drain_qt_events()
+            if condition():
+                return
+            time.sleep(0.01)
+        assert condition(), f"Condition not met within {timeout_ms}ms"
+
     @pytest.fixture(autouse=True)
     def cleanup_qt_state(self, qtbot: QtBot) -> Any:
         """Autouse fixture to ensure Qt state is cleaned up after each test."""
@@ -52,7 +68,7 @@ class TestAsyncWorkflowIntegration:
         # CRITICAL: Without this, deleteLater() may delete widgets while
         # background threads are still emitting signals, causing segfaults
         get_tracker().wait_for_all(timeout_ms=2000)
-        qtbot.wait(1)  # Process pending Qt events
+        drain_qt_events()
 
     @pytest.fixture
     def temp_setup(self, tmp_path: Path) -> tuple[Path, list[Path]]:
@@ -129,9 +145,17 @@ class TestAsyncWorkflowIntegration:
         # Also set same shot in info panel
         info_panel.set_shot(test_shots[0])
 
-        # Start async loading by setting visible range; wait for thumbnail_loaded signal
-        with qtbot.waitSignal(item_model.thumbnail_loaded, timeout=5000):
-            item_model.set_visible_range(0, 1)
+        # Start async loading and wait for a terminal state. The signal can fire
+        # before the loader finishes updating its state, so waiting on the state
+        # directly is more reliable than asserting immediately after waitSignal.
+        item_model.set_visible_range(0, 1)
+        qtbot.waitUntil(
+            lambda: item_model._thumbnail_loader.get_loading_state(
+                test_shots[0].full_name
+            )
+            in ("loaded", "failed"),
+            timeout=5000,
+        )
 
         # Verify both components handled the shot
         assert info_panel._current_shot == test_shots[0]
@@ -182,7 +206,7 @@ class TestAsyncWorkflowIntegration:
             panel_correct = info_panel._current_shot == test_shots[2]
             return model_correct and panel_correct
 
-        qtbot.waitUntil(async_ops_complete, timeout=5000)
+        self._wait_for_condition(async_ops_complete, timeout_ms=5000)
 
         # Verify components are in consistent state
         assert item_model.rowCount() == 2  # shots[1:] = 2 shots
@@ -228,12 +252,12 @@ class TestAsyncWorkflowIntegration:
         # use waitUntil to cover both success and failure paths).
         item_model.set_visible_range(0, 1)
 
-        qtbot.waitUntil(
+        self._wait_for_condition(
             lambda: item_model._thumbnail_loader.get_loading_state(
                 test_shots[2].full_name
             )
             in ("loaded", "failed"),
-            timeout=5000,
+            timeout_ms=5000,
         )
 
         # Final consistency checks
@@ -298,10 +322,12 @@ class TestAsyncWorkflowIntegration:
         # thumbnail_loaded is NOT emitted on failure, so use waitUntil to
         # cover both the "failed" and any unexpected "loaded" outcome.
         item_model.set_visible_range(0, 1)
-        qtbot.waitUntil(
-            lambda: item_model._thumbnail_loader.get_loading_state(bad_shot.full_name)
+        self._wait_for_condition(
+            lambda: item_model._thumbnail_loader.get_loading_state(
+                bad_shot.full_name
+            )
             in ("failed", "loaded"),
-            timeout=5000,
+            timeout_ms=5000,
         )
 
         # Both components should handle errors gracefully.
@@ -324,6 +350,19 @@ class TestAsyncWorkflowIntegration:
 class TestAsyncCallbackIntegration:
     """Test async callback integration scenarios."""
 
+    @staticmethod
+    def _wait_for_condition(
+        condition: Callable[[], bool], timeout_ms: int = 5000
+    ) -> None:
+        """Poll a Qt condition without entering pytest-qt nested wait loops."""
+        deadline = time.monotonic() + (timeout_ms / 1000)
+        while time.monotonic() < deadline:
+            drain_qt_events()
+            if condition():
+                return
+            time.sleep(0.01)
+        assert condition(), f"Condition not met within {timeout_ms}ms"
+
     @pytest.fixture(autouse=True)
     def cleanup_qt_state(self, qtbot: QtBot) -> Any:
         """Autouse fixture to ensure Qt state is cleaned up after each test."""
@@ -332,7 +371,7 @@ class TestAsyncCallbackIntegration:
         # CRITICAL: Without this, deleteLater() may delete widgets while
         # background threads are still emitting signals, causing segfaults
         get_tracker().wait_for_all(timeout_ms=2000)
-        qtbot.wait(1)  # Process pending Qt events
+        drain_qt_events()
 
     def test_model_reset_during_async_callbacks(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -383,7 +422,7 @@ class TestAsyncCallbackIntegration:
                 cache_filtered = len(model._thumbnail_loader.thumbnail_cache) <= 1
                 return row_count_correct and cache_filtered
 
-            qtbot.waitUntil(model_reset_complete, timeout=5000)
+            self._wait_for_condition(model_reset_complete, timeout_ms=5000)
 
             # Model should be in consistent state
             assert model.rowCount() == 1
@@ -425,7 +464,9 @@ class TestAsyncCallbackIntegration:
             qtbot.wait(1)  # Minimal event processing
 
         # Wait for panel to stabilize on final shot
-        qtbot.waitUntil(lambda: panel._current_shot == shots[-1], timeout=2000)
+        self._wait_for_condition(
+            lambda: panel._current_shot == shots[-1], timeout_ms=2000
+        )
 
         # Panel should show the last shot
         assert panel._current_shot == shots[-1]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import getpass
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -138,7 +139,9 @@ def safe_disconnect(*signals: SignalInstance) -> None:
     """
     for signal in signals:
         try:
-            _ = signal.disconnect()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                _ = signal.disconnect()
         except (RuntimeError, TypeError, AttributeError):
             pass
 
