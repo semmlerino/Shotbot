@@ -41,9 +41,15 @@ FILE_TYPE_COLORS: dict[FileType, str] = {
 
 
 def _relative_age(modified_time: datetime) -> str:
-    """Return human-readable relative age (e.g., '2 hours ago', 'yesterday')."""
+    """Return human-readable relative age (e.g., '2 hours ago', 'yesterday').
+
+    Both modified_time and the reference "now" are naive local datetimes, so we
+    pass an explicit ``other`` to arrow.humanize() rather than letting it
+    default to arrow.now() (which is timezone-aware).  This keeps the
+    comparison consistent regardless of the host timezone.
+    """
     try:
-        result = arrow.get(modified_time).humanize()
+        result = arrow.get(modified_time).humanize(arrow.get(datetime.now()))  # noqa: DTZ005
         # Normalise near-present timestamps to "just now":
         # - Future timestamps (clock skew / filesystem quirks): "in X seconds"
         # - Sub-minute past timestamps: "X seconds ago"
