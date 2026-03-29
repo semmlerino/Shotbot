@@ -333,18 +333,6 @@ class BaseShotModel(ABC, QObject, metaclass=QABCMeta):
         }
 
     @abstractmethod
-    def load_shots(self) -> RefreshResult:
-        """Load shots using implementation-specific strategy.
-
-        Subclasses must implement this to provide either synchronous
-        or asynchronous loading behavior.
-
-        Returns:
-            RefreshResult with success and change status
-
-        """
-
-    @abstractmethod
     def refresh_strategy(self) -> RefreshResult:
         """Refresh shot list using implementation-specific strategy.
 

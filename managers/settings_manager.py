@@ -62,8 +62,6 @@ from __future__ import annotations
 # Standard library imports
 import json
 import logging
-import os
-import tempfile
 from pathlib import Path
 from typing import ClassVar, NamedTuple, cast, final
 
@@ -292,8 +290,6 @@ class SettingsManager(QObject):
         Uses atomic write pattern (temp file + rename) to prevent file
         corruption if disk becomes full or write is interrupted.
         """
-        temp_fd = None
-        temp_path = None
         try:
             all_settings: dict[str, dict[str, object]] = {}
 
@@ -310,43 +306,21 @@ class SettingsManager(QObject):
             for category in categories:
                 all_settings[category] = self.get_category(category)
 
-            # Atomic write: write to temp file in same directory, then rename
             target_path = Path(file_path)
-            target_dir = target_path.parent
-            target_dir.mkdir(parents=True, exist_ok=True)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Create temp file in same directory (ensures same filesystem for rename)
-            temp_fd, temp_path = tempfile.mkstemp(
-                suffix=".tmp",
-                prefix=f".{target_path.name}.",
-                dir=str(target_dir),
-            )
+            # Convert Qt types (e.g. QByteArray) to strings before writing
+            serializable: object = json.loads(json.dumps(all_settings, default=str))
 
-            # Write to temp file
-            with os.fdopen(temp_fd, "w") as f:
-                temp_fd = None  # fdopen takes ownership
-                json.dump(all_settings, f, indent=2, default=str)
+            from cache._json_store import atomic_json_write
 
-            # Atomic rename (POSIX guarantees this is atomic on same filesystem)
-            _ = Path(temp_path).replace(file_path)
-            temp_path = None  # Successfully moved
+            atomic_json_write(target_path, serializable, indent=2, fsync=False)
 
             logger.info(f"Settings exported to: {file_path}")
             return True
 
         except Exception:
             logger.exception("Failed to export settings")
-            # Clean up temp file on error
-            if temp_fd is not None:
-                try:
-                    os.close(temp_fd)
-                except OSError:
-                    pass
-            if temp_path is not None:
-                try:
-                    Path(temp_path).unlink()
-                except OSError:
-                    pass
             return False
 
     def import_settings(self, file_path: str) -> bool:

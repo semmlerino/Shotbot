@@ -515,16 +515,6 @@ class ShotModel(BaseShotModel):
         self.background_load_finished.emit()
 
     @override
-    def load_shots(self) -> RefreshResult:
-        """Load shots using async strategy.
-
-        Returns:
-            RefreshResult with success and change status
-
-        """
-        return self.initialize_async()
-
-    @override
     def refresh_strategy(self) -> RefreshResult:
         """Override to use async strategy if no shots loaded yet."""
         if self._force_sync_refresh:

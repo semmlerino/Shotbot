@@ -189,7 +189,7 @@ class GridContextMenuMixin:
             LaunchRequest(
                 app_name="rv",
                 workspace_path=workspace_path,
-                context=LaunchContext(sequence_path=plate_path),
+                context=LaunchContext(sequence_path=str(plate_path)),
             )
         )
 

@@ -18,6 +18,7 @@ from typing_extensions import Unpack
 # Local application imports
 from config import Config
 from discovery import sanitize_username
+from managers._shot_key import shot_key
 from progress_mixin import ProgressReportingMixin
 from shots.shot_parser import OptimizedShotParser
 from timeout_config import TimeoutConfig
@@ -268,13 +269,13 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         """
         # Create a set of active shot identifiers for efficient lookup
-        active_ids = {(shot.show, shot.sequence, shot.shot) for shot in active_shots}
+        active_ids = {shot_key(shot) for shot in active_shots}
 
         # Filter out active shots
         approved_shots = [
             shot
             for shot in all_user_shots
-            if (shot.show, shot.sequence, shot.shot) not in active_ids
+            if shot_key(shot) not in active_ids
         ]
 
         logger.info(

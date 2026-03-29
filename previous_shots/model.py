@@ -14,6 +14,7 @@ from PySide6.QtCore import QMutex, QMutexLocker, Qt, Signal, Slot
 from typing_extensions import override
 
 # Local application imports
+from managers._shot_key import shot_key
 from previous_shots.finder import ParallelShotsFinder
 from previous_shots.worker import PreviousShotsWorker
 from type_definitions import Shot
@@ -149,16 +150,7 @@ class PreviousShotsModel(BaseShotModel):
     # BaseShotModel abstract method implementations
     # =========================================================================
 
-    @override
-    def load_shots(self) -> RefreshResult:
-        """Implement abstract method — delegates to refresh_strategy().
 
-        Returns:
-            RefreshResult with success=True and has_changes=False
-            (previous shots use background scan, not synchronous loading).
-
-        """
-        return self.refresh_strategy()
 
     @override
     def refresh_strategy(self) -> RefreshResult:
@@ -307,7 +299,7 @@ class PreviousShotsModel(BaseShotModel):
         )
 
         # Build a set of existing (show, sequence, shot) keys for deduplication
-        existing_ids = {(s.show, s.sequence, s.shot) for s in self.shots}
+        existing_ids = {shot_key(s) for s in self.shots}
 
         # Convert incoming ShotDicts to Shot objects, skipping duplicates
         new_shots = [
@@ -368,13 +360,13 @@ class PreviousShotsModel(BaseShotModel):
 
             # Incremental merge: combine existing cache with new findings
             # Create set of existing shot IDs for fast lookup
-            existing_ids = {(s.show, s.sequence, s.shot) for s in self.shots}
+            existing_ids = {shot_key(s) for s in self.shots}
 
             # Find truly new shots (not in existing cache)
             new_shots = [
                 shot
                 for shot in newly_found_shots
-                if (shot.show, shot.sequence, shot.shot) not in existing_ids
+                if shot_key(shot) not in existing_ids
             ]
 
             if new_shots:

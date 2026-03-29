@@ -9,6 +9,7 @@ Re-exports all public types for convenient imports::
 
 from __future__ import annotations
 
+from cache._constants import DEFAULT_TTL_MINUTES
 from cache._dir_resolver import resolve_default_cache_dir
 from cache._json_store import atomic_json_write, load_validated_json
 from cache.coordinator import CacheCoordinator
@@ -25,6 +26,7 @@ from cache.types import LatestFileCacheResult, SceneMergeResult, ShotMergeResult
 
 
 __all__ = [
+    "DEFAULT_TTL_MINUTES",
     "CacheCoordinator",
     "LatestFileCache",
     "LatestFileCacheResult",

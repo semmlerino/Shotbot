@@ -83,7 +83,7 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
     logger.info(f"Found plate pattern: {plate_pattern}")
 
     try:
-        sequences = fileseq.findSequencesOnDisk(plate_pattern, strictPadding=True)
+        sequences = fileseq.findSequencesOnDisk(str(plate_pattern), strictPadding=True)
         for seq in sequences:
             frame_set = seq.frameSet()
             if frame_set is not None:

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, cast, final
 
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 
+from cache._constants import DEFAULT_TTL_MINUTES
 from cache._json_store import read_json_cache, write_json_cache
 from cache._merge import build_merge_lookups
 from cache.types import SceneMergeResult, get_scene_key, scene_to_dict
@@ -18,8 +19,6 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from type_definitions import ThreeDEScene, ThreeDESceneDict
-
-DEFAULT_TTL_MINUTES = 30
 
 
 @final

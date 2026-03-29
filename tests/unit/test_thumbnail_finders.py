@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from discovery.frame_utils import extract_frame_number
 from discovery.thumbnail_finders import (
-    _extract_frame_number,
     _find_editorial_cutref_thumbnail,
     _find_first_jpeg_in_version_tree,
     find_any_publish_thumbnail,
@@ -27,35 +27,36 @@ pytestmark = pytest.mark.unit
 
 
 # ==============================================================================
-# _extract_frame_number
+# extract_frame_number (canonical, from discovery.frame_utils)
 # ==============================================================================
 
 
 class TestExtractFrameNumber:
-    """Tests for the _extract_frame_number helper."""
+    """Tests for the canonical extract_frame_number helper from frame_utils.
+
+    The sort key used in thumbnail_finders is:
+        ``lambda p: extract_frame_number(p.name) or 99999``
+    These tests verify the underlying function that feeds that key.
+    """
 
     def test_standard_frame_1001(self) -> None:
         """Extracts 1001 from a standard EXR filename."""
-        assert _extract_frame_number(Path("shot.1001.exr")) == 1001
+        assert extract_frame_number("shot.1001.exr") == 1001
 
     def test_different_frame_number(self) -> None:
         """Extracts a non-1001 frame number correctly."""
-        assert _extract_frame_number(Path("shot.1050.exr")) == 1050
+        assert extract_frame_number("shot.1050.exr") == 1050
 
     @pytest.mark.parametrize(
-        ("filename", "expected"),
+        "filename",
         [
-            pytest.param("shot.jpg", 99999, id="no_frame_number_returns_sentinel"),
-            pytest.param(
-                "shot_without_extension", 99999, id="no_extension_returns_sentinel"
-            ),
+            pytest.param("shot.jpg", id="no_frame_number_returns_none"),
+            pytest.param("shot_without_extension", id="no_extension_returns_none"),
         ],
     )
-    def test_missing_frame_pattern_returns_sentinel(
-        self, filename: str, expected: int
-    ) -> None:
-        """Returns 99999 when filename has no matching frame pattern."""
-        assert _extract_frame_number(Path(filename)) == expected
+    def test_missing_frame_pattern_returns_none(self, filename: str) -> None:
+        """Returns None when filename has no matching frame pattern."""
+        assert extract_frame_number(filename) is None
 
     @pytest.mark.parametrize(
         "filename",
@@ -66,28 +67,28 @@ class TestExtractFrameNumber:
     )
     def test_case_insensitive_extension(self, filename: str) -> None:
         """Matches EXR extension regardless of case."""
-        assert _extract_frame_number(Path(filename)) == 1001
+        assert extract_frame_number(filename) == 1001
 
     def test_frame_0001(self) -> None:
         """Extracts early frame numbers like 0001."""
-        assert _extract_frame_number(Path("shot.0001.exr")) == 1
+        assert extract_frame_number("shot.0001.exr") == 1
 
     def test_long_filename_with_frame(self) -> None:
         """Works with a realistic VFX filename."""
         assert (
-            _extract_frame_number(
-                Path("GG_000_0050_turnover-plate_EL01_lin_sgamut3cine_v001.1001.exr")
+            extract_frame_number(
+                "GG_000_0050_turnover-plate_EL01_lin_sgamut3cine_v001.1001.exr"
             )
             == 1001
         )
 
-    def test_three_digit_number_not_matched(self) -> None:
-        """A three-digit number does not match (requires exactly four digits)."""
-        assert _extract_frame_number(Path("shot.100.exr")) == 99999
+    def test_three_digit_number_matched_by_fileseq(self) -> None:
+        """A three-digit number is parsed by fileseq (no minimum digit count)."""
+        assert extract_frame_number("shot.100.exr") == 100
 
-    def test_five_digit_number_not_matched(self) -> None:
-        """A five-digit frame number does not match the four-digit pattern."""
-        assert _extract_frame_number(Path("shot.10010.exr")) == 99999
+    def test_five_digit_number_is_matched(self) -> None:
+        """A five-digit frame number is matched (pattern requires 4+ digits)."""
+        assert extract_frame_number("shot.10010.exr") == 10010
 
 
 # ==============================================================================

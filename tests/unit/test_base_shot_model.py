@@ -32,12 +32,7 @@ class ConcreteTestModel(BaseShotModel):
         self, cache_manager: object | None = None, load_cache: bool = True
     ) -> None:
         super().__init__(cache_manager, load_cache)
-        self._load_result = RefreshResult(success=True, has_changes=False)
         self._refresh_result = RefreshResult(success=True, has_changes=False)
-
-    def load_shots(self) -> RefreshResult:
-        """Implement abstract method for testing."""
-        return self._load_result
 
     def refresh_strategy(self) -> RefreshResult:
         """Implement abstract method for testing."""

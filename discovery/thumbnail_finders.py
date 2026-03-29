@@ -8,7 +8,6 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-import re
 from pathlib import Path
 
 # Local application imports
@@ -16,6 +15,7 @@ from config import (
     Config,  # noqa: F401  # pyright: ignore[reportUnusedImport] — monkeypatched by tests
 )
 from discovery.file_discovery import discover_plate_directories
+from discovery.frame_utils import extract_frame_number
 from logging_mixin import get_module_logger
 from paths import build_workspace_path
 from paths.validators import PathValidators
@@ -26,14 +26,6 @@ from version_utils import VersionUtils
 _CURRENT_USERNAME: str = get_current_username()
 
 logger = get_module_logger(__name__)
-
-
-def _extract_frame_number(path: Path) -> int:
-    """Extract frame number from a filename like ``name.1001.exr``."""
-    match = re.search(r"\.(\d{4})\.exr$", path.name, re.IGNORECASE)
-    if match:
-        return int(match.group(1))
-    return 99999  # Sort non-matching files last
 
 
 def _plate_priority(plate_dir: Path) -> tuple[int, str]:
@@ -233,7 +225,9 @@ def find_turnover_plate_thumbnail(
 
             # Sort to get the first frame number
             # Files like: GG_000_0050_turnover-plate_EL01_lin_sgamut3cine_v001.1001.exr
-            sorted_frames = sorted(exr_files, key=_extract_frame_number)
+            sorted_frames = sorted(
+                exr_files, key=lambda p: extract_frame_number(p.name) or 99999
+            )
             first_frame = sorted_frames[0]
 
             file_size_mb = first_frame.stat().st_size / (1024 * 1024)

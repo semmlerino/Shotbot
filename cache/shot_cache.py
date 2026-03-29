@@ -19,6 +19,7 @@ from typing import (
 
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 
+from cache._constants import DEFAULT_TTL_MINUTES
 from cache._json_store import file_lock, read_json_cache, write_json_cache
 from cache._merge import build_merge_lookups
 from cache.types import ShotMergeResult, get_shot_key, shot_to_dict
@@ -29,8 +30,6 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from type_definitions import Shot, ShotDict
-
-DEFAULT_TTL_MINUTES = 30
 
 
 @final
