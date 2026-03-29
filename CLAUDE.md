@@ -83,9 +83,11 @@ These form the encoded-releases deployment pipeline. Deleting any breaks automat
 
 3. Serial `uv run pytest tests/` is the default run. Parallel (`-n auto`) is a secondary isolation check only.
 4. New singletons must use `SingletonMixin` (from `singleton_mixin.py`) and be registered in `tests/fixtures/singleton_fixtures.py` with a `reset()` method.
-5. Use `process_qt_events()` (from `tests.test_helpers`) for Qt event flushing — not `time.sleep()` or small real-time waits.
+5. Use `drain_qt_events()` (from `tests.test_helpers`) for Qt event flushing — not `time.sleep()` or small real-time waits.
 6. Qt widgets added to `qtbot` must not also be manually `deleteLater()`'d in teardown. Close/hide them and let `qtbot` own destruction.
 7. Integration tests should assert on controller/orchestrator delegation — don't re-run deeper refresh or launch internals that already have dedicated unit coverage. Example: assert `controller.launch()` was called, don't re-test what `launch()` does internally.
+8. For log output assertions, use `caplog` instead of patching logger methods.
+9. For patching, prefer `monkeypatch` + `unittest.mock` over the `mocker` fixture.
 
 ## Canonical References
 

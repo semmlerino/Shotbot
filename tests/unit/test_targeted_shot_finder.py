@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import logging
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
@@ -265,16 +266,15 @@ class TestFindUserShotsInShows:
         assert any(s.show == "show1" for s in shots)
         assert any(s.show == "show2" for s in shots)
 
-    def test_find_with_empty_target_shows(self, mocker) -> None:
+    def test_find_with_empty_target_shows(self, caplog) -> None:
         """Test finding with no target shows."""
         finder = TargetedShotsFinder()
 
-        mock_warning = mocker.patch("shots.targeted_shot_finder.logger.warning")
-        shots = list(finder.find_user_shots_in_shows(set(), None))
+        with caplog.at_level(logging.WARNING, logger="shots.targeted_shot_finder"):
+            shots = list(finder.find_user_shots_in_shows(set(), None))
 
         assert shots == []
-        mock_warning.assert_called_once()
-        assert "No target shows provided" in mock_warning.call_args[0][0]
+        assert any("No target shows provided" in r.message for r in caplog.records)
 
     def test_find_with_nonexistent_shows_root(self) -> None:
         """Test finding with nonexistent shows root returns empty list."""
@@ -336,20 +336,19 @@ class TestFindUserShotsInShows:
 class TestFindApprovedShotsTargeted:
     """Test find_approved_shots_targeted method."""
 
-    def test_find_approved_with_no_target_shows(self, mocker) -> None:
+    def test_find_approved_with_no_target_shows(self, mocker, caplog) -> None:
         """Test when no target shows are found."""
         finder = TargetedShotsFinder()
         active_shots = []
 
         mocker.patch.object(finder, "extract_shows_from_active_shots", return_value=set())
-        mock_warning = mocker.patch("shots.targeted_shot_finder.logger.warning")
-        approved = finder.find_approved_shots_targeted(active_shots)
+        with caplog.at_level(logging.WARNING, logger="shots.targeted_shot_finder"):
+            approved = finder.find_approved_shots_targeted(active_shots)
 
         assert approved == []
-        mock_warning.assert_called()
-        assert "No target shows found" in mock_warning.call_args[0][0]
+        assert any("No target shows found" in r.message for r in caplog.records)
 
-    def test_find_approved_with_stop_request(self, mocker) -> None:
+    def test_find_approved_with_stop_request(self, caplog) -> None:
         """Test stopping during approved shot finding."""
         finder = TargetedShotsFinder()
         finder._stop_requested = True
@@ -358,11 +357,11 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),
         ]
 
-        mock_info = mocker.patch("shots.targeted_shot_finder.logger.info")
-        approved = finder.find_approved_shots_targeted(active_shots)
+        with caplog.at_level(logging.INFO, logger="shots.targeted_shot_finder"):
+            approved = finder.find_approved_shots_targeted(active_shots)
 
         assert approved == []
-        mock_info.assert_any_call("Targeted search stopped by user request")
+        assert any("Targeted search stopped by user request" in r.message for r in caplog.records)
 
     def test_find_approved_with_progress(self, mocker) -> None:
         """Test progress reporting during approved shot finding."""
@@ -492,7 +491,7 @@ class TestGetShotDetails:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_concurrent_future_timeout(self, tmp_path: Path, mocker) -> None:
+    def test_concurrent_future_timeout(self, tmp_path: Path, mocker, caplog) -> None:
         """Test handling of concurrent.futures timeout."""
         finder = TargetedShotsFinder()
 
@@ -505,13 +504,12 @@ class TestEdgeCases:
         mock_executor_class.return_value.__enter__.return_value = mock_executor
         mock_executor.submit.return_value = mock_future
         mocker.patch("concurrent.futures.as_completed", return_value=[mock_future])
-        mock_warning = mocker.patch("shots.targeted_shot_finder.logger.warning")
-        list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
+        with caplog.at_level(logging.WARNING, logger="shots.targeted_shot_finder"):
+            list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
-        mock_warning.assert_called()
-        assert "Timeout processing" in mock_warning.call_args[0][0]
+        assert any("Timeout processing" in r.message for r in caplog.records)
 
-    def test_concurrent_future_exception(self, tmp_path: Path, mocker) -> None:
+    def test_concurrent_future_exception(self, tmp_path: Path, mocker, caplog) -> None:
         """Test handling of concurrent.futures exceptions."""
         finder = TargetedShotsFinder()
 
@@ -523,11 +521,10 @@ class TestEdgeCases:
         mock_executor_class.return_value.__enter__.return_value = mock_executor
         mock_executor.submit.return_value = mock_future
         mocker.patch("concurrent.futures.as_completed", return_value=[mock_future])
-        mock_exception = mocker.patch("shots.targeted_shot_finder.logger.exception")
-        list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
+        with caplog.at_level(logging.ERROR, logger="shots.targeted_shot_finder"):
+            list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
-        mock_exception.assert_called()
-        assert "Error processing" in mock_exception.call_args[0][0]
+        assert any("Error processing" in r.message for r in caplog.records)
 
     def test_mock_mode_username(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test username handling in mock mode."""

@@ -16,6 +16,7 @@ Covers:
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -60,12 +61,16 @@ def stable_terminal_detection(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def launcher(monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
+def launcher(monkeypatch: pytest.MonkeyPatch, qtbot: QtBot) -> Iterator[CommandLauncher]:
     """CommandLauncher with ws-available stub."""
     from launch import EnvironmentManager
 
     monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
-    return CommandLauncher()
+    cl = CommandLauncher()
+    yield cl
+    cl.cleanup()
+    cl.deleteLater()
+    qtbot.wait(1)
 
 
 @pytest.fixture
@@ -469,3 +474,5 @@ class TestProcessExecutorCleanup:
         executor = ProcessExecutor(Config)
         executor.cleanup()
         executor.cleanup()  # should not raise
+        executor.deleteLater()
+        qtbot.wait(1)

@@ -43,22 +43,26 @@ pytestmark = [
 ]
 
 
+def _wait_for_condition(
+    condition: Callable[[], bool], timeout_ms: int = 5000
+) -> None:
+    """Poll a Qt condition without entering pytest-qt nested wait loops.
+
+    Intentionally does not use qtbot.waitUntil() to avoid spinning a nested
+    event loop. Uses drain_qt_events() to flush deferred deletes between polls.
+    """
+    deadline = time.monotonic() + (timeout_ms / 1000)
+    while time.monotonic() < deadline:
+        drain_qt_events()
+        if condition():
+            return
+        time.sleep(0.01)
+    assert condition(), f"Condition not met within {timeout_ms}ms"
+
+
 @pytest.mark.xdist_group("serial_qt_state")
 class TestAsyncWorkflowIntegration:
     """Test async workflows across multiple components."""
-
-    @staticmethod
-    def _wait_for_condition(
-        condition: Callable[[], bool], timeout_ms: int = 5000
-    ) -> None:
-        """Poll a Qt condition without entering pytest-qt nested wait loops."""
-        deadline = time.monotonic() + (timeout_ms / 1000)
-        while time.monotonic() < deadline:
-            drain_qt_events()
-            if condition():
-                return
-            time.sleep(0.01)
-        assert condition(), f"Condition not met within {timeout_ms}ms"
 
     @pytest.fixture(autouse=True)
     def cleanup_qt_state(self, qtbot: QtBot) -> Any:
@@ -206,7 +210,7 @@ class TestAsyncWorkflowIntegration:
             panel_correct = info_panel._current_shot == test_shots[2]
             return model_correct and panel_correct
 
-        self._wait_for_condition(async_ops_complete, timeout_ms=5000)
+        _wait_for_condition(async_ops_complete, timeout_ms=5000)
 
         # Verify components are in consistent state
         assert item_model.rowCount() == 2  # shots[1:] = 2 shots
@@ -252,7 +256,7 @@ class TestAsyncWorkflowIntegration:
         # use waitUntil to cover both success and failure paths).
         item_model.set_visible_range(0, 1)
 
-        self._wait_for_condition(
+        _wait_for_condition(
             lambda: item_model._thumbnail_loader.get_loading_state(
                 test_shots[2].full_name
             )
@@ -322,7 +326,7 @@ class TestAsyncWorkflowIntegration:
         # thumbnail_loaded is NOT emitted on failure, so use waitUntil to
         # cover both the "failed" and any unexpected "loaded" outcome.
         item_model.set_visible_range(0, 1)
-        self._wait_for_condition(
+        _wait_for_condition(
             lambda: item_model._thumbnail_loader.get_loading_state(
                 bad_shot.full_name
             )
@@ -349,19 +353,6 @@ class TestAsyncWorkflowIntegration:
 @pytest.mark.xdist_group("serial_qt_state")
 class TestAsyncCallbackIntegration:
     """Test async callback integration scenarios."""
-
-    @staticmethod
-    def _wait_for_condition(
-        condition: Callable[[], bool], timeout_ms: int = 5000
-    ) -> None:
-        """Poll a Qt condition without entering pytest-qt nested wait loops."""
-        deadline = time.monotonic() + (timeout_ms / 1000)
-        while time.monotonic() < deadline:
-            drain_qt_events()
-            if condition():
-                return
-            time.sleep(0.01)
-        assert condition(), f"Condition not met within {timeout_ms}ms"
 
     @pytest.fixture(autouse=True)
     def cleanup_qt_state(self, qtbot: QtBot) -> Any:
@@ -422,7 +413,7 @@ class TestAsyncCallbackIntegration:
                 cache_filtered = len(model._thumbnail_loader.thumbnail_cache) <= 1
                 return row_count_correct and cache_filtered
 
-            self._wait_for_condition(model_reset_complete, timeout_ms=5000)
+            _wait_for_condition(model_reset_complete, timeout_ms=5000)
 
             # Model should be in consistent state
             assert model.rowCount() == 1
@@ -464,7 +455,7 @@ class TestAsyncCallbackIntegration:
             qtbot.wait(1)  # Minimal event processing
 
         # Wait for panel to stabilize on final shot
-        self._wait_for_condition(
+        _wait_for_condition(
             lambda: panel._current_shot == shots[-1], timeout_ms=2000
         )
 

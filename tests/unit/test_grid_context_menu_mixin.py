@@ -142,20 +142,13 @@ class TestCopyPathToClipboard:
         qtbot.waitUntil(lambda: QApplication.clipboard().text() == "/path/two")
         assert clipboard.text() == "/path/two"
 
-    def test_copy_path_to_clipboard_logs_debug(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_copy_path_to_clipboard_logs_debug(self, caplog) -> None:
         """_copy_path_to_clipboard logs debug message."""
-        import ui.grid_context_menu_mixin as gcm
-
-        mock_debug = MagicMock()
-        monkeypatch.setattr(gcm.logger, "debug", mock_debug)
-
         consumer = _MixinConsumer()
-        consumer._copy_path_to_clipboard("/test/path")
+        with caplog.at_level(logging.DEBUG, logger="ui.grid_context_menu_mixin"):
+            consumer._copy_path_to_clipboard("/test/path")
 
-        mock_debug.assert_called_once()
-        call_args = mock_debug.call_args[0][0]
-        assert "Copied path to clipboard" in call_args
-        assert "/test/path" in call_args
+        assert any("Copied path to clipboard" in r.message and "/test/path" in r.message for r in caplog.records)
 
 
 class TestBuildLaunchSubmenu:

@@ -1,7 +1,7 @@
 """Process and subprocess test doubles and fixtures.
 
 Consolidated from:
-- subprocess_mocking.py: Autouse subprocess mocks, SubprocessMock class, fixtures
+- subprocess_mocking.py: Autouse subprocess mocks
 - process_doubles.py:    TestProcessPool, TestCompletedProcess, PopenDouble
 - cache_doubles.py:      test_process_pool fixture
 
@@ -10,12 +10,9 @@ Fixtures (autouse):
     mock_subprocess_popen:     Patches subprocess.Popen/run globally
 
 Fixtures (opt-in):
-    subprocess_mock:       Controllable subprocess mock
-    subprocess_error_mock: Pre-configured for error scenarios
     test_process_pool:     TestProcessPool instance
 
 Classes:
-    SubprocessMock:          Controllable subprocess mock
     TestProcessPool:         Unified test double for ProcessPoolManager
     TestCompletedProcess:    Test double for subprocess.CompletedProcess
     PopenDouble:             Test double for subprocess.Popen
@@ -50,7 +47,6 @@ class _SubprocessMockState:
 
     def __init__(self) -> None:
         self.permissive_mode: bool = False
-        self.subprocess_mock_active: bool = False
         self._is_fallback: bool = True
 
 
@@ -75,12 +71,6 @@ def _get_current_state() -> _SubprocessMockState:
 def _set_current_state(state: _SubprocessMockState | None) -> None:
     """Set the current test's subprocess state in thread-local storage."""
     _thread_local.state = state
-
-
-def _set_subprocess_mock_active(active: bool) -> None:
-    """Set subprocess_mock fixture state for current test."""
-    state = _get_current_state()
-    state.subprocess_mock_active = active
 
 
 def _format_cmd(cmd: object) -> str:
@@ -176,7 +166,6 @@ def mock_subprocess_popen(
     # Create per-test state instance (prevents race conditions in parallel tests)
     state = _SubprocessMockState()
     state.permissive_mode = False
-    state.subprocess_mock_active = False
     state._is_fallback = False
 
     # Store in thread-local for access from mock callbacks
@@ -184,27 +173,6 @@ def mock_subprocess_popen(
 
     def _create_mock_popen(*args: object, **kwargs: object) -> MagicMock:
         """Create Popen mock with STRICT MODE."""
-        cmd_str = ""
-        if args:
-            cmd = args[0]
-            cmd_str = _format_cmd(cmd)
-
-        # STRICT MODE: Fail on unexpected subprocess calls unless subprocess_mock is active
-        current_state = _get_current_state()
-        if not current_state.subprocess_mock_active:
-            error_msg = (
-                f"Unexpected subprocess command: {cmd_str}\n\n"
-                f"STRICT MODE is enabled by default. To handle subprocess calls:\n"
-                f"  1. Use subprocess_mock fixture to configure expected behavior:\n"
-                f"       def test_foo(subprocess_mock):\n"
-                f"           subprocess_mock.set_output('expected output')\n"
-                f"           ...\n"
-                f"  2. Use fp (pytest-subprocess) for fine-grained fake process control\n"
-            )
-            if current_state._is_fallback:
-                error_msg += "\n(Note: this call came from a thread without test context)"
-            raise AssertionError(error_msg)
-
         # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
         text_mode = (
             kwargs.get("text", False)
@@ -239,24 +207,6 @@ def mock_subprocess_popen(
     # Many production files use subprocess.run() directly (not Popen)
     def _create_mock_run(*args: object, **kwargs: object) -> MagicMock:
         """Create subprocess.run mock with STRICT MODE."""
-        cmd_str = ""
-        if args:
-            cmd = args[0]
-            cmd_str = _format_cmd(cmd)
-
-        # STRICT MODE: Fail on unexpected subprocess.run calls unless subprocess_mock is active
-        current_state = _get_current_state()
-        if not current_state.subprocess_mock_active:
-            error_msg = (
-                f"Unexpected subprocess.run command: {cmd_str}\n\n"
-                f"STRICT MODE is enabled by default. To handle subprocess.run calls:\n"
-                f"  1. Use subprocess_mock fixture to configure expected behavior\n"
-                f"  2. Use fp (pytest-subprocess) for fine-grained fake process control\n"
-            )
-            if current_state._is_fallback:
-                error_msg += "\n(Note: this call came from a thread without test context)"
-            raise AssertionError(error_msg)
-
         # Check if text mode requested
         text_mode = (
             kwargs.get("text", False)
@@ -284,191 +234,6 @@ def mock_subprocess_popen(
         # CLEANUP: Clear thread-local state (even if test fails mid-execution)
         # This prevents state leakage between tests in the same thread
         _set_current_state(None)
-
-
-class SubprocessMock:
-    """Controllable subprocess mock for testing command execution.
-
-    This class provides methods to configure expected subprocess behavior,
-    including stdout, stderr, return codes, and exceptions.
-
-    Mocks both subprocess.Popen and subprocess.run for complete coverage.
-
-    Usage:
-        def test_command_output(subprocess_mock):
-            subprocess_mock.set_output("hello world")
-            subprocess_mock.set_return_code(0)
-            # ... run code that uses subprocess ...
-            assert subprocess_mock.calls == [["my", "command"]]
-    """
-
-    def __init__(self) -> None:
-        self._mock = MagicMock()
-        self._run_mock = MagicMock()
-        self._calls: list[list[str]] = []
-        self._stdout = b""
-        self._stderr = b""
-        self._returncode = 0
-        self._should_raise: Exception | None = None
-        self._setup_mock()
-        self._setup_run_mock()
-
-    def _setup_mock(self) -> None:
-        """Configure mock behavior."""
-
-        def popen_side_effect(args: list[str], **kwargs: object) -> MagicMock:
-            if self._should_raise:
-                raise self._should_raise
-            self._calls.append(
-                list(args) if isinstance(args, (list, tuple)) else [str(args)]
-            )
-
-            # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
-            text_mode = (
-                kwargs.get("text", False)
-                or kwargs.get("encoding") is not None
-                or kwargs.get("universal_newlines", False)
-            )
-
-            process = MagicMock()
-            process.pid = 99999
-            process.poll.return_value = self._returncode
-            process.wait.return_value = self._returncode
-            process.returncode = self._returncode
-
-            # Return appropriate types based on text mode
-            if text_mode:
-                stdout_str = self._stdout.decode("utf-8")
-                stderr_str = self._stderr.decode("utf-8")
-                process.stdout = io.StringIO(stdout_str)
-                process.stderr = io.StringIO(stderr_str)
-                process.communicate.return_value = (stdout_str, stderr_str)
-            else:
-                process.stdout = io.BytesIO(self._stdout)
-                process.stderr = io.BytesIO(self._stderr)
-                process.communicate.return_value = (self._stdout, self._stderr)
-
-            return process
-
-        self._mock.side_effect = popen_side_effect
-
-    def _setup_run_mock(self) -> None:
-        """Configure subprocess.run mock behavior."""
-
-        def run_side_effect(args: list[str], **kwargs: object) -> MagicMock:
-            if self._should_raise:
-                raise self._should_raise
-            self._calls.append(
-                list(args) if isinstance(args, (list, tuple)) else [str(args)]
-            )
-
-            # Check if text mode requested
-            text_mode = (
-                kwargs.get("text", False)
-                or kwargs.get("encoding") is not None
-                or kwargs.get("universal_newlines", False)
-            )
-
-            result = MagicMock()
-            result.returncode = self._returncode
-
-            if text_mode:
-                result.stdout = self._stdout.decode("utf-8")
-                result.stderr = self._stderr.decode("utf-8")
-            else:
-                result.stdout = self._stdout
-                result.stderr = self._stderr
-
-            return result
-
-        self._run_mock.side_effect = run_side_effect
-
-    @property
-    def mock(self) -> MagicMock:
-        """Get the underlying Popen mock object for patching."""
-        return self._mock
-
-    @property
-    def run_mock(self) -> MagicMock:
-        """Get the underlying subprocess.run mock object for patching."""
-        return self._run_mock
-
-    @property
-    def calls(self) -> list[list[str]]:
-        """Get list of command arguments passed to subprocess."""
-        return self._calls
-
-    def set_output(self, stdout: str, stderr: str = "") -> None:
-        """Set stdout and stderr for mock subprocess."""
-        self._stdout = stdout.encode("utf-8")
-        self._stderr = stderr.encode("utf-8")
-
-    def set_return_code(self, code: int) -> None:
-        """Set return code for mock subprocess."""
-        self._returncode = code
-
-    def set_exception(self, exc: Exception) -> None:
-        """Configure subprocess to raise an exception."""
-        self._should_raise = exc
-
-    def reset(self) -> None:
-        """Reset calls and configure defaults."""
-        self._calls.clear()
-        self._stdout = b""
-        self._stderr = b""
-        self._returncode = 0
-        self._should_raise = None
-
-
-@pytest.fixture
-def subprocess_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
-    """Provide controllable subprocess mock for testing.
-
-    This fixture gives tests explicit control over subprocess behavior.
-    Use this when you need to:
-    - Verify specific commands were called
-    - Test different stdout/stderr outputs
-    - Test error handling for non-zero return codes
-    - Test exception handling
-
-    IMPORTANT: Using this fixture disables STRICT MODE for the test.
-    Subprocess calls will succeed with the configured behavior instead
-    of failing with AssertionError.
-
-    Example:
-        def test_launcher_output_parsing(subprocess_mock):
-            subprocess_mock.set_output("workspace /shows/test/shots/010/0010")
-            subprocess_mock.set_return_code(0)
-            # ... test code ...
-            assert ["ws", "-sg"] in subprocess_mock.calls
-
-    """
-    # Signal that subprocess_mock is active - disables strict mode
-    _set_subprocess_mock_active(True)
-
-    mock = SubprocessMock()
-    # Patch Popen
-    monkeypatch.setattr("subprocess.Popen", mock.mock)
-    # Patch subprocess.run
-    monkeypatch.setattr("subprocess.run", mock.run_mock)
-    return mock
-
-
-@pytest.fixture
-def subprocess_error_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
-    """Provide subprocess mock pre-configured for error scenarios.
-
-    This fixture returns a SubprocessMock that fails by default (return code 1).
-    Use this when testing error handling paths in code that calls subprocess.
-    """
-    _set_subprocess_mock_active(True)
-
-    mock = SubprocessMock()
-    mock.set_return_code(1)
-    mock.set_output("", stderr="Command failed")
-    monkeypatch.setattr("subprocess.Popen", mock.mock)
-    monkeypatch.setattr("subprocess.run", mock.run_mock)
-    return mock
 
 
 # ---------------------------------------------------------------------------

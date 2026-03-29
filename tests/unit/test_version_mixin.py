@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import logging
 import re
 from pathlib import Path
 
@@ -105,15 +106,14 @@ class TestVersionExtraction:
         assert obj._extract_version("plate.0001.exr") == 1  # .####. format
         assert obj._extract_version("render_001") == 1  # _### at end
 
-    def test_extract_logging(self, mocker) -> None:
+    def test_extract_logging(self, caplog) -> None:
         """Test that extraction logs appropriately."""
         obj = ConcreteVersionClass()
 
-        mock_debug = mocker.patch("version_mixin.logger.debug")
-        version = obj._extract_version("file_v042.ma")
+        with caplog.at_level(logging.DEBUG, logger="version_mixin"):
+            version = obj._extract_version("file_v042.ma")
         assert version == 42
-        mock_debug.assert_called_once()
-        assert "Extracted version 42" in mock_debug.call_args[0][0]
+        assert any("Extracted version 42" in r.message for r in caplog.records)
 
     def test_extract_with_multiple_versions(self) -> None:
         """Test extraction with multiple version patterns in filename."""
