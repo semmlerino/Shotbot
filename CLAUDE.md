@@ -31,6 +31,7 @@ Application modules live at the repository root (no `src/` package), organized i
 - `cachetools/` — vendored `cachetools` library (not available in BlueBolt rez environment)
 - `archive/` — historical materials, audits, and obsolete documentation (see `docs/README.md` Archive Boundaries)
 - `dev-tools/` — development-only utility scripts (profiling, thread checks, type-check helpers)
+- `encoded_releases/` — deployment artifact directory (encoded bundles for the encoded-releases branch)
 
 **Import pattern:** Lazy imports are used throughout to avoid circular dependencies. When adding new imports between modules, check for circular import risk — use `from __future__ import annotations` and `TYPE_CHECKING` guards as needed.
 

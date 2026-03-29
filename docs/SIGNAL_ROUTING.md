@@ -37,7 +37,7 @@ These are not usually app-breaking, but regressions are user-visible:
 ## Ownership Boundaries
 
 - MainWindow owns top-level cross-component routing.
-- `RefreshCoordinator` owns shot refresh handling (`shots_loaded`, `shots_changed`, `refresh_started`, `refresh_finished`).
+- `RefreshCoordinator` owns the *handling* of shot refresh signals (`refresh_started`, `refresh_finished`); signal *definitions* live on `BaseShotModel` alongside `shots_loaded` and `shots_changed`.
 - `BaseGridView` owns show/text filter signals (`show_filter_requested`, `text_filter_requested`); MainWindow routes them directly.
 - `ThumbnailSizeManager` owns size-slider synchronization.
 - `ThreeDEController` owns worker lifecycle and worker signal setup.

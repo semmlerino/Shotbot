@@ -36,7 +36,6 @@ covers current root-level reference docs as well as `docs/`.
 
 - `docs/archive/` and `archive/` are historical material (audits, plans, reports, prior analyses).
 - Do not treat archived documents as current behavior unless explicitly revalidated.
-- `docs/skylos-dead-code-audit-2026-03-03.md` — historical audit snapshot (2026-03-03)
 
 ## Maintenance Rule
 

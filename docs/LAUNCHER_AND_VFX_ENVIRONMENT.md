@@ -6,7 +6,7 @@ This document defines launcher behavior assumptions for the BlueBolt environment
 
 `CommandLauncher` is the production entrypoint for application launches with shot context.
 It coordinates workspace setup, environment handling, and app dispatch.
-Internally, it delegates to the `launch/` subpackage: `CommandBuilder`, `EnvironmentManager`, `ProcessExecutor`, `FileSearchCoordinator`, and `LaunchOperation`.
+Internally, it delegates to the `launch/` subpackage: `command_builder` module (functions), `EnvironmentManager`, `ProcessExecutor`, `FileSearchCoordinator`, and `LaunchOperation`.
 
 Supported launch targets: `3de`, `maya`, `nuke`, `rv`, `publish`.
 The file-open and Toolkit-specific sections below focus on the DCC-heavy paths;
@@ -40,6 +40,14 @@ The launcher no longer treats `REZ_USED` as sufficient for DCC launches. A base 
 Some facility commands exposed on `PATH` are wrappers, not raw DCC binaries.
 This matters because the wrapper may perform its own environment resolution,
 version selection, startup-hook injection, and Toolkit bootstrap steps.
+
+## BlueBolt 3DE Triage (March 2026)
+
+The following sections document concrete evidence from BlueBolt production environment
+diagnostics on March 19, 2026. This material is investigation-specific and separates
+general launcher behavior (above) from real-world site wrapper findings (below).
+
+### Site Wrapper Resolution Example
 
 Observed on the BlueBolt remote 3DE path on March 19, 2026:
 
@@ -261,15 +269,17 @@ Observed on BlueBolt in 3DE on March 19, 2026:
 
 ## Launch Entry Point Semantics
 
-The launcher exposes multiple public entrypoints with different guarantees:
+The launcher exposes a unified entry point:
 
-- `launch_app(...)`: shot-context launch. Maya/3DE may resolve the latest scene
-  first, then launch inside the shot workspace.
-- `launch_with_file(...)`: explicit DCC-native file launch. This is the main
-  path that exports file-oriented SGTK variables and startup-hook paths.
-- `launch_app_opening_scene_file(...)`: open the concrete file referenced by the
-  provided scene object. Currently only 3DE is supported; non-3DE DCCs fall
-  through to a plain workspace launch without opening the scene file.
+- `launch(request: LaunchRequest) -> bool`: Dispatcher that routes to one of three
+  internal paths based on which optional fields are set on `request`:
+  - *scene* set → scene-file launch via `_launch_with_scene()`. Opens the concrete
+    3DE scene file referenced by the scene object.
+  - *file_path* set → explicit-file launch via `_launch_with_explicit_file()`.
+    Opens a specific DCC-native file (for example, a Maya scene or Nuke script).
+    This path exports file-oriented SGTK variables and startup-hook paths.
+  - neither field set → standard app launch via `_launch_standard()`. Shot-context
+    launch that may resolve the latest scene for 3DE/Maya before launching.
 
 ## Debugging Checklist
 
@@ -365,7 +375,7 @@ Interpretation guidance:
 
 ## Integration Notes
 
-- `ProcessPoolManager` supports launcher workflows by handling subprocess-heavy paths.
+- `ProcessExecutor` is the launcher's subprocess mechanism for executing DCC commands and managing process lifecycle.
 - Maya/SGTK context handling behavior is launcher-specific and should be validated in integration tests after refactors.
 - Nuke/3DE file-launch hooks depend on `Config.SCRIPTS_DIR` being valid in the deployed environment.
 - Context-only launches from 3DE scene selections must not pass a `.3de` path into non-3DE applications.
@@ -452,16 +462,17 @@ For other DCCs, use the same heuristic:
 - distinguish between app-bundle defaults and site hook overrides under
   `cfg/config/`
 
-### RV Dual Launch Path (F5)
+### RV Launch Path (F5)
 
-RV can be launched via two independent code paths:
+RV is launched through a single code path via `CommandLauncher.launch()`:
 
-1. `CommandLauncher.launch_app("rv", ...)` — full launch pipeline with workspace
-   setup, Rez wrapping, and terminal wrapper.
-2. `rv_launcher.open_plate_in_rv(workspace_path)` — direct `subprocess.Popen`
-   call that bypasses all CommandLauncher infrastructure.
+The UI context menu (in `ui/grid_context_menu_mixin.py`) calls `_open_main_plate_in_rv()`,
+which discovers the main plate for a shot, then creates a `LaunchRequest(app_name="rv",
+workspace_path=..., context=LaunchContext(sequence_path=plate_path))` and delegates to
+`CommandLauncher.launch()`.
 
-Path 2 exists because RV plate viewing is a lightweight operation that doesn't
-need workspace context or SGTK integration. However, the two paths use different
-Rez resolution logic and error handling. A future unification should route both
-through CommandLauncher or extract shared Rez/error handling.
+The request is dispatched to `_launch_standard()` (since neither `scene` nor `file_path`
+is set), which routes through `RVAppHandler` in `launch/app_handlers.py`. The handler
+calls `commands/rv_commands.build_rv_command()` to build the RV command with the plate
+path, then `ProcessExecutor` executes the command through the standard workspace/Rez
+pipeline.

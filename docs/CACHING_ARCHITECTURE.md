@@ -48,7 +48,7 @@ LatestFileCache and ThumbnailCache do not emit signals; they are consumed direct
 
 ## Clearing Cache
 
-Use `CacheCoordinator.clear_cache()` to clear managed caches. Note: `migrated_shots.json` is explicitly preserved across cache clears to maintain Previous Shots migration history.
+Use `ShotDataCache.clear_cache()` and `SceneDiskCache.clear_cache()` individually to clear managed caches. Note: `migrated_shots.json` is explicitly preserved across cache clears to maintain Previous Shots migration history.
 
 ## Configuration
 
