@@ -27,9 +27,10 @@ from launch.command_builder import (
     wrap_for_background,
     wrap_with_rez,
 )
-from launch.command_launcher import CommandLauncher, LaunchContext
+from launch.command_launcher import CommandLauncher
 from launch.environment_manager import EnvironmentManager
 from launch.headless_mode import HeadlessMode
+from launch.launch_request import LaunchContext
 from launch.process_executor import ProcessExecutor
 
 

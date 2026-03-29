@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from cache.latest_file_cache import LatestFileCache
-    from launch.command_launcher import LaunchContext
+    from launch.launch_request import LaunchContext
     from nuke.simple_launcher import SimpleNukeLauncher
     from type_definitions import Shot
 

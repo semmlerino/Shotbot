@@ -502,7 +502,7 @@ class MainWindow(QtWidgetMixin, QMainWindow):
             )
             return
 
-        from launch.command_launcher import LaunchContext
+        from launch.launch_request import LaunchContext
         from launch.launch_request import LaunchRequest as _LaunchRequest
 
         context = LaunchContext(

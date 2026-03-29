@@ -181,8 +181,7 @@ class GridContextMenuMixin:
             )
             return
 
-        from launch.command_launcher import LaunchContext
-        from launch.launch_request import LaunchRequest
+        from launch.launch_request import LaunchContext, LaunchRequest
 
         logger.info(f"Opening plate in RV: {plate_path}")  # type: ignore[attr-defined]
         _ = command_launcher.launch(

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from cache.latest_file_cache import LatestFileCache
-    from launch.command_launcher import PendingLaunch
+    from launch.launch_request import PendingLaunch
     from type_definitions import Shot
 
 

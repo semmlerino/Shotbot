@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from config import Config
-from launch.command_launcher import CommandLauncher, LaunchContext
-from launch.launch_request import LaunchRequest
+from launch.command_launcher import CommandLauncher
+from launch.launch_request import LaunchContext, LaunchRequest
 from tests.fixtures.process_fixtures import PopenDouble
 from type_definitions import Shot, ThreeDEScene
 

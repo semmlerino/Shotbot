@@ -21,9 +21,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from launch.command_launcher import CommandLauncher, LaunchContext
+from launch.command_launcher import CommandLauncher
 from launch.launch_operation import LaunchOperation
-from launch.launch_request import LaunchRequest
+from launch.launch_request import LaunchContext, LaunchRequest
 from type_definitions import Shot, ThreeDEScene
 
 
