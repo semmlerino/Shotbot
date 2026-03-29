@@ -33,6 +33,17 @@ _MAX_ZOMBIE_AGE_SECONDS: int = 60  # Log warning after 60s
 _ZOMBIE_TERMINATE_AGE_SECONDS: int = 300  # Force terminate after 5 min
 _ZOMBIE_CLEANUP_INTERVAL_MS: int = 60000  # Cleanup every 60s
 
+
+def _effective_terminate_age() -> int:
+    """Return the zombie terminate age threshold in seconds.
+
+    In SHOTBOT_TEST_MODE, uses a shorter threshold so hung test workers
+    are reaped within the pytest timeout window rather than after 5 minutes.
+    """
+    if os.environ.get("SHOTBOT_TEST_MODE", "0") == "1":
+        return 30
+    return _ZOMBIE_TERMINATE_AGE_SECONDS
+
 # Mutex and collections mutated in-place (never rebound, no global needed)
 _zombie_mutex: QMutex = QMutex()
 _zombie_threads: list[ThreadSafeWorker] = []
@@ -203,7 +214,7 @@ def cleanup_old_zombies() -> int:
                 _state.recovered_count += 1
                 cleaned += 1
                 logger.info(f"Zombie {zombie_id} finished naturally after {age:.0f}s")
-            elif age > _ZOMBIE_TERMINATE_AGE_SECONDS:
+            elif age > _effective_terminate_age():
                 # CAPTURE DIAGNOSTICS BEFORE ANY TERMINATE
                 from workers.thread_diagnostics import ThreadDiagnostics
                 from workers.thread_safe_worker import ThreadSafeWorker
@@ -233,7 +244,7 @@ def cleanup_old_zombies() -> int:
                 else:
                     # Production: log but don't terminate (process exit will clean up)
                     logger.warning(
-                        f"Zombie {zombie_id} exceeded {_ZOMBIE_TERMINATE_AGE_SECONDS}s "
+                        f"Zombie {zombie_id} exceeded {_effective_terminate_age()}s "
                         "but terminate disabled in production. "
                         "Will be cleaned on process exit."
                     )
@@ -244,7 +255,7 @@ def cleanup_old_zombies() -> int:
                 if age > _MAX_ZOMBIE_AGE_SECONDS:
                     logger.warning(
                         f"Zombie {zombie_id} still running after {age:.0f}s "
-                        f"(will terminate at {_ZOMBIE_TERMINATE_AGE_SECONDS}s)"
+                        f"(will terminate at {_effective_terminate_age()}s)"
                     )
 
         # In-place slice replacement avoids rebinding the module-level list
