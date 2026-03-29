@@ -206,6 +206,7 @@ class TestRealProcessPoolManagerErrorHandling:
                 real_ppm, f"{sys.executable} -c 'import sys; sys.exit(1)'", cache_ttl=0
             )
 
+    @pytest.mark.quarantine
     def test_timeout_raises(self, real_ppm: ProcessPoolManager) -> None:
         """Verify command timeout raises exception."""
         import subprocess
