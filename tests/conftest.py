@@ -375,6 +375,17 @@ def pytest_configure(config: pytest.Config) -> None:
             pytrace=False,
         )
 
+    # FAIL-FAST: Verify no circular dependencies in singleton cleanup graph
+    try:
+        SingletonRegistry.verify_no_dependency_cycles()
+    except Exception as e:  # noqa: BLE001
+        pytest.fail(
+            f"SINGLETON DEPENDENCY CYCLE: {e}\n\n"
+            f"Singleton _cleanup_depends_on declarations form a cycle.\n"
+            f"Fix: Remove one dependency from the cycle to break it.",
+            pytrace=False,
+        )
+
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
     """Setup hook: handle skip conditions for parallel execution."""

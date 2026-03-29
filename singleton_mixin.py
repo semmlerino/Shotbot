@@ -60,6 +60,7 @@ class SingletonMixin:
     # -1 means "not configured, must register manually".
     _cleanup_order: ClassVar[int] = -1
     _singleton_description: ClassVar[str] = ""
+    _cleanup_depends_on: ClassVar[tuple[str, ...]] = ()  # import paths of singletons this depends on
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         """Track subclass for singleton registry verification.

@@ -213,6 +213,7 @@ class ProcessPoolManager(QObject):
 
     _cleanup_order: ClassVar[int] = 30
     _singleton_description: ClassVar[str] = "Subprocess execution and caching"
+    _cleanup_depends_on: ClassVar[tuple[str, ...]] = ("workers.thread_safe_worker.ThreadSafeWorker",)
 
     # Singleton instance
     _instance: ClassVar[ProcessPoolManager | None] = None

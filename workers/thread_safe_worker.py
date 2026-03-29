@@ -65,6 +65,7 @@ class ThreadSafeWorker(QThread):
 
     _cleanup_order: ClassVar[int] = 25
     _singleton_description: ClassVar[str] = "Zombie worker cleanup timer"
+    _cleanup_depends_on: ClassVar[tuple[str, ...]] = ("workers.runnable_tracker.QRunnableTracker",)
 
     # Lifecycle signals
     worker_started: ClassVar[Signal] = Signal()  # type: ignore[assignment]

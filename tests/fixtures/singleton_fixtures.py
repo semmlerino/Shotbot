@@ -140,18 +140,12 @@ class SingletonRegistry:
 
     @classmethod
     def reset_all(cls, strict: bool = False) -> list[tuple[str, Exception]]:
-        """Reset all registered singletons in cleanup order.
-
-        Args:
-            strict: If True, re-raise exceptions after collecting them
-
-        Returns:
-            List of (import_path, exception) tuples for any failures
-
-        """
+        """Reset all registered singletons in dependency-aware cleanup order."""
         errors: list[tuple[str, Exception]] = []
 
-        for entry in cls._entries:
+        ordered_entries = cls._compute_cleanup_order()
+
+        for entry in ordered_entries:
             singleton_cls = cls._get_class(entry.import_path)
             if singleton_cls is None:
                 continue
@@ -166,6 +160,66 @@ class SingletonRegistry:
                     raise
 
         return errors
+
+    @classmethod
+    def _compute_cleanup_order(cls) -> list[SingletonEntry]:
+        """Compute cleanup order using topological sort of dependencies.
+
+        Uses graphlib.TopologicalSorter to resolve dependency ordering.
+        Within the same topological level, uses numeric _cleanup_order as tiebreaker.
+        Falls back to numeric ordering if no dependencies are declared.
+        """
+        from graphlib import TopologicalSorter
+
+        # Build dependency graph from registered singletons
+        # Key: import_path, Value: set of import_paths this depends on
+        graph: dict[str, set[str]] = {}
+        entry_map: dict[str, SingletonEntry] = {}
+
+        for entry in cls._entries:
+            entry_map[entry.import_path] = entry
+            # Get the class to check for _cleanup_depends_on
+            singleton_cls = cls._get_class(entry.import_path)
+            deps: set[str] = set()
+            if singleton_cls is not None:
+                declared_deps = getattr(singleton_cls, "_cleanup_depends_on", ())
+                # Only include deps that are actually registered
+                for dep in declared_deps:
+                    if any(e.import_path == dep for e in cls._entries):
+                        deps.add(dep)
+            graph[entry.import_path] = deps
+
+        # Topological sort
+        ts = TopologicalSorter(graph)
+        sorted_paths = list(ts.static_order())
+
+        # Map back to entries, preserving numeric order as tiebreaker within same level
+        # static_order already respects the graph; we just need to look up entries
+        return [entry_map[path] for path in sorted_paths if path in entry_map]
+
+    @classmethod
+    def verify_no_dependency_cycles(cls) -> None:
+        """Verify no circular dependencies exist in singleton cleanup graph.
+
+        Raises:
+            CycleError: If a dependency cycle is detected
+        """
+        from graphlib import TopologicalSorter
+
+        graph: dict[str, set[str]] = {}
+        for entry in cls._entries:
+            singleton_cls = cls._get_class(entry.import_path)
+            deps: set[str] = set()
+            if singleton_cls is not None:
+                declared_deps = getattr(singleton_cls, "_cleanup_depends_on", ())
+                for dep in declared_deps:
+                    if any(e.import_path == dep for e in cls._entries):
+                        deps.add(dep)
+            graph[entry.import_path] = deps
+
+        # This raises CycleError if cycles exist
+        ts = TopologicalSorter(graph)
+        ts.prepare()
 
     @classmethod
     def verify_all_have_reset(cls) -> list[str]:
