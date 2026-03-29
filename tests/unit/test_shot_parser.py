@@ -3,7 +3,7 @@
 Tests cover:
 - parse_workspace_line(): standard, non-prefix, short names, no underscore, None cases
 - parse_shot_path(): path-only equivalents of the above
-- Pattern cache isolation when Config.SHOWS_ROOT changes
+- Pattern cache isolation when Config.Paths.SHOWS_ROOT changes
 - Multiple-underscore sequence/shot names with prefix extraction vs rfind fallback
 """
 
@@ -191,9 +191,9 @@ class TestParseWorkspaceLineEdgeCases:
         assert result is None
 
     def test_wrong_shows_root_returns_none(self) -> None:
-        """Path whose root does not match Config.SHOWS_ROOT returns None."""
+        """Path whose root does not match Config.Paths.SHOWS_ROOT returns None."""
         parser = OptimizedShotParser()
-        # Config.SHOWS_ROOT is /shows (set by unit conftest); this uses /wrong
+        # Config.Paths.SHOWS_ROOT is /shows (set by unit conftest); this uses /wrong
         result = parser.parse_workspace_line(
             "workspace /wrong/root/demo/shots/seq01/seq01_0010"
         )
@@ -300,7 +300,7 @@ class TestParseShotPath:
         assert result.shot == "0010"
 
     def test_workspace_path_reconstructed_from_shows_root(self) -> None:
-        """workspace_path field is built from Config.SHOWS_ROOT, show, seq, shot_dir."""
+        """workspace_path field is built from Config.Paths.SHOWS_ROOT, show, seq, shot_dir."""
         parser = OptimizedShotParser()
         path = "/shows/demo/shots/seq01/seq01_0010/user/artist"
 
@@ -323,11 +323,11 @@ class TestPatternCacheIsolation:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Two distinct SHOWS_ROOT values produce two cache entries."""
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/shows1")
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", "/test/shows1")
         _ = OptimizedShotParser()
         assert "/test/shows1" in shot_parser._PATTERN_CACHE
 
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/shows2")
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", "/test/shows2")
         _ = OptimizedShotParser()
         assert "/test/shows2" in shot_parser._PATTERN_CACHE
 
@@ -338,7 +338,7 @@ class TestPatternCacheIsolation:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Multiple parsers with the same SHOWS_ROOT share cached pattern objects."""
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/shared")
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", "/test/shared")
         p1 = OptimizedShotParser()
         p2 = OptimizedShotParser()
 
@@ -351,7 +351,7 @@ class TestPatternCacheIsolation:
     ) -> None:
         """Parser uses the custom SHOWS_ROOT when building patterns."""
         custom_root = "/custom/vfx/shows"
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", custom_root)
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", custom_root)
         # Reload module to pick up the new Config value in pattern compilation
         import importlib
 
@@ -373,7 +373,7 @@ class TestPatternCacheIsolation:
         """Parser built with root A rejects paths from root B."""
         import importlib
 
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", "/root/a")
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", "/root/a")
         importlib.reload(shot_parser)
         shot_parser._PATTERN_CACHE.clear()
         parser_a = shot_parser.OptimizedShotParser()

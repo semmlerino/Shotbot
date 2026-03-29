@@ -150,7 +150,7 @@ def find_plate_mov_proxy(
         )
 
         # Build the path to the plate directory
-        plate_base = Path(workspace, *Config.RAW_PLATE_SEGMENTS) / plate_name
+        plate_base = Path(workspace, *Config.FileDiscovery.RAW_PLATE_SEGMENTS) / plate_name
 
         if not plate_base.exists():
             logger.debug(f"Plate directory not found: {plate_base}")
@@ -204,7 +204,7 @@ def find_plate_exr_sequence(
         )
 
         # Build the path to the plate directory
-        plate_base = Path(workspace, *Config.RAW_PLATE_SEGMENTS) / plate_name
+        plate_base = Path(workspace, *Config.FileDiscovery.RAW_PLATE_SEGMENTS) / plate_name
 
         if not plate_base.exists():
             return None, None, None
@@ -250,7 +250,7 @@ def discover_plate_directories(
 
     Supports: FG##, BG##, PL##, EL##, COMP## (where ## is any digit sequence).
     Only directories matching these patterns are returned.
-    Uses Config.TURNOVER_PLATE_PRIORITY for ranking plates by type.
+    Uses Config.FileDiscovery.TURNOVER_PLATE_PRIORITY for ranking plates by type.
 
     This replaces the hardcoded PLATE_DISCOVERY_PATTERNS approach with dynamic
     discovery, allowing any plate naming (EL01, EL02, EL99, etc.) to work
@@ -294,7 +294,7 @@ def discover_plate_directories(
 
             # Only include directories that match known plate patterns
             if matched_prefix:
-                priority = Config.TURNOVER_PLATE_PRIORITY.get(matched_prefix, 3)
+                priority = Config.FileDiscovery.TURNOVER_PLATE_PRIORITY.get(matched_prefix, 3)
                 found_plates.append((plate_name, priority))
                 # Log normalized plate ID for consistency (but use filesystem case for paths)
                 normalized_name = normalize_plate_id(plate_name) or plate_name

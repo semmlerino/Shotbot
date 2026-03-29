@@ -55,14 +55,14 @@ class WindowStateSettings:
 
     def get_window_size(self) -> QSize:
         """Get window size."""
-        default_size = QSize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
+        default_size = QSize(Config.Window.DEFAULT_WIDTH, Config.Window.DEFAULT_HEIGHT)
         value = self._settings.value("window/size", default_size, type=QSize)
         return value if isinstance(value, QSize) else default_size
 
     def set_window_size(self, size: QSize) -> None:
         """Set window size."""
-        min_width = max(size.width(), Config.MIN_WINDOW_WIDTH)
-        min_height = max(size.height(), Config.MIN_WINDOW_HEIGHT)
+        min_width = max(size.width(), Config.Window.MIN_WIDTH)
+        min_height = max(size.height(), Config.Window.MIN_HEIGHT)
         validated_size = QSize(min_width, min_height)
         self._settings.setValue("window/size", validated_size)
 
@@ -114,7 +114,7 @@ class RefreshSettings:
         """Get refresh interval in minutes."""
         value = self._get("refresh_interval")
         return (
-            value if isinstance(value, int) else Config.CACHE_REFRESH_INTERVAL_MINUTES
+            value if isinstance(value, int) else Config.Cache.REFRESH_INTERVAL_MINUTES
         )
 
     def set_refresh_interval(self, minutes: int) -> None:
@@ -124,7 +124,7 @@ class RefreshSettings:
     def get_background_refresh(self) -> bool:
         """Get background refresh enabled state."""
         value = self._get("background_refresh")
-        return value if isinstance(value, bool) else Config.ENABLE_BACKGROUND_REFRESH
+        return value if isinstance(value, bool) else Config.Cache.ENABLE_BACKGROUND_REFRESH
 
     def set_background_refresh(self, enabled: bool) -> None:
         """Set background refresh enabled state."""
@@ -143,13 +143,13 @@ class UIAppearanceSettings:
     def get_thumbnail_size(self) -> int:
         """Get thumbnail size."""
         value = self._get("thumbnail_size")
-        return value if isinstance(value, int) else Config.DEFAULT_THUMBNAIL_SIZE
+        return value if isinstance(value, int) else Config.Thumbnail.DEFAULT_SIZE
 
     def set_thumbnail_size(self, size: int) -> None:
         """Set thumbnail size with validation."""
         self._set(
             "thumbnail_size",
-            max(Config.MIN_THUMBNAIL_SIZE, min(size, Config.MAX_THUMBNAIL_SIZE)),
+            max(Config.Thumbnail.MIN_SIZE, min(size, Config.Thumbnail.MAX_SIZE)),
         )
 
     def get_ui_scale(self) -> float:
@@ -263,7 +263,7 @@ class LaunchPreferenceSettings:
     def get_last_directory(self) -> str:
         """Get last used directory."""
         value = self._get("last_directory")
-        return value if isinstance(value, str) else str(Config.SHOWS_ROOT)
+        return value if isinstance(value, str) else str(Config.Paths.SHOWS_ROOT)
 
     def set_last_directory(self, directory: str) -> None:
         """Set last used directory."""
@@ -293,17 +293,17 @@ class LaunchPreferenceSettings:
     def get_default_app(self) -> str:
         """Get default application."""
         value = self._get("default_app")
-        return value if isinstance(value, str) else Config.DEFAULT_APP
+        return value if isinstance(value, str) else Config.Launch.DEFAULT_APP
 
     def set_default_app(self, app: str) -> None:
         """Set default application."""
-        available_apps = list(Config.APPS.keys())
+        available_apps = list(Config.Launch.APPS.keys())
         if app in available_apps:
             self._set("default_app", app)
 
     def get_file_associations(self) -> dict[str, str]:
         """Get file type associations."""
-        default_associations = dict(Config.APPS)
+        default_associations = dict(Config.Launch.APPS)
         stored_value = self._settings.value(
             "applications/file_associations", default_associations
         )
@@ -359,7 +359,7 @@ class PerformanceSettings:
     def get_max_thumbnail_threads(self) -> int:
         """Get maximum thumbnail loading threads."""
         value = self._get("max_thumbnail_threads")
-        return value if isinstance(value, int) else Config.MAX_THUMBNAIL_THREADS
+        return value if isinstance(value, int) else Config.Threading.MAX_THUMBNAIL_THREADS
 
     def set_max_thumbnail_threads(self, threads: int) -> None:
         """Set maximum thumbnail loading threads."""
@@ -368,7 +368,7 @@ class PerformanceSettings:
     def get_max_cache_memory_mb(self) -> int:
         """Get maximum cache memory in MB."""
         value = self._get("max_cache_memory_mb")
-        return value if isinstance(value, int) else Config.MAX_THUMBNAIL_MEMORY_MB
+        return value if isinstance(value, int) else Config.ImageLimits.MAX_THUMBNAIL_MEMORY_MB
 
     def set_max_cache_memory_mb(self, memory_mb: int) -> None:
         """Set maximum cache memory in MB."""
@@ -377,7 +377,7 @@ class PerformanceSettings:
     def get_cache_expiry_minutes(self) -> int:
         """Get cache expiry time in minutes."""
         value = self._get("cache_expiry_minutes")
-        return value if isinstance(value, int) else Config.CACHE_EXPIRY_MINUTES
+        return value if isinstance(value, int) else Config.Cache.EXPIRY_MINUTES
 
     def set_cache_expiry_minutes(self, minutes: int) -> None:
         """Set cache expiry time in minutes."""

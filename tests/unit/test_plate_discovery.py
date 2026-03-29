@@ -56,7 +56,7 @@ class TestPlatePriorityOrdering:
             plate_dir = plate_base / plate_name
             plate_dir.mkdir(parents=True, exist_ok=True)
 
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", str(tmp_path))
 
         # Get available plates (should only return FG and BG, not PL/BC/EL/COMP)
         result = get_available_plates(str(workspace_path))

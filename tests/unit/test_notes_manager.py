@@ -50,19 +50,19 @@ def sample_shots() -> list[Shot]:
             "test_show",
             "seq01",
             "shot010",
-            f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
+            f"{Config.Paths.SHOWS_ROOT}/test_show/seq01/shot010",
         ),
         Shot(
             "test_show",
             "seq01",
             "shot020",
-            f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
+            f"{Config.Paths.SHOWS_ROOT}/test_show/seq01/shot020",
         ),
         Shot(
             "test_show",
             "seq02",
             "shot030",
-            f"{Config.SHOWS_ROOT}/test_show/seq02/shot030",
+            f"{Config.Paths.SHOWS_ROOT}/test_show/seq02/shot030",
         ),
     ]
 

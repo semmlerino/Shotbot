@@ -119,8 +119,8 @@ class TestSettingsManager:
         # Test default
         default_size = settings_manager.window.get_window_size()
         assert isinstance(default_size, QSize)
-        assert default_size.width() == Config.DEFAULT_WINDOW_WIDTH
-        assert default_size.height() == Config.DEFAULT_WINDOW_HEIGHT
+        assert default_size.width() == Config.Window.DEFAULT_WIDTH
+        assert default_size.height() == Config.Window.DEFAULT_HEIGHT
 
         # Test setting valid size
         test_size = QSize(1920, 1080)
@@ -134,8 +134,8 @@ class TestSettingsManager:
         settings_manager.window.set_window_size(small_size)
 
         retrieved = settings_manager.window.get_window_size()
-        assert retrieved.width() >= Config.MIN_WINDOW_WIDTH
-        assert retrieved.height() >= Config.MIN_WINDOW_HEIGHT
+        assert retrieved.width() >= Config.Window.MIN_WIDTH
+        assert retrieved.height() >= Config.Window.MIN_HEIGHT
 
     def test_splitter_positions(self, settings_manager: SettingsManager) -> None:
         """Test getting and setting splitter positions."""
@@ -195,10 +195,10 @@ class TestSettingsManager:
 
         # Test validation - clamp to range
         settings_manager.ui.set_thumbnail_size(10)
-        assert settings_manager.ui.get_thumbnail_size() >= Config.MIN_THUMBNAIL_SIZE
+        assert settings_manager.ui.get_thumbnail_size() >= Config.Thumbnail.MIN_SIZE
 
         settings_manager.ui.set_thumbnail_size(2000)
-        assert settings_manager.ui.get_thumbnail_size() <= Config.MAX_THUMBNAIL_SIZE
+        assert settings_manager.ui.get_thumbnail_size() <= Config.Thumbnail.MAX_SIZE
 
     def test_last_directory(
         self, settings_manager: SettingsManager, tmp_path: Path
@@ -207,7 +207,7 @@ class TestSettingsManager:
         # Test default
         default_dir = settings_manager.launch.get_last_directory()
         assert isinstance(default_dir, str)
-        assert Path(default_dir) == Path(Config.SHOWS_ROOT)
+        assert Path(default_dir) == Path(Config.Paths.SHOWS_ROOT)
 
         # Test setting - need to use an existing directory
         test_path = tmp_path / "test_dir"
@@ -267,7 +267,7 @@ class TestSettingsManager:
 
         # Verify defaults restored
         assert settings_manager.window.get_current_tab() == 0
-        assert settings_manager.ui.get_thumbnail_size() == Config.DEFAULT_THUMBNAIL_SIZE
+        assert settings_manager.ui.get_thumbnail_size() == Config.Thumbnail.DEFAULT_SIZE
 
     def test_export_settings(
         self, settings_manager: SettingsManager, tmp_path: Path
@@ -399,7 +399,7 @@ class TestSettingsManager:
         # Should revert to defaults
         assert settings_manager.window.get_current_tab() == 0
         default_size = settings_manager.window.get_window_size()
-        assert default_size.width() == Config.DEFAULT_WINDOW_WIDTH
+        assert default_size.width() == Config.Window.DEFAULT_WIDTH
 
 
 class TestSettingsManagerAtomicWrite:

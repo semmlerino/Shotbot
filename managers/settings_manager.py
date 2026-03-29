@@ -113,16 +113,16 @@ class SettingsManager(QObject):
         "window_maximized": _SettingDef("window/maximized", bool, False),
         "current_tab": _SettingDef("window/current_tab", int, 0),
         "refresh_interval": _SettingDef(
-            "preferences/refresh_interval", int, Config.CACHE_REFRESH_INTERVAL_MINUTES
+            "preferences/refresh_interval", int, Config.Cache.REFRESH_INTERVAL_MINUTES
         ),
         "background_refresh": _SettingDef(
-            "preferences/background_refresh", bool, Config.ENABLE_BACKGROUND_REFRESH
+            "preferences/background_refresh", bool, Config.Cache.ENABLE_BACKGROUND_REFRESH
         ),
         "thumbnail_size": _SettingDef(
-            "preferences/thumbnail_size", int, Config.DEFAULT_THUMBNAIL_SIZE
+            "preferences/thumbnail_size", int, Config.Thumbnail.DEFAULT_SIZE
         ),
         "last_directory": _SettingDef(
-            "preferences/last_directory", str, str(Config.SHOWS_ROOT)
+            "preferences/last_directory", str, str(Config.Paths.SHOWS_ROOT)
         ),
         "preferred_terminal": _SettingDef(
             "preferences/preferred_terminal", str, "gnome-terminal"
@@ -131,16 +131,16 @@ class SettingsManager(QObject):
             "preferences/double_click_action", str, "launch_default"
         ),
         "max_thumbnail_threads": _SettingDef(
-            "performance/max_thumbnail_threads", int, Config.MAX_THUMBNAIL_THREADS
+            "performance/max_thumbnail_threads", int, Config.Threading.MAX_THUMBNAIL_THREADS
         ),
         "max_cache_memory_mb": _SettingDef(
-            "performance/max_cache_memory_mb", int, Config.MAX_THUMBNAIL_MEMORY_MB
+            "performance/max_cache_memory_mb", int, Config.ImageLimits.MAX_THUMBNAIL_MEMORY_MB
         ),
         "cache_expiry_minutes": _SettingDef(
-            "performance/cache_expiry_minutes", int, Config.CACHE_EXPIRY_MINUTES
+            "performance/cache_expiry_minutes", int, Config.Cache.EXPIRY_MINUTES
         ),
         "enable_animations": _SettingDef("performance/enable_animations", bool, True),
-        "default_app": _SettingDef("applications/default_app", str, Config.DEFAULT_APP),
+        "default_app": _SettingDef("applications/default_app", str, Config.Launch.DEFAULT_APP),
         "background_gui_apps": _SettingDef(
             "applications/background_gui_apps", bool, False
         ),

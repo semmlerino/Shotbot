@@ -70,7 +70,7 @@ class TestShot:
         shot_path = shows_root / "test" / "shots" / "seq01" / "seq01_0010"
         shot_path.mkdir(parents=True, exist_ok=True)
 
-        # Create real editorial thumbnail following exact Config.THUMBNAIL_SEGMENTS path
+        # Create real editorial thumbnail following exact Config.FileDiscovery.THUMBNAIL_SEGMENTS path
         editorial_path = (
             shot_path
             / "publish"
@@ -86,8 +86,8 @@ class TestShot:
             b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
         )  # Minimal JPEG
 
-        # Temporarily override Config.SHOWS_ROOT to use our test directory
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+        # Temporarily override Config.Paths.SHOWS_ROOT to use our test directory
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", str(shows_root))
 
         # Create shot with real path
         shot = Shot("test", "seq01", "0010", str(shot_path))
@@ -152,8 +152,8 @@ class TestShotModel:
         """Test successful shot refresh with test double at boundary."""
         # Set up test double with expected output
         test_process_pool.set_outputs(
-            f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010\n"
-            f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0020\n"
+            f"workspace {Config.Paths.SHOWS_ROOT}/test/shots/seq1/seq1_0010\n"
+            f"workspace {Config.Paths.SHOWS_ROOT}/test/shots/seq1/seq1_0020\n"
         )
         real_shot_model._process_pool = test_process_pool
 
@@ -183,7 +183,7 @@ class TestShotModel:
     ) -> None:
         """Test RefreshResult supports tuple unpacking for backwards compatibility."""
         test_process_pool.set_outputs(
-            f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010\n"
+            f"workspace {Config.Paths.SHOWS_ROOT}/test/shots/seq1/seq1_0010\n"
         )
         real_shot_model._process_pool = test_process_pool
 
@@ -274,8 +274,8 @@ class TestShotModelErrorHandling:
 
         # Return same shots
         test_process_pool.set_outputs(
-            f"workspace {Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0010\n"
-            f"workspace {Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0020"
+            f"workspace {Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_0010\n"
+            f"workspace {Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_0020"
         )
         real_shot_model._process_pool = test_process_pool
 
@@ -285,7 +285,7 @@ class TestShotModelErrorHandling:
 
         # Now return different shots
         test_process_pool.set_outputs(
-            f"workspace {Config.SHOWS_ROOT}/newshow/shots/seq1/seq1_0010"
+            f"workspace {Config.Paths.SHOWS_ROOT}/newshow/shots/seq1/seq1_0010"
         )
 
         result = real_shot_model.refresh_shots()
@@ -438,7 +438,7 @@ class TestShotModelParser:
 
     def test_parse_ws_output_mixed_valid_invalid(self, real_shot_model) -> None:
         """Test parser with mix of valid and invalid lines."""
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         output = f"""Invalid line
 workspace {shows_root}/test1/shots/seq1/seq1_0010
 Another invalid line
@@ -452,7 +452,7 @@ Yet another invalid"""
 
     def test_parse_ws_output_empty_lines(self, real_shot_model) -> None:
         """Test parser skips empty lines."""
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         output = f"""workspace {shows_root}/test1/shots/seq1/seq1_0010
 
 workspace {shows_root}/test2/shots/seq2/seq2_0020
@@ -464,7 +464,7 @@ workspace {shows_root}/test2/shots/seq2/seq2_0020
 
     def test_parse_ws_output_complex_shot_names(self, real_shot_model) -> None:
         """Test parser handles complex shot name parsing."""
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         output = f"""workspace {shows_root}/test/shots/seq1/001_ABC_0010
 workspace {shows_root}/test/shots/seq2/simple_name
 workspace {shows_root}/test/shots/seq3/very_long_complex_shot_name_0050"""
@@ -488,7 +488,7 @@ class TestShotModelRefreshSignals:
     ) -> None:
         """Test that signals are emitted in correct order during refresh."""
         test_process_pool.set_outputs(
-            f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010"
+            f"workspace {Config.Paths.SHOWS_ROOT}/test/shots/seq1/seq1_0010"
         )
         real_shot_model._process_pool = test_process_pool
 
@@ -546,7 +546,7 @@ class TestShotModelRefreshSignals:
         """Test that refresh properly updates the on-disk cache JSON file."""
         cache_dir = shot_cache.cache_dir
         test_process_pool.set_outputs(
-            f"workspace {Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0010"
+            f"workspace {Config.Paths.SHOWS_ROOT}/show1/shots/seq01/seq01_0010"
         )
         real_shot_model._process_pool = test_process_pool
 
@@ -565,7 +565,7 @@ class TestShotModelRefreshSignals:
 
         # Update to a different show and verify the cache is overwritten
         test_process_pool.set_outputs(
-            f"workspace {Config.SHOWS_ROOT}/show2/shots/seq01/seq01_0010"
+            f"workspace {Config.Paths.SHOWS_ROOT}/show2/shots/seq01/seq01_0010"
         )
         real_shot_model.refresh_shots()
 

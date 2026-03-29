@@ -628,8 +628,8 @@ class BaseItemModel(
 
         """
         return QSize(
-            Config.DEFAULT_THUMBNAIL_SIZE,
-            Config.DEFAULT_THUMBNAIL_SIZE + 40,
+            Config.Thumbnail.DEFAULT_SIZE,
+            Config.Thumbnail.DEFAULT_SIZE + 40,
         )
 
     # ============= Cleanup =============

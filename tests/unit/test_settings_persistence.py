@@ -232,7 +232,7 @@ class TestSimulatedCrash:
         manager._migrate_old_settings()
 
         # Must return defaults without raising
-        assert manager.ui.get_thumbnail_size() == Config.DEFAULT_THUMBNAIL_SIZE
+        assert manager.ui.get_thumbnail_size() == Config.Thumbnail.DEFAULT_SIZE
         assert manager.window.get_current_tab() == 0
         assert manager.window.get_window_geometry().isEmpty()
         assert manager.window.is_window_maximized() is False
@@ -386,7 +386,7 @@ class TestImportExportRoundtrip:
         export_path = str(tmp_path / "cache_settings.json")
         assert manager.export_settings(export_path) is True
 
-        manager.performance.set_cache_expiry_minutes(Config.CACHE_EXPIRY_MINUTES)
+        manager.performance.set_cache_expiry_minutes(Config.Cache.EXPIRY_MINUTES)
 
         assert manager.import_settings(export_path) is True
         assert manager.performance.get_cache_expiry_minutes() == 120
@@ -434,7 +434,7 @@ class TestEdgeCases:
                 "set_thumbnail_size",
                 0,
                 "get_thumbnail_size",
-                Config.MIN_THUMBNAIL_SIZE,
+                Config.Thumbnail.MIN_SIZE,
             ),
             (
                 "performance",

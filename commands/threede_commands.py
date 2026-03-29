@@ -11,7 +11,7 @@ def build_threede_scripts_export(scripts_dir: str) -> str:
 
     Args:
         scripts_dir: Absolute path to the directory containing 3DE hook scripts
-            (typically Config.SCRIPTS_DIR).
+            (typically Config.Paths.SCRIPTS_DIR).
 
     Returns:
         Shell fragment of the form

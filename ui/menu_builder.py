@@ -157,9 +157,9 @@ def show_about(parent: QWidget) -> None:
     """Show about dialog."""
     _ = QMessageBox.about(
         parent,
-        f"About {Config.APP_NAME}",
+        f"About {Config.App.NAME}",
         (
-            f"{Config.APP_NAME} v{Config.APP_VERSION}\n\n"
+            f"{Config.App.NAME} v{Config.App.VERSION}\n\n"
             "VFX Shot Launcher\n\n"
             "A tool for browsing and launching applications in shot context."
         ),

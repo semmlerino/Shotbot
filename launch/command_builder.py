@@ -154,7 +154,7 @@ def apply_nuke_environment_fixes(command: str, config: "type[Config]") -> str:
 
     # Runtime NUKE_PATH filtering (removes problematic plugins)
     # Uses IFS-based approach to safely handle paths with spaces
-    if config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
+    if config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS:
         env_fixes.append(
             'NUKE_PATH=$(IFS=":"; for p in $NUKE_PATH; do '
             'case "$p" in */problematic_plugins*) ;; *) printf "%s:" "$p" ;; esac; '
@@ -162,8 +162,8 @@ def apply_nuke_environment_fixes(command: str, config: "type[Config]") -> str:
         )
 
     # OCIO fallback configuration (quote path to handle spaces/special chars)
-    if config.NUKE_OCIO_FALLBACK_CONFIG:
-        quoted_ocio = shlex.quote(config.NUKE_OCIO_FALLBACK_CONFIG)
+    if config.DCC.NUKE_OCIO_FALLBACK_CONFIG:
+        quoted_ocio = shlex.quote(config.DCC.NUKE_OCIO_FALLBACK_CONFIG)
         env_fixes.append(f"OCIO={quoted_ocio}")
 
     # Disable crash reports (always applied)
@@ -192,10 +192,10 @@ def get_nuke_fix_summary(config: "type[Config]") -> list[str]:
     """
     fix_details: list[str] = []
 
-    if config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
+    if config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS:
         fix_details.append("runtime NUKE_PATH filtering")
 
-    if config.NUKE_OCIO_FALLBACK_CONFIG:
+    if config.DCC.NUKE_OCIO_FALLBACK_CONFIG:
         fix_details.append("OCIO fallback")
 
     fix_details.append("crash reporting disabled")
@@ -235,7 +235,7 @@ def add_logging(command: str, config: "type[Config] | None" = None, *, app_name:
         log_file = log_dir / "dispatcher.out"
 
         # Rotate log if it exceeds max size
-        max_size_mb = config.LAUNCH_LOG_MAX_SIZE_MB if config else 10
+        max_size_mb = config.Launch.LOG_MAX_SIZE_MB if config else 10
         if max_size_mb > 0 and log_file.exists():
             size_mb = log_file.stat().st_size / (1024 * 1024)
             if size_mb >= max_size_mb:
@@ -250,7 +250,7 @@ def add_logging(command: str, config: "type[Config] | None" = None, *, app_name:
         quoted_log_file = shlex.quote(str(log_file))
         logger.debug(f"Adding logging redirection to: {log_file}")
 
-        if app_name and config is not None and app_name in config.LAUNCH_LOGGING_TEE_BYPASS_APPS:
+        if app_name and config is not None and app_name in config.Launch.LOGGING_TEE_BYPASS_APPS:
             return f"{command} >> {quoted_log_file} 2>&1"
 
         # Use pipefail to preserve exit code from command before pipe

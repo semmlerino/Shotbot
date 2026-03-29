@@ -91,7 +91,7 @@ class ThreeDESelectionHandler:
         self._window.right_panel.set_shot(shot)
 
         self._window.setWindowTitle(
-            f"{Config.APP_NAME} - {scene.full_name} ({scene.user} - {scene.plate})",
+            f"{Config.App.NAME} - {scene.full_name} ({scene.user} - {scene.plate})",
         )
 
         self._window.update_status(

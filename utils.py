@@ -254,14 +254,14 @@ class FileUtils:
 
         """
         # First try lightweight preferred extensions
-        for ext in Config.THUMBNAIL_EXTENSIONS:
+        for ext in Config.FileDiscovery.THUMBNAIL_EXTENSIONS:
             files = FileUtils.find_files_by_extension(directory, ext, limit=1)
             if files:
                 return files[0]
 
         # If no lightweight formats found and fallback allowed, try heavy formats
         if allow_fallback and hasattr(Config, "THUMBNAIL_FALLBACK_EXTENSIONS"):
-            for ext in Config.THUMBNAIL_FALLBACK_EXTENSIONS:
+            for ext in Config.FileDiscovery.THUMBNAIL_FALLBACK_EXTENSIONS:
                 files = FileUtils.find_files_by_extension(directory, ext, limit=1)
                 if files:
                     file_path = files[0]

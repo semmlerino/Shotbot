@@ -84,7 +84,7 @@ class LogViewer(QtWidgetMixin, QWidget):
 
         # Limit lines
         self._line_count += 1
-        if self._line_count > Config.LOG_MAX_LINES:
+        if self._line_count > Config.UI.LOG_MAX_LINES:
             self._trim_log()
 
     def _trim_log(self) -> None:
@@ -94,10 +94,10 @@ class LogViewer(QtWidgetMixin, QWidget):
         _ = cursor.movePosition(
             QTextCursor.MoveOperation.Down,
             QTextCursor.MoveMode.KeepAnchor,
-            self._line_count - Config.LOG_MAX_LINES,
+            self._line_count - Config.UI.LOG_MAX_LINES,
         )
         cursor.removeSelectedText()
-        self._line_count = Config.LOG_MAX_LINES
+        self._line_count = Config.UI.LOG_MAX_LINES
 
     def clear_log(self) -> None:
         """Clear the log."""

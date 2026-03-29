@@ -129,12 +129,12 @@ class CommandLauncher(QObject):
         # Per-DCC handlers for launch_with_file and launch_app command building
         self._app_handlers: dict[str, AppHandler] = {
             "nuke": NukeAppHandler(
-                scripts_dir=Config.SCRIPTS_DIR,
+                scripts_dir=Config.Paths.SCRIPTS_DIR,
                 nuke_launcher=self.nuke_launcher,
                 emit_error=self._emit_error,
             ),
             "3de": ThreeDEAppHandler(
-                scripts_dir=Config.SCRIPTS_DIR,
+                scripts_dir=Config.Paths.SCRIPTS_DIR,
                 cache_manager=self._cache_manager,
                 start_async_search=self._start_async_file_search,
                 apply_file_result=lambda app, cmd, path: (
@@ -426,7 +426,7 @@ class CommandLauncher(QObject):
         3DE/Maya async file search, RV sequence path).
 
         Args:
-            app_name: Application name (must already be validated against Config.APPS)
+            app_name: Application name (must already be validated against Config.Launch.APPS)
             context: Launch context with options
 
         Returns:
@@ -441,7 +441,7 @@ class CommandLauncher(QObject):
         assert self.current_shot is not None, (
             "_build_app_command called without a current shot"
         )
-        base_cmd = Config.APPS[app_name]
+        base_cmd = Config.Launch.APPS[app_name]
         handler = self._app_handlers.get(app_name, self._default_handler)
         return handler.build_launch_command(base_cmd, context, self.current_shot)
 
@@ -499,13 +499,13 @@ class CommandLauncher(QObject):
         assert request.scene is not None
         scene = request.scene
         app_name = request.app_name
-        command = Config.APPS[app_name]
+        command = Config.Launch.APPS[app_name]
 
         try:
             safe_scene_path = validate_path(str(scene.scene_path))
             command_prefix = ""
             if app_name == "3de":
-                tde_scripts_export = build_threede_scripts_export(Config.SCRIPTS_DIR)
+                tde_scripts_export = build_threede_scripts_export(Config.Paths.SCRIPTS_DIR)
                 sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
                 command = f"{command} -open {safe_scene_path}"
                 command_prefix = f"{tde_scripts_export}{sgtk_export}"
@@ -533,7 +533,7 @@ class CommandLauncher(QObject):
         file_path = request.file_path
         workspace_path = request.workspace_path
 
-        command = Config.APPS[app_name]
+        command = Config.Launch.APPS[app_name]
         handler = self._app_handlers.get(app_name, self._default_handler)
 
         try:
@@ -567,7 +567,7 @@ class CommandLauncher(QObject):
 
     def _validate_app_name(self, app_name: str) -> bool:
         """Return True if app_name is valid, emit error and return False otherwise."""
-        if app_name not in Config.APPS:
+        if app_name not in Config.Launch.APPS:
             self._emit_error(f"Unknown application: {app_name}")
             return False
         return True
@@ -588,7 +588,7 @@ class CommandLauncher(QObject):
         return True
 
     def _validate_scripts_dir(self, app_name: str) -> bool:
-        """Validate Config.SCRIPTS_DIR exists for apps that depend on hook scripts.
+        """Validate Config.Paths.SCRIPTS_DIR exists for apps that depend on hook scripts.
 
         Args:
             app_name: Name of the application being launched.
@@ -597,10 +597,10 @@ class CommandLauncher(QObject):
             True if scripts dir is valid or app doesn't need it, False if launch should be blocked.
 
         """
-        scripts_dir = Path(Config.SCRIPTS_DIR)
+        scripts_dir = Path(Config.Paths.SCRIPTS_DIR)
         if not scripts_dir.is_dir():
             self._emit_error(
-                f"Scripts directory not found: {Config.SCRIPTS_DIR}. "
+                f"Scripts directory not found: {Config.Paths.SCRIPTS_DIR}. "
                 f"{app_name} launch requires hook scripts."
             )
             return False

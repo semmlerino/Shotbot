@@ -226,17 +226,17 @@ class TestLogViewer:
         qtbot.addWidget(log_viewer)
 
         # Add entries up to the limit
-        for i in range(Config.LOG_MAX_LINES):
+        for i in range(Config.UI.LOG_MAX_LINES):
             log_viewer.add_command(f"10:{i % 60:02d}:00", f"Command {i}")
 
         # Verify we're at the limit
-        assert log_viewer._line_count == Config.LOG_MAX_LINES
+        assert log_viewer._line_count == Config.UI.LOG_MAX_LINES
 
         # Add one more entry to trigger trimming
         log_viewer.add_command("11:00:00", "Overflow command")
 
         # Test line count is maintained at limit
-        assert log_viewer._line_count == Config.LOG_MAX_LINES
+        assert log_viewer._line_count == Config.UI.LOG_MAX_LINES
 
         # Test the latest entry is still present
         html_content = log_viewer.log_text.toHtml()

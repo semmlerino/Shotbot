@@ -411,7 +411,7 @@ class TestResetLayout:
         controller.reset_layout()
 
         # Should have resized to defaults
-        # Config.DEFAULT_WINDOW_WIDTH = 1200, Config.DEFAULT_WINDOW_HEIGHT = 800
+        # Config.Window.DEFAULT_WIDTH = 1200, Config.Window.DEFAULT_HEIGHT = 800
         assert window_double._size.width() == 1200
         assert window_double._size.height() == 800
 

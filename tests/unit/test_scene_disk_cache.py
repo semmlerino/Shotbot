@@ -58,7 +58,7 @@ class TestSceneCacheOperations:
                 "user": "artist1",
                 "plate": "bg01",
                 "scene_path": "/path/to/scene1.3de",
-                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
+                "workspace_path": f"{Config.Paths.SHOWS_ROOT}/test_show/seq01/shot010",
             },
             {
                 "show": "test_show",
@@ -67,7 +67,7 @@ class TestSceneCacheOperations:
                 "user": "artist2",
                 "plate": "fg01",
                 "scene_path": "/path/to/scene2.3de",
-                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
+                "workspace_path": f"{Config.Paths.SHOWS_ROOT}/test_show/seq01/shot020",
             },
         ]
         scene_cache.cache_threede_scenes(scenes)

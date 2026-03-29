@@ -35,7 +35,7 @@ class SimpleNukeLauncher:
     For complex workflows (generating scripts, loading plates), use NukeLaunchHandler.
     """
 
-    _NUKE_PATH_EXPORT: str = f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
+    _NUKE_PATH_EXPORT: str = f"export NUKE_PATH={Config.Paths.SCRIPTS_DIR}:$NUKE_PATH && "
 
     def _get_script_dir(self, shot: Shot, user: str, plate: str) -> Path:
         """Return the standard Nuke scripts directory for a shot, user, and plate."""

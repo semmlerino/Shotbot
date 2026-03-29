@@ -57,7 +57,7 @@ class MockDelegate(BaseThumbnailDelegate):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        self._thumbnail_size = Config.Thumbnail.DEFAULT_SIZE
 
     def get_theme(self) -> DelegateTheme:
         """Return default theme for testing."""
@@ -168,20 +168,20 @@ class TestBaseGridViewInitialization:
         # size_slider
         assert hasattr(grid_view, "size_slider"), "size_slider attribute missing"
         assert grid_view.size_slider is not None, "size_slider is None"
-        assert grid_view.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE, (
+        assert grid_view.size_slider.minimum() == Config.Thumbnail.MIN_SIZE, (
             "size_slider minimum incorrect"
         )
-        assert grid_view.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE, (
+        assert grid_view.size_slider.maximum() == Config.Thumbnail.MAX_SIZE, (
             "size_slider maximum incorrect"
         )
-        assert grid_view.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE, (
+        assert grid_view.size_slider.value() == Config.Thumbnail.DEFAULT_SIZE, (
             "size_slider default value incorrect"
         )
 
         # size_label
         assert hasattr(grid_view, "size_label"), "size_label attribute missing"
         assert grid_view.size_label is not None, "size_label is None"
-        assert grid_view.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px", (
+        assert grid_view.size_label.text() == f"{Config.Thumbnail.DEFAULT_SIZE}px", (
             "size_label text incorrect"
         )
 
@@ -237,7 +237,7 @@ class TestBaseGridViewInitialization:
 
     def test_thumbnail_size_property(self, grid_view: ConcreteGridView) -> None:
         """Test thumbnail_size property returns current size."""
-        assert grid_view.thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
+        assert grid_view.thumbnail_size == Config.Thumbnail.DEFAULT_SIZE
 
 
 # ============================================================================
@@ -264,7 +264,7 @@ class TestThumbnailSizeControl:
         padding = grid_view._delegate.theme.padding
         text_height = grid_view._delegate.theme.text_height
         expected_width = new_size + 2 * padding
-        thumbnail_height = int(new_size / Config.THUMBNAIL_ASPECT_RATIO)
+        thumbnail_height = int(new_size / Config.Thumbnail.ASPECT_RATIO)
         expected_height = thumbnail_height + text_height + 2 * padding
         expected_grid_size = QSize(expected_width, expected_height)
         assert grid_view.list_view.gridSize() == expected_grid_size
@@ -413,11 +413,11 @@ class TestWheelEvent:
 
         grid_view.wheelEvent(wheel_event)
         qtbot.waitUntil(
-            lambda: grid_view.thumbnail_size == min(initial_size + 10, Config.MAX_THUMBNAIL_SIZE)
+            lambda: grid_view.thumbnail_size == min(initial_size + 10, Config.Thumbnail.MAX_SIZE)
         )
 
         # Size should increase by 10 (capped at MAX)
-        expected = min(initial_size + 10, Config.MAX_THUMBNAIL_SIZE)
+        expected = min(initial_size + 10, Config.Thumbnail.MAX_SIZE)
         assert grid_view.thumbnail_size == expected
         wheel_event.accept.assert_called_once()
 
@@ -437,10 +437,10 @@ class TestWheelEvent:
 
         grid_view.wheelEvent(wheel_event)
         qtbot.waitUntil(
-            lambda: grid_view.thumbnail_size == max(initial_size - 10, Config.MIN_THUMBNAIL_SIZE)
+            lambda: grid_view.thumbnail_size == max(initial_size - 10, Config.Thumbnail.MIN_SIZE)
         )
 
-        expected = max(initial_size - 10, Config.MIN_THUMBNAIL_SIZE)
+        expected = max(initial_size - 10, Config.Thumbnail.MIN_SIZE)
         assert grid_view.thumbnail_size == expected
 
     def test_wheel_without_ctrl_not_handled(
@@ -463,7 +463,7 @@ class TestWheelEvent:
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
         """Test that Ctrl+Wheel respects minimum thumbnail size."""
-        grid_view.size_slider.setValue(Config.MIN_THUMBNAIL_SIZE)
+        grid_view.size_slider.setValue(Config.Thumbnail.MIN_SIZE)
         qtbot.wait(1)
 
         wheel_event = make_mock_wheel_event(
@@ -471,15 +471,15 @@ class TestWheelEvent:
         )
 
         grid_view.wheelEvent(wheel_event)
-        qtbot.waitUntil(lambda: grid_view.thumbnail_size == Config.MIN_THUMBNAIL_SIZE)
+        qtbot.waitUntil(lambda: grid_view.thumbnail_size == Config.Thumbnail.MIN_SIZE)
 
-        assert grid_view.thumbnail_size == Config.MIN_THUMBNAIL_SIZE
+        assert grid_view.thumbnail_size == Config.Thumbnail.MIN_SIZE
 
     def test_ctrl_wheel_respects_max_size(
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
         """Test that Ctrl+Wheel respects maximum thumbnail size."""
-        grid_view.size_slider.setValue(Config.MAX_THUMBNAIL_SIZE)
+        grid_view.size_slider.setValue(Config.Thumbnail.MAX_SIZE)
         qtbot.wait(1)
 
         wheel_event = make_mock_wheel_event(
@@ -487,9 +487,9 @@ class TestWheelEvent:
         )
 
         grid_view.wheelEvent(wheel_event)
-        qtbot.waitUntil(lambda: grid_view.thumbnail_size == Config.MAX_THUMBNAIL_SIZE)
+        qtbot.waitUntil(lambda: grid_view.thumbnail_size == Config.Thumbnail.MAX_SIZE)
 
-        assert grid_view.thumbnail_size == Config.MAX_THUMBNAIL_SIZE
+        assert grid_view.thumbnail_size == Config.Thumbnail.MAX_SIZE
 
 
 # ============================================================================
@@ -603,7 +603,7 @@ class TestListViewConfiguration:
             ("viewMode", "QListView.ViewMode.IconMode"),
             ("resizeMode", "QListView.ResizeMode.Adjust"),
             ("uniformItemSizes", True),
-            ("spacing", Config.THUMBNAIL_SPACING),
+            ("spacing", Config.Thumbnail.SPACING),
             ("selectionMode", "QAbstractItemView.SelectionMode.SingleSelection"),
         ],
         ids=[

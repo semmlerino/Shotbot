@@ -211,7 +211,7 @@ class TestDiscoverPlateDirectories:
 
         result = discover_plate_directories(tmp_path)
 
-        # Verify sorted order - actual priorities from Config.TURNOVER_PLATE_PRIORITY
+        # Verify sorted order - actual priorities from Config.FileDiscovery.TURNOVER_PLATE_PRIORITY
         # The first result should have the lowest priority number
         if len(result) > 1:
             priorities = [priority for _, priority in result]

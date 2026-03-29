@@ -130,7 +130,7 @@ class ThumbnailSizeManager:
         """
         slider = self._active_slider()
         current = slider.value()
-        new_size = min(current + 20, Config.MAX_THUMBNAIL_SIZE)
+        new_size = min(current + 20, Config.Thumbnail.MAX_SIZE)
         slider.setValue(new_size)
 
     def decrease_size(self) -> None:
@@ -140,5 +140,5 @@ class ThumbnailSizeManager:
         """
         slider = self._active_slider()
         current = slider.value()
-        new_size = max(current - 20, Config.MIN_THUMBNAIL_SIZE)
+        new_size = max(current - 20, Config.Thumbnail.MIN_SIZE)
         slider.setValue(new_size)

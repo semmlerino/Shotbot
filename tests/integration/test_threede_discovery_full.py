@@ -165,7 +165,7 @@ class TestThreeDEDiscoveryIntegration:
         excluded_users = {"gabriel-h"}
 
         # Mock the shows_root to use our temp structure
-        mocker.patch.object(Config, "SHOWS_ROOT", str(shows_root))
+        mocker.patch.object(Config.Paths, "SHOWS_ROOT", str(shows_root))
         # Run the actual discovery
         scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
             user_shots,
@@ -290,7 +290,7 @@ class TestThreeDEDiscoveryIntegration:
             SceneDiscoveryCoordinator,
         )
 
-        mocker.patch.object(Config, "SHOWS_ROOT", str(shows_root))
+        mocker.patch.object(Config.Paths, "SHOWS_ROOT", str(shows_root))
         scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
             user_shots,
             {"gabriel-h"},

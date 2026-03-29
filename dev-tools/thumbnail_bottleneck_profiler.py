@@ -185,7 +185,7 @@ class ThumbnailBottleneckProfiler:
             # Stage 1: Editorial thumbnails
             start = time.perf_counter()
             shot_dir = f"{sequence}_{shot}"
-            thumbnail_dir = Path(Config.SHOWS_ROOT, show, "shots", sequence, shot_dir, *Config.THUMBNAIL_SEGMENTS)
+            thumbnail_dir = Path(Config.Paths.SHOWS_ROOT, show, "shots", sequence, shot_dir, *Config.FileDiscovery.THUMBNAIL_SEGMENTS)
             editorial_exists = PathValidators.validate_path_exists(
                 thumbnail_dir, "Thumbnail dir"
             )
@@ -205,7 +205,7 @@ class ThumbnailBottleneckProfiler:
             # Stage 2: Turnover plate thumbnails
             start = time.perf_counter()
             turnover_thumbnail = find_turnover_plate_thumbnail(
-                Config.SHOWS_ROOT, show, sequence, shot
+                Config.Paths.SHOWS_ROOT, show, sequence, shot
             )
             filesystem_operations += 3  # Multiple path validations
             stage_times["turnover"].append(time.perf_counter() - start)
@@ -216,7 +216,7 @@ class ThumbnailBottleneckProfiler:
             # Stage 3: Publish folder fallback
             start = time.perf_counter()
             find_any_publish_thumbnail(
-                Config.SHOWS_ROOT, show, sequence, shot, max_depth=3
+                Config.Paths.SHOWS_ROOT, show, sequence, shot, max_depth=3
             )
             filesystem_operations += 5  # Recursive search
             stage_times["publish"].append(time.perf_counter() - start)

@@ -34,7 +34,7 @@ class OptimizedShotParser:
         """Initialize optimized parser using cached patterns for current SHOWS_ROOT."""
         super().__init__()
         # Get or create patterns for current SHOWS_ROOT (fixes test isolation)
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         if shows_root not in _PATTERN_CACHE:
             shows_root_escaped = re.escape(shows_root)
             ws_pattern = re.compile(
@@ -89,6 +89,6 @@ class OptimizedShotParser:
 
         shot = parse_shot_from_dir(sequence, shot_dir)
         workspace_path = str(
-            build_workspace_path(Config.SHOWS_ROOT, show, sequence, shot)
+            build_workspace_path(Config.Paths.SHOWS_ROOT, show, sequence, shot)
         )
         return ParseResult(show, sequence, shot, workspace_path)

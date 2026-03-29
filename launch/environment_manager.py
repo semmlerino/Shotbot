@@ -95,11 +95,11 @@ class EnvironmentManager:
         from config import RezMode
 
         # DISABLED mode: never wrap
-        if config.REZ_MODE == RezMode.DISABLED:
+        if config.Launch.REZ_MODE == RezMode.DISABLED:
             logger.debug("Rez wrapping DISABLED via RezMode.DISABLED")
             return False
 
-        if config.REZ_MODE == RezMode.AUTO and os.environ.get("REZ_USED"):
+        if config.Launch.REZ_MODE == RezMode.AUTO and os.environ.get("REZ_USED"):
             logger.debug(
                 "REZ_USED is set, but launcher will still resolve explicit app packages"
             )
@@ -188,15 +188,15 @@ class EnvironmentManager:
 
         Notes:
             - Returns empty list for unknown applications
-            - Packages are defined in Config.REZ_*_PACKAGES
+            - Packages are defined in Config.Launch.REZ_*_PACKAGES
 
         """
         package_map: dict[str, list[str]] = {
-            "nuke": config.REZ_NUKE_PACKAGES,
-            "maya": config.REZ_MAYA_PACKAGES,
-            "3de": config.REZ_3DE_PACKAGES,
-            "rv": config.REZ_RV_PACKAGES,
-            "publish": config.REZ_PUBLISH_PACKAGES,
+            "nuke": config.Launch.REZ_NUKE_PACKAGES,
+            "maya": config.Launch.REZ_MAYA_PACKAGES,
+            "3de": config.Launch.REZ_3DE_PACKAGES,
+            "rv": config.Launch.REZ_RV_PACKAGES,
+            "publish": config.Launch.REZ_PUBLISH_PACKAGES,
         }
         packages = package_map.get(app_name, [])
         logger.debug(f"Rez packages for {app_name}: {packages}")

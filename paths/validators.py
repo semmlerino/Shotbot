@@ -24,10 +24,10 @@ logger = get_module_logger(__name__)
 # Separate caches for hits (positive) and misses (negative) with different TTLs.
 # pyright: ignore needed because vendored cachetools lacks type stubs.
 _hit_cache: TTLCache[str, bool] = TTLCache(  # pyright: ignore[reportInvalidTypeArguments]
-    maxsize=2500, ttl=Config.PATH_CACHE_TTL_SECONDS
+    maxsize=2500, ttl=Config.Cache.PATH_TTL_SECONDS
 )
 _miss_cache: TTLCache[str, bool] = TTLCache(  # pyright: ignore[reportInvalidTypeArguments]
-    maxsize=500, ttl=Config.PATH_CACHE_NEGATIVE_TTL_SECONDS
+    maxsize=500, ttl=Config.Cache.PATH_NEGATIVE_TTL_SECONDS
 )
 _cache_lock = threading.Lock()
 _cache_disabled = False  # Test isolation flag

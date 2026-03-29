@@ -69,19 +69,19 @@ class TestShotGridView:
                 "show1",
                 "seq1",
                 "0010",
-                f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0010",
+                f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_0010",
             ),
             TestShot(
                 "show1",
                 "seq1",
                 "0020",
-                f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0020",
+                f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_0020",
             ),
             TestShot(
                 "show2",
                 "seq2",
                 "0030",
-                f"{Config.SHOWS_ROOT}/show2/shots/seq2/seq2_0030",
+                f"{Config.Paths.SHOWS_ROOT}/show2/shots/seq2/seq2_0030",
             ),
         ]
 
@@ -164,7 +164,7 @@ class TestShotGridView:
                 "show3",
                 "seq3",
                 "0040",
-                f"{Config.SHOWS_ROOT}/show3/shots/seq3/seq3_0040",
+                f"{Config.Paths.SHOWS_ROOT}/show3/shots/seq3/seq3_0040",
             ),
         ]
 

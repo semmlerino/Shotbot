@@ -316,8 +316,8 @@ class ThumbnailLoader(QObject, Generic[T]):
         pixmap = QPixmap(str(cached_path))
         if not pixmap.isNull():
             pixmap = pixmap.scaled(
-                Config.DEFAULT_THUMBNAIL_SIZE,
-                Config.DEFAULT_THUMBNAIL_SIZE,
+                Config.Thumbnail.DEFAULT_SIZE,
+                Config.Thumbnail.DEFAULT_SIZE,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )

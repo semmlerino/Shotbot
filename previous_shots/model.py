@@ -247,7 +247,7 @@ class PreviousShotsModel(BaseShotModel):
             worker = PreviousShotsWorker(
                 active_shots=active_shots,
                 username=self._finder.username,
-                shows_root=Path(Config.SHOWS_ROOT),  # Use configured shows root
+                shows_root=Path(Config.Paths.SHOWS_ROOT),  # Use configured shows root
                 parent=self,  # Set parent for proper cleanup hierarchy
             )
 

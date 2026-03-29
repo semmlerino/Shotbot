@@ -89,6 +89,6 @@ class TestResolveShowsRoot:
         assert isinstance(result, Path)
 
     def test_resolve_shows_root_none_uses_config(self, mocker) -> None:
-        mocker.patch("config.Config.SHOWS_ROOT", "/default/shows")
+        mocker.patch("config.Config.Paths.SHOWS_ROOT", "/default/shows")
         result = resolve_shows_root(None)
         assert result == Path("/default/shows")

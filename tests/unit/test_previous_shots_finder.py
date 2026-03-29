@@ -141,18 +141,18 @@ class TestPreviousShotsFinder:
         ("path", "expected_shot"),
         [
             pytest.param(
-                f"{Config.SHOWS_ROOT}/testshow/shots/101_ABC/101_ABC_0010/user/testuser",
+                f"{Config.Paths.SHOWS_ROOT}/testshow/shots/101_ABC/101_ABC_0010/user/testuser",
                 ("testshow", "101_ABC", "0010"),
                 id="standard_vfx_structure",
             ),
             pytest.param(
-                f"{Config.SHOWS_ROOT}/feature/shots/seq01/seq01_shot01/user/artist",
+                f"{Config.Paths.SHOWS_ROOT}/feature/shots/seq01/seq01_shot01/user/artist",
                 ("feature", "seq01", "shot01"),
                 id="feature_structure",
             ),
             pytest.param("/invalid/path/structure", None, id="invalid_structure"),
             pytest.param(
-                f"{Config.SHOWS_ROOT}/test/shots/",  # Incomplete path
+                f"{Config.Paths.SHOWS_ROOT}/test/shots/",  # Incomplete path
                 None,
                 id="incomplete_path",
             ),
@@ -174,7 +174,7 @@ class TestPreviousShotsFinder:
             assert shot.shot == shot_name
             # VFX convention: workspace path includes full directory name with sequence prefix
             assert (
-                f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{sequence}_{shot_name}"
+                f"{Config.Paths.SHOWS_ROOT}/{show}/shots/{sequence}/{sequence}_{shot_name}"
                 in shot.workspace_path
             )
 

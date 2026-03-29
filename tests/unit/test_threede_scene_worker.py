@@ -206,13 +206,13 @@ class TestThreeDESceneWorker:
                 "test_show",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010",
+                f"{Config.Paths.SHOWS_ROOT}/test_show/shots/seq01/0010",
             ),
             Shot(
                 "test_show",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0020",
+                f"{Config.Paths.SHOWS_ROOT}/test_show/shots/seq01/0020",
             ),
         ]
 
@@ -309,7 +309,7 @@ class TestThreeDESceneWorker:
                 show="test_show",
                 sequence="seq01",
                 shot="0010",
-                workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/test_show/shots/seq01/0010",
                 user="testuser",
                 plate="plate01",
                 scene_path=Path("/test/path/scene1.3de"),
@@ -318,7 +318,7 @@ class TestThreeDESceneWorker:
                 show="test_show",
                 sequence="seq01",
                 shot="0010",
-                workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/test_show/shots/seq01/0010",
                 user="testuser",
                 plate="plate02",
                 scene_path=Path("/test/path/scene2.3de"),

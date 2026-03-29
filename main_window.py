@@ -235,11 +235,11 @@ class MainWindow(QtWidgetMixin, QMainWindow):
         """Set up the main UI."""
         if is_mock_mode():
             self.setWindowTitle(
-                f"{Config.APP_NAME} v{Config.APP_VERSION} - 🧪 MOCK MODE"
+                f"{Config.App.NAME} v{Config.App.VERSION} - 🧪 MOCK MODE"
             )
         else:
-            self.setWindowTitle(f"{Config.APP_NAME} v{Config.APP_VERSION}")
-        self.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
+            self.setWindowTitle(f"{Config.App.NAME} v{Config.App.VERSION}")
+        self.resize(Config.Window.DEFAULT_WIDTH, Config.Window.DEFAULT_HEIGHT)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)

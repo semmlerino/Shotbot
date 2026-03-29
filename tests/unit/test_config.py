@@ -64,7 +64,7 @@ class TestPlatePriorityValidation:
 
         Regression test for bug where PL was 10 instead of 0.5.
         """
-        priorities = Config.TURNOVER_PLATE_PRIORITY
+        priorities = Config.FileDiscovery.TURNOVER_PLATE_PRIORITY
 
         # Primary plates (use these) - must be ordered correctly
         assert priorities["FG"] < priorities["PL"], (
@@ -93,7 +93,7 @@ class TestPlatePriorityValidation:
         They must have low priority values (high priority) to be
         selected before reference plates.
         """
-        priorities = Config.TURNOVER_PLATE_PRIORITY
+        priorities = Config.FileDiscovery.TURNOVER_PLATE_PRIORITY
 
         primary_plates = ["FG", "PL", "BG"]
         for plate in primary_plates:
@@ -112,7 +112,7 @@ class TestPlatePriorityValidation:
         not be selected for primary workflow. High priority values
         ensure they're skipped in favor of production plates.
         """
-        priorities = Config.TURNOVER_PLATE_PRIORITY
+        priorities = Config.FileDiscovery.TURNOVER_PLATE_PRIORITY
 
         reference_plates = ["BC"]
         for plate in reference_plates:
@@ -130,7 +130,7 @@ class TestPlatePriorityValidation:
         Priority values must be numeric for comparison operations.
         String values or None would cause runtime errors.
         """
-        priorities = Config.TURNOVER_PLATE_PRIORITY
+        priorities = Config.FileDiscovery.TURNOVER_PLATE_PRIORITY
 
         for plate, priority in priorities.items():
             assert isinstance(priority, (int, float)), (
@@ -149,7 +149,7 @@ class TestPathConfigurationValidation:
         Relative paths could cause issues with directory resolution.
         SHOWS_ROOT must be absolute for reliable filesystem operations.
         """
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         path = Path(shows_root)
 
         assert path.is_absolute(), (
@@ -163,7 +163,7 @@ class TestPathConfigurationValidation:
         patterns that could cause filesystem errors.
         """
         # Check SETTINGS_FILE path
-        settings_file = Config.SETTINGS_FILE
+        settings_file = Config.Paths.SETTINGS_FILE
         assert isinstance(settings_file, Path), "SETTINGS_FILE should be Path object"
         assert settings_file.is_absolute(), "SETTINGS_FILE should be absolute path"
         assert ".shotbot" in str(settings_file), (
@@ -177,8 +177,8 @@ class TestPathConfigurationValidation:
         or invalid path construction.
         """
         segment_lists = [
-            ("THUMBNAIL_SEGMENTS", Config.THUMBNAIL_SEGMENTS),
-            ("RAW_PLATE_SEGMENTS", Config.RAW_PLATE_SEGMENTS),
+            ("THUMBNAIL_SEGMENTS", Config.FileDiscovery.THUMBNAIL_SEGMENTS),
+            ("RAW_PLATE_SEGMENTS", Config.FileDiscovery.RAW_PLATE_SEGMENTS),
         ]
 
         for name, segments in segment_lists:
@@ -266,22 +266,22 @@ class TestApplicationConfigurationValidation:
         Missing configuration keys could cause AttributeErrors at runtime.
         """
         # Check basic app info
-        assert hasattr(Config, "APP_NAME"), "Missing APP_NAME"
-        assert hasattr(Config, "APP_VERSION"), "Missing APP_VERSION"
-        assert isinstance(Config.APP_NAME, str), "APP_NAME must be string"
-        assert isinstance(Config.APP_VERSION, str), "APP_VERSION must be string"
-        assert len(Config.APP_NAME) > 0, "APP_NAME cannot be empty"
-        assert len(Config.APP_VERSION) > 0, "APP_VERSION cannot be empty"
+        assert hasattr(Config.App, "NAME"), "Missing App.NAME"
+        assert hasattr(Config.App, "VERSION"), "Missing App.VERSION"
+        assert isinstance(Config.App.NAME, str), "App.NAME must be string"
+        assert isinstance(Config.App.VERSION, str), "App.VERSION must be string"
+        assert len(Config.App.NAME) > 0, "App.NAME cannot be empty"
+        assert len(Config.App.VERSION) > 0, "App.VERSION cannot be empty"
 
         # Check application commands dict
-        assert hasattr(Config, "APPS"), "Missing APPS"
-        assert isinstance(Config.APPS, dict), "APPS must be dictionary"
-        assert len(Config.APPS) > 0, "APPS cannot be empty"
+        assert hasattr(Config.Launch, "APPS"), "Missing Launch.APPS"
+        assert isinstance(Config.Launch.APPS, dict), "Launch.APPS must be dictionary"
+        assert len(Config.Launch.APPS) > 0, "Launch.APPS cannot be empty"
 
         # Check default app exists in APPS
-        assert hasattr(Config, "DEFAULT_APP"), "Missing DEFAULT_APP"
-        assert Config.DEFAULT_APP in Config.APPS, (
-            f"DEFAULT_APP '{Config.DEFAULT_APP}' not in APPS: {list(Config.APPS.keys())}"
+        assert hasattr(Config.Launch, "DEFAULT_APP"), "Missing Launch.DEFAULT_APP"
+        assert Config.Launch.DEFAULT_APP in Config.Launch.APPS, (
+            f"DEFAULT_APP '{Config.Launch.DEFAULT_APP}' not in APPS: {list(Config.Launch.APPS.keys())}"
         )
 
     def test_window_dimensions_are_positive(self) -> None:
@@ -290,10 +290,10 @@ class TestApplicationConfigurationValidation:
         Zero or negative dimensions would cause Qt errors.
         """
         dimensions = [
-            ("DEFAULT_WINDOW_WIDTH", Config.DEFAULT_WINDOW_WIDTH),
-            ("DEFAULT_WINDOW_HEIGHT", Config.DEFAULT_WINDOW_HEIGHT),
-            ("MIN_WINDOW_WIDTH", Config.MIN_WINDOW_WIDTH),
-            ("MIN_WINDOW_HEIGHT", Config.MIN_WINDOW_HEIGHT),
+            ("DEFAULT_WINDOW_WIDTH", Config.Window.DEFAULT_WIDTH),
+            ("DEFAULT_WINDOW_HEIGHT", Config.Window.DEFAULT_HEIGHT),
+            ("MIN_WINDOW_WIDTH", Config.Window.MIN_WIDTH),
+            ("MIN_WINDOW_HEIGHT", Config.Window.MIN_HEIGHT),
         ]
 
         for name, dimension in dimensions:
@@ -305,13 +305,13 @@ class TestApplicationConfigurationValidation:
 
         Default dimensions should be >= minimum dimensions.
         """
-        assert Config.DEFAULT_WINDOW_WIDTH >= Config.MIN_WINDOW_WIDTH, (
-            f"DEFAULT_WINDOW_WIDTH ({Config.DEFAULT_WINDOW_WIDTH}) "
-            f"< MIN_WINDOW_WIDTH ({Config.MIN_WINDOW_WIDTH})"
+        assert Config.Window.DEFAULT_WIDTH >= Config.Window.MIN_WIDTH, (
+            f"DEFAULT_WINDOW_WIDTH ({Config.Window.DEFAULT_WIDTH}) "
+            f"< MIN_WINDOW_WIDTH ({Config.Window.MIN_WIDTH})"
         )
-        assert Config.DEFAULT_WINDOW_HEIGHT >= Config.MIN_WINDOW_HEIGHT, (
-            f"DEFAULT_WINDOW_HEIGHT ({Config.DEFAULT_WINDOW_HEIGHT}) "
-            f"< MIN_WINDOW_HEIGHT ({Config.MIN_WINDOW_HEIGHT})"
+        assert Config.Window.DEFAULT_HEIGHT >= Config.Window.MIN_HEIGHT, (
+            f"DEFAULT_WINDOW_HEIGHT ({Config.Window.DEFAULT_HEIGHT}) "
+            f"< MIN_WINDOW_HEIGHT ({Config.Window.MIN_HEIGHT})"
         )
 
     def test_thumbnail_size_constraints(self) -> None:
@@ -319,19 +319,19 @@ class TestApplicationConfigurationValidation:
 
         Default size must be between min and max values.
         """
-        assert Config.MIN_THUMBNAIL_SIZE < Config.MAX_THUMBNAIL_SIZE, (
-            f"MIN_THUMBNAIL_SIZE ({Config.MIN_THUMBNAIL_SIZE}) "
-            f">= MAX_THUMBNAIL_SIZE ({Config.MAX_THUMBNAIL_SIZE})"
+        assert Config.Thumbnail.MIN_SIZE < Config.Thumbnail.MAX_SIZE, (
+            f"MIN_THUMBNAIL_SIZE ({Config.Thumbnail.MIN_SIZE}) "
+            f">= MAX_THUMBNAIL_SIZE ({Config.Thumbnail.MAX_SIZE})"
         )
         assert (
-            Config.MIN_THUMBNAIL_SIZE
-            <= Config.DEFAULT_THUMBNAIL_SIZE
-            <= Config.MAX_THUMBNAIL_SIZE
+            Config.Thumbnail.MIN_SIZE
+            <= Config.Thumbnail.DEFAULT_SIZE
+            <= Config.Thumbnail.MAX_SIZE
         ), (
-            f"DEFAULT_THUMBNAIL_SIZE ({Config.DEFAULT_THUMBNAIL_SIZE}) "
-            f"not in range [{Config.MIN_THUMBNAIL_SIZE}, {Config.MAX_THUMBNAIL_SIZE}]"
+            f"DEFAULT_THUMBNAIL_SIZE ({Config.Thumbnail.DEFAULT_SIZE}) "
+            f"not in range [{Config.Thumbnail.MIN_SIZE}, {Config.Thumbnail.MAX_SIZE}]"
         )
-        assert Config.CACHE_THUMBNAIL_SIZE > 0, "CACHE_THUMBNAIL_SIZE must be positive"
+        assert Config.Cache.THUMBNAIL_SIZE > 0, "CACHE_THUMBNAIL_SIZE must be positive"
 
 
 class TestMemoryConfigurationValidation:
@@ -344,12 +344,12 @@ class TestMemoryConfigurationValidation:
         cause division by zero errors in memory calculations.
         """
         memory_limits = [
-            ("MAX_THUMBNAIL_MEMORY_MB", Config.MAX_THUMBNAIL_MEMORY_MB),
-            ("MAX_FILE_SIZE_MB", Config.MAX_FILE_SIZE_MB),
-            ("PATH_CACHE_MAX_MEMORY_MB", Config.PATH_CACHE_MAX_MEMORY_MB),
-            ("DIR_CACHE_MAX_MEMORY_MB", Config.DIR_CACHE_MAX_MEMORY_MB),
-            ("SCENE_CACHE_MAX_MEMORY_MB", Config.SCENE_CACHE_MAX_MEMORY_MB),
-            ("THUMB_CACHE_MAX_MEMORY_MB", Config.THUMB_CACHE_MAX_MEMORY_MB),
+            ("MAX_THUMBNAIL_MEMORY_MB", Config.ImageLimits.MAX_THUMBNAIL_MEMORY_MB),
+            ("MAX_FILE_SIZE_MB", Config.ImageLimits.MAX_FILE_SIZE_MB),
+            ("PATH_CACHE_MAX_MEMORY_MB", Config.Cache.PATH_MAX_MEMORY_MB),
+            ("DIR_CACHE_MAX_MEMORY_MB", Config.Cache.DIR_MAX_MEMORY_MB),
+            ("SCENE_CACHE_MAX_MEMORY_MB", Config.Cache.SCENE_MAX_MEMORY_MB),
+            ("THUMB_CACHE_MAX_MEMORY_MB", Config.Cache.THUMB_MAX_MEMORY_MB),
         ]
 
         for name, limit in memory_limits:
@@ -362,9 +362,9 @@ class TestMemoryConfigurationValidation:
         Cache sizes must be positive for LRU eviction to work.
         """
         cache_sizes = [
-            ("PATH_CACHE_MAX_SIZE", Config.PATH_CACHE_MAX_SIZE),
-            ("DIR_CACHE_MAX_SIZE", Config.DIR_CACHE_MAX_SIZE),
-            ("SCENE_CACHE_MAX_SIZE", Config.SCENE_CACHE_MAX_SIZE),
+            ("PATH_CACHE_MAX_SIZE", Config.Cache.PATH_MAX_SIZE),
+            ("DIR_CACHE_MAX_SIZE", Config.Cache.DIR_MAX_SIZE),
+            ("SCENE_CACHE_MAX_SIZE", Config.Cache.SCENE_MAX_SIZE),
         ]
 
         for name, size in cache_sizes:
@@ -381,8 +381,8 @@ class TestThreadConfigurationValidation:
         Zero or negative thread counts would prevent work execution.
         """
         thread_counts = [
-            ("MAX_THUMBNAIL_THREADS", Config.MAX_THUMBNAIL_THREADS),
-            ("CPU_COUNT", Config.CPU_COUNT),
+            ("MAX_THUMBNAIL_THREADS", Config.Threading.MAX_THUMBNAIL_THREADS),
+            ("CPU_COUNT", Config.Threading.CPU_COUNT),
         ]
 
         for name, count in thread_counts:
@@ -435,11 +435,11 @@ class TestFileExtensionConfigurationValidation:
         Extensions without leading dots would fail string matching.
         """
         extension_lists = [
-            ("THUMBNAIL_EXTENSIONS", Config.THUMBNAIL_EXTENSIONS),
-            ("THUMBNAIL_FALLBACK_EXTENSIONS", Config.THUMBNAIL_FALLBACK_EXTENSIONS),
-            ("IMAGE_EXTENSIONS", Config.IMAGE_EXTENSIONS),
-            ("NUKE_EXTENSIONS", Config.NUKE_EXTENSIONS),
-            ("THREEDE_EXTENSIONS", Config.THREEDE_EXTENSIONS),
+            ("THUMBNAIL_EXTENSIONS", Config.FileDiscovery.THUMBNAIL_EXTENSIONS),
+            ("THUMBNAIL_FALLBACK_EXTENSIONS", Config.FileDiscovery.THUMBNAIL_FALLBACK_EXTENSIONS),
+            ("IMAGE_EXTENSIONS", Config.FileDiscovery.IMAGE_EXTENSIONS),
+            ("NUKE_EXTENSIONS", Config.FileDiscovery.NUKE_EXTENSIONS),
+            ("THREEDE_EXTENSIONS", Config.FileDiscovery.THREEDE_EXTENSIONS),
         ]
 
         for name, extensions in extension_lists:
@@ -459,8 +459,8 @@ class TestFileExtensionConfigurationValidation:
         Primary extensions should be JPG/PNG for fast loading.
         Heavy formats (EXR/TIFF) should only be in fallback list.
         """
-        primary = Config.THUMBNAIL_EXTENSIONS
-        fallback = Config.THUMBNAIL_FALLBACK_EXTENSIONS
+        primary = Config.FileDiscovery.THUMBNAIL_EXTENSIONS
+        fallback = Config.FileDiscovery.THUMBNAIL_FALLBACK_EXTENSIONS
 
         # Primary should contain only lightweight formats
         lightweight = {".jpg", ".jpeg", ".png"}
@@ -487,7 +487,7 @@ class TestProgressConfigurationValidation:
         """
         intervals = [
             ("PROGRESS_UPDATE_INTERVAL_MS", TimeoutConfig.PROGRESS_UPDATE_INTERVAL_MS),
-            ("PROGRESS_ETA_SMOOTHING_WINDOW", Config.PROGRESS_ETA_SMOOTHING_WINDOW),
+            ("PROGRESS_ETA_SMOOTHING_WINDOW", Config.UI.PROGRESS_ETA_SMOOTHING_WINDOW),
         ]
 
         for name, interval in intervals:

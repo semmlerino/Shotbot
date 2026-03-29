@@ -87,7 +87,7 @@ class TestThreeDEGridViewInitialization:
         # Note: threede_grid._threede_model is an ItemModel wrapper
         assert threede_grid._threede_model is not None
         assert threede_grid.selected_scene is None
-        assert threede_grid._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
+        assert threede_grid._thumbnail_size == Config.Thumbnail.DEFAULT_SIZE
         assert threede_grid.is_loading is False
 
     def test_ui_setup(self, threede_grid) -> None:
@@ -100,8 +100,8 @@ class TestThreeDEGridViewInitialization:
         # Check initial states
         assert threede_grid.loading_bar.isVisible() is False
         assert threede_grid.loading_label.isVisible() is False
-        assert threede_grid.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE
-        assert threede_grid.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px"
+        assert threede_grid.size_slider.value() == Config.Thumbnail.DEFAULT_SIZE
+        assert threede_grid.size_label.text() == f"{Config.Thumbnail.DEFAULT_SIZE}px"
 
     def test_focus_policy(self, threede_grid) -> None:
         """Test widget has proper focus policy."""
@@ -161,9 +161,9 @@ class TestThreeDEGridViewSizeControl:
 
     def test_size_slider_range(self, threede_grid) -> None:
         """Test size slider configuration."""
-        assert threede_grid.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE
-        assert threede_grid.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE
-        assert threede_grid.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE
+        assert threede_grid.size_slider.minimum() == Config.Thumbnail.MIN_SIZE
+        assert threede_grid.size_slider.maximum() == Config.Thumbnail.MAX_SIZE
+        assert threede_grid.size_slider.value() == Config.Thumbnail.DEFAULT_SIZE
 
     def test_size_slider_exists(self, threede_grid) -> None:
         """Test size slider is properly connected."""

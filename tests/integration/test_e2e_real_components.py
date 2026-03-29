@@ -181,7 +181,7 @@ class TestPreviousShootsCacheIntegration:
         # TestShotModel has real methods, not mocked ones
         # Add shots directly to the model
         test_shot = TestShot("active_show", "seq1", "shot1")
-        test_shot.workspace_path = f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"
+        test_shot.workspace_path = f"{Config.Paths.SHOWS_ROOT}/active_show/shots/seq1/shot1"
         mock_model.add_shot(test_shot)
         return mock_model
 
@@ -209,10 +209,10 @@ class TestPreviousShootsCacheIntegration:
         # Original shots from model
         original_shots = [
             Shot(
-                "show1", "seq1", "shot1", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot1"
+                "show1", "seq1", "shot1", f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/shot1"
             ),
             Shot(
-                "show1", "seq1", "shot2", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot2"
+                "show1", "seq1", "shot2", f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/shot2"
             ),
         ]
 
@@ -387,7 +387,7 @@ class TestPreviousShootsCachePerformance:
                 "show": f"show_{i:03d}",
                 "sequence": f"seq_{j:03d}",
                 "shot": f"shot_{k:04d}",
-                "workspace_path": f"{Config.SHOWS_ROOT}/show_{i:03d}/shots/seq_{j:03d}/shot_{k:04d}",
+                "workspace_path": f"{Config.Paths.SHOWS_ROOT}/show_{i:03d}/shots/seq_{j:03d}/shot_{k:04d}",
             }
             for i in range(10)  # 10 shows
             for j in range(5)  # 5 sequences per show

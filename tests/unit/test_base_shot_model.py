@@ -51,13 +51,13 @@ class TestBaseShotModelInitialization:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
         shot_cache.cache_shots(test_shots)
@@ -78,7 +78,7 @@ class TestBaseShotModelInitialization:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             )
         ]
         shot_cache.cache_shots(test_shots)
@@ -100,13 +100,13 @@ class TestCacheLoading:
                 "SHOW1",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010",
             ),
             Shot(
                 "SHOW1",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0020",
             ),
         ]
         shot_cache.cache_shots(test_shots)
@@ -153,7 +153,7 @@ class TestCacheLoading:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             )
         ]
         shot_cache.cache_shots(test_shots)
@@ -175,13 +175,13 @@ class TestChangeDetection:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
         model.shots = shots
@@ -199,7 +199,7 @@ class TestChangeDetection:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
         ]
 
@@ -208,13 +208,13 @@ class TestChangeDetection:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
 
@@ -230,13 +230,13 @@ class TestChangeDetection:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
 
@@ -245,7 +245,7 @@ class TestChangeDetection:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
         ]
 
@@ -261,7 +261,7 @@ class TestChangeDetection:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
         ]
 
@@ -270,7 +270,7 @@ class TestChangeDetection:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01_new/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01_new/seq01_0010",
             ),
         ]
 
@@ -290,7 +290,7 @@ class TestShotManagement:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             )
         ]
         model.shots = test_shots
@@ -308,13 +308,13 @@ class TestShotManagement:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
 
@@ -325,10 +325,10 @@ class TestShotManagement:
         model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         shot1 = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         shot2 = Shot(
-            "TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"
+            "TEST", "seq01", "0020", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"
         )
         model.shots = [shot1, shot2]
 
@@ -344,7 +344,7 @@ class TestShotManagement:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             )
         ]
 
@@ -364,13 +364,13 @@ class TestPerformanceMetrics:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
 

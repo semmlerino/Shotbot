@@ -198,7 +198,7 @@ class ShotSelectionController(QObject):
             self.window.right_panel.set_available_plates([])
 
             # Reset window title
-            self.window.setWindowTitle(Config.APP_NAME)
+            self.window.setWindowTitle(Config.App.NAME)
 
             # Update status
             self.window.update_status("No shot selected")
@@ -215,7 +215,7 @@ class ShotSelectionController(QObject):
 
             # Update window title
             self.window.setWindowTitle(
-                f"{Config.APP_NAME} - {shot.full_name} ({shot.show})"
+                f"{Config.App.NAME} - {shot.full_name} ({shot.show})"
             )
 
             # Update status
@@ -237,7 +237,7 @@ class ShotSelectionController(QObject):
         """Handle shot double click - launch default app."""
         from launch.launch_request import LaunchRequest
 
-        _ = self._command_launcher.launch(LaunchRequest(app_name=Config.DEFAULT_APP))
+        _ = self._command_launcher.launch(LaunchRequest(app_name=Config.Launch.DEFAULT_APP))
 
     @Slot(object)  # pyright: ignore[reportAny]
     def _on_discovery_complete(self, result: dict[str, object]) -> None:

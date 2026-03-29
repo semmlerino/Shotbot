@@ -311,7 +311,7 @@ class SceneDiscoveryCoordinator:
         """Resolve the shows root directory from the first shot's workspace path.
 
         Walks up the workspace path looking for a directory named "shows" or
-        a directory that contains SHOW/shots. Falls back to Config.SHOWS_ROOT.
+        a directory that contains SHOW/shots. Falls back to Config.Paths.SHOWS_ROOT.
 
         Args:
             user_shots: List of Shot objects to inspect.
@@ -327,7 +327,7 @@ class SceneDiscoveryCoordinator:
         from config import Config
 
         if not user_shots or not user_shots[0].workspace_path:
-            return Config.SHOWS_ROOT
+            return Config.Paths.SHOWS_ROOT
 
         workspace_path = Path(user_shots[0].workspace_path)
         for parent in workspace_path.parents:
@@ -337,7 +337,7 @@ class SceneDiscoveryCoordinator:
             ):
                 return str(parent)
 
-        return Config.SHOWS_ROOT
+        return Config.Paths.SHOWS_ROOT
 
     # Static method to avoid capturing `self` in thread pool executor callbacks.
     @staticmethod

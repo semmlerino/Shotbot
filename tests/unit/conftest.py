@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture(autouse=True)
 def mock_shows_root(monkeypatch: pytest.MonkeyPatch) -> str:
-    """Mock Config.SHOWS_ROOT for VFX path testing.
+    """Mock Config.Paths.SHOWS_ROOT for VFX path testing.
 
     Sets SHOWS_ROOT to /shows, which:
     1. Doesn't exist on dev machines (preventing filesystem access)
@@ -37,7 +37,7 @@ def mock_shows_root(monkeypatch: pytest.MonkeyPatch) -> str:
         Config,
     )
 
-    monkeypatch.setattr(Config, "SHOWS_ROOT", "/shows")
+    monkeypatch.setattr(Config.Paths, "SHOWS_ROOT", "/shows")
     return "/shows"
 
 

@@ -186,7 +186,7 @@ class TestParseShotFromPath:
         """Test parsing standard VFX shot path."""
         finder = TargetedShotsFinder()
 
-        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010/user/john"
+        path = f"{Config.Paths.SHOWS_ROOT}/test_show/shots/010/010_0010/user/john"
         shot = finder._parse_shot_from_path(path)
 
         assert shot is not None
@@ -194,14 +194,14 @@ class TestParseShotFromPath:
         assert shot.sequence == "010"
         assert shot.shot == "0010"  # Should extract shot number
         assert (
-            shot.workspace_path == f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010"
+            shot.workspace_path == f"{Config.Paths.SHOWS_ROOT}/test_show/shots/010/010_0010"
         )
 
     def test_parse_path_without_underscore(self) -> None:
         """Test parsing path where shot dir has no underscore."""
         finder = TargetedShotsFinder()
 
-        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
+        path = f"{Config.Paths.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
         shot = finder._parse_shot_from_path(path)
 
         assert shot is not None
@@ -211,7 +211,7 @@ class TestParseShotFromPath:
         """Test parsing path with complex shot name."""
         finder = TargetedShotsFinder()
 
-        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010_extra/user/john"
+        path = f"{Config.Paths.SHOWS_ROOT}/test_show/shots/010/010_0010_extra/user/john"
         shot = finder._parse_shot_from_path(path)
 
         assert shot is not None
@@ -430,7 +430,7 @@ class TestGetShotDetails:
             show="test_show",
             sequence="010",
             shot="0010",
-            workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/010/0010",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/test_show/shots/010/0010",
         )
 
         details = finder.get_shot_details(shot)
@@ -439,11 +439,11 @@ class TestGetShotDetails:
         assert details["sequence"] == "010"
         assert details["shot"] == "0010"
         assert (
-            details["workspace_path"] == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010"
+            details["workspace_path"] == f"{Config.Paths.SHOWS_ROOT}/test_show/shots/010/0010"
         )
         assert (
             details["user_path"]
-            == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
+            == f"{Config.Paths.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
         )
         assert (
             details["status"] == "unknown"

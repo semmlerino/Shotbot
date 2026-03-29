@@ -259,16 +259,16 @@ class TestNukeLaunchHandler:
 
     def test_get_environment_fixes_disabled(self, mocker, nuke_handler) -> None:
         """Test environment fixes when disabled."""
-        mocker.patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", False)
+        mocker.patch("nuke.launch_handler.Config.DCC.NUKE_FIX_OCIO_CRASH", False)
         fixes = nuke_handler.get_environment_fixes()
         assert fixes == ""
 
     def test_get_environment_fixes_with_problematic_plugins(self, mocker, nuke_handler) -> None:
         """Test environment fixes with problematic plugin paths."""
-        mocker.patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True)
-        mocker.patch("nuke.launch_handler.Config.NUKE_SKIP_PROBLEMATIC_PLUGINS", True)
+        mocker.patch("nuke.launch_handler.Config.DCC.NUKE_FIX_OCIO_CRASH", True)
+        mocker.patch("nuke.launch_handler.Config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS", True)
         mocker.patch(
-            "nuke.launch_handler.Config.NUKE_PROBLEMATIC_PLUGIN_PATHS",
+            "nuke.launch_handler.Config.DCC.NUKE_PROBLEMATIC_PLUGIN_PATHS",
             ["/bad/plugin1", "/bad/plugin2"],
         )
         fixes = nuke_handler.get_environment_fixes()
@@ -279,9 +279,9 @@ class TestNukeLaunchHandler:
 
     def test_get_environment_fixes_with_ocio_fallback(self, mocker, nuke_handler) -> None:
         """Test environment fixes with OCIO fallback config."""
-        mocker.patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True)
+        mocker.patch("nuke.launch_handler.Config.DCC.NUKE_FIX_OCIO_CRASH", True)
         mocker.patch(
-            "nuke.launch_handler.Config.NUKE_OCIO_FALLBACK_CONFIG",
+            "nuke.launch_handler.Config.DCC.NUKE_OCIO_FALLBACK_CONFIG",
             "/test/ocio/config.ocio",
         )
         mock_exists = mocker.patch("pathlib.Path.exists")

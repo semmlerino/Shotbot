@@ -120,7 +120,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, QWidget):
         super().__init__(parent)
 
         # Common properties
-        self._thumbnail_size: int = Config.DEFAULT_THUMBNAIL_SIZE
+        self._thumbnail_size: int = Config.Thumbnail.DEFAULT_SIZE
         self._model: QAbstractItemModel | None = None
 
         # Scrub preview bridge
@@ -155,8 +155,8 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, QWidget):
 
         # Size slider (compact, no label)
         self.size_slider: QSlider = QSlider(Qt.Orientation.Horizontal)
-        self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
-        self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
+        self.size_slider.setMinimum(Config.Thumbnail.MIN_SIZE)
+        self.size_slider.setMaximum(Config.Thumbnail.MAX_SIZE)
         self.size_slider.setValue(self._thumbnail_size)
         self.size_slider.setFixedWidth(120)
         self.size_slider.setToolTip("Thumbnail size")
@@ -228,7 +228,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, QWidget):
         self.list_view.setLayoutMode(QListView.LayoutMode.Batched)
         self.list_view.setBatchSize(20)
         self.list_view.setUniformItemSizes(True)
-        self.list_view.setSpacing(Config.THUMBNAIL_SPACING)
+        self.list_view.setSpacing(Config.Thumbnail.SPACING)
 
         # Set selection behavior
         self.list_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -463,7 +463,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, QWidget):
         text_height = self._delegate.theme.text_height
         item_width = self._thumbnail_size + 2 * padding
         # Calculate height based on 16:9 aspect ratio for plate images
-        thumbnail_height = int(self._thumbnail_size / Config.THUMBNAIL_ASPECT_RATIO)
+        thumbnail_height = int(self._thumbnail_size / Config.Thumbnail.ASPECT_RATIO)
         item_height = thumbnail_height + text_height + 2 * padding
 
         # Set grid size on the view
@@ -602,9 +602,9 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, QWidget):
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             delta = event.angleDelta().y()
             if delta > 0:
-                new_size = min(self._thumbnail_size + 10, Config.MAX_THUMBNAIL_SIZE)
+                new_size = min(self._thumbnail_size + 10, Config.Thumbnail.MAX_SIZE)
             else:
-                new_size = max(self._thumbnail_size - 10, Config.MIN_THUMBNAIL_SIZE)
+                new_size = max(self._thumbnail_size - 10, Config.Thumbnail.MIN_SIZE)
 
             self.size_slider.setValue(new_size)
             event.accept()

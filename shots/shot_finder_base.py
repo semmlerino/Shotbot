@@ -246,7 +246,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         try:
             return find_shot_thumbnail(
-                Config.SHOWS_ROOT,
+                Config.Paths.SHOWS_ROOT,
                 shot.show,
                 shot.sequence,
                 shot.shot,

@@ -88,7 +88,7 @@ def make_shot() -> Callable[[str, str, str], Shot]:
 
         # Use correct VFX path format
         return Shot(
-            show, seq, shot, f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
+            show, seq, shot, f"{Config.Paths.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
         )
 
     return _make
@@ -293,7 +293,7 @@ class TestCommonViewBehavior:
 
         # Should decrease but not below initial
         assert view._thumbnail_size < view.size_slider.value() + 10
-        assert view._thumbnail_size >= Config.MIN_THUMBNAIL_SIZE
+        assert view._thumbnail_size >= Config.Thumbnail.MIN_SIZE
 
         # Test without Ctrl (should not change size)
         current_size = view._thumbnail_size
@@ -332,11 +332,11 @@ class TestCommonViewBehavior:
         qtbot.wait(1)  # Minimal event processing
 
         # Test initial setup
-        assert view.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE
-        assert view.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE
-        assert view.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE
-        assert view._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
-        assert view.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px"
+        assert view.size_slider.minimum() == Config.Thumbnail.MIN_SIZE
+        assert view.size_slider.maximum() == Config.Thumbnail.MAX_SIZE
+        assert view.size_slider.value() == Config.Thumbnail.DEFAULT_SIZE
+        assert view._thumbnail_size == Config.Thumbnail.DEFAULT_SIZE
+        assert view.size_label.text() == f"{Config.Thumbnail.DEFAULT_SIZE}px"
 
         # Test value change through slider (use a valid value within range)
         new_size = 500  # Between MIN (400) and MAX (1200)
@@ -349,17 +349,17 @@ class TestCommonViewBehavior:
         assert view.size_label.text() == f"{new_size}px"
 
         # Test boundary values
-        view.size_slider.setValue(Config.MIN_THUMBNAIL_SIZE)
+        view.size_slider.setValue(Config.Thumbnail.MIN_SIZE)
         qtbot.waitUntil(
-            lambda: view._thumbnail_size == Config.MIN_THUMBNAIL_SIZE, timeout=1000
+            lambda: view._thumbnail_size == Config.Thumbnail.MIN_SIZE, timeout=1000
         )
-        assert view._thumbnail_size == Config.MIN_THUMBNAIL_SIZE
+        assert view._thumbnail_size == Config.Thumbnail.MIN_SIZE
 
-        view.size_slider.setValue(Config.MAX_THUMBNAIL_SIZE)
+        view.size_slider.setValue(Config.Thumbnail.MAX_SIZE)
         qtbot.waitUntil(
-            lambda: view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE, timeout=1000
+            lambda: view._thumbnail_size == Config.Thumbnail.MAX_SIZE, timeout=1000
         )
-        assert view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE
+        assert view._thumbnail_size == Config.Thumbnail.MAX_SIZE
 
         # Ensure all events are processed before cleanup
         qtbot.wait(1)  # Minimal event processing

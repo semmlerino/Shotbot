@@ -68,7 +68,7 @@ class ProgressCalculator:
 
         """
         super().__init__()
-        self.smoothing_window = smoothing_window or Config.PROGRESS_ETA_SMOOTHING_WINDOW
+        self.smoothing_window = smoothing_window or Config.UI.PROGRESS_ETA_SMOOTHING_WINDOW
         self.start_time = time.time()
         self.last_update_time = self.start_time
         self.processing_times: deque[float] = deque(maxlen=self.smoothing_window)

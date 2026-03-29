@@ -272,7 +272,7 @@ class SettingsController:
         if reply == QMessageBox.StandardButton.Yes:
             # Reset window size - call with both width and height
             self.window.resize(
-                Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT
+                Config.Window.DEFAULT_WIDTH, Config.Window.DEFAULT_HEIGHT
             )
 
             # Reset splitter

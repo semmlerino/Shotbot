@@ -155,10 +155,10 @@ class TestFileUtils:
 
         result = FileUtils.get_first_image_file(tmp_path)
 
-        # Should return the highest priority extension from Config.IMAGE_EXTENSIONS
+        # Should return the highest priority extension from Config.FileDiscovery.IMAGE_EXTENSIONS
         assert result is not None
         assert result.exists()
-        assert result.suffix.lower() in [ext.lower() for ext in Config.IMAGE_EXTENSIONS]
+        assert result.suffix.lower() in [ext.lower() for ext in Config.FileDiscovery.IMAGE_EXTENSIONS]
 
     def test_get_first_image_file_no_images(self, tmp_path: Path) -> None:
         """Test finding first image when no images exist."""
@@ -397,8 +397,8 @@ class TestImageUtils:
 
     def test_validate_image_dimensions_uses_config_defaults(self, mocker) -> None:
         """Test that image validation uses config defaults when not specified."""
-        mocker.patch.object(Config, "MAX_THUMBNAIL_DIMENSION_PX", 2048)
-        mocker.patch.object(Config, "MAX_THUMBNAIL_MEMORY_MB", 10)
+        mocker.patch.object(Config.ImageLimits, "MAX_THUMBNAIL_DIMENSION_PX", 2048)
+        mocker.patch.object(Config.ImageLimits, "MAX_THUMBNAIL_MEMORY_MB", 10)
         result = ImageUtils.validate_image_dimensions(1920, 1080)
         assert result is True
 
@@ -418,7 +418,7 @@ class TestImageUtils:
     ) -> None:
         """Test safe thumbnail dimensions with explicit size and config default."""
         if config_override is not None:
-            mocker.patch.object(Config, "CACHE_THUMBNAIL_SIZE", config_override)
+            mocker.patch.object(Config.Cache, "THUMBNAIL_SIZE", config_override)
             result = ImageUtils.get_safe_dimensions_for_thumbnail()
         else:
             result = ImageUtils.get_safe_dimensions_for_thumbnail(explicit_size)

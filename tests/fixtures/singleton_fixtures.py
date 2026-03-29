@@ -540,7 +540,7 @@ def reset_caches(request: pytest.FixtureRequest) -> Iterator[None]:
     - Clear all utility caches (in-memory)
     - Clear disk cache files (shots.json, etc.) - unless @persistent_cache marker
     - Re-enable caching (in case previous test disabled it)
-    - Reset Config.SHOWS_ROOT
+    - Reset Config.Paths.SHOWS_ROOT
     - Clear OptimizedShotParser pattern cache
 
     After test:
@@ -574,13 +574,13 @@ def reset_caches(request: pytest.FixtureRequest) -> Iterator[None]:
     # Clear config files to prevent test contamination within worker
     _clear_config_files()
 
-    # Reset Config.SHOWS_ROOT
+    # Reset Config.Paths.SHOWS_ROOT
     try:
         from config import Config
 
-        Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
+        Config.Paths.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
     except (RuntimeError, AttributeError, ImportError) as e:
-        _isolation_logger.debug("Config.SHOWS_ROOT reset before-test exception: %s", e)
+        _isolation_logger.debug("Config.Paths.SHOWS_ROOT reset before-test exception: %s", e)
         if STRICT_CLEANUP:
             raise
 

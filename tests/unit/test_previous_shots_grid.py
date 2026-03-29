@@ -464,7 +464,7 @@ class TestPreviousShotsView:
         # Calculate expected columns based on widget width
         available_width = grid_widget.width()
         expected_columns = max(
-            1, available_width // (Config.DEFAULT_THUMBNAIL_SIZE + 20)
+            1, available_width // (Config.Thumbnail.DEFAULT_SIZE + 20)
         )
 
         # Verify layout (Model/View manages layout automatically)

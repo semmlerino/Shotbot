@@ -79,8 +79,8 @@ class GeneralSettingsPanel(QWidget):
 
         # Thumbnail size
         self.thumbnail_size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.thumbnail_size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
-        self.thumbnail_size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
+        self.thumbnail_size_slider.setMinimum(Config.Thumbnail.MIN_SIZE)
+        self.thumbnail_size_slider.setMaximum(Config.Thumbnail.MAX_SIZE)
         self.thumbnail_size_slider.setTickInterval(50)
         self.thumbnail_size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
 
@@ -358,7 +358,7 @@ class ApplicationsSettingsPanel(QWidget):
 
         # Default app selection
         self.default_app_combo = QComboBox()
-        self.default_app_combo.addItems(list(Config.APPS.keys()))
+        self.default_app_combo.addItems(list(Config.Launch.APPS.keys()))
         default_layout.addRow("Default App:", self.default_app_combo)
 
         # Background GUI apps (close terminal immediately)
@@ -428,13 +428,13 @@ class ApplicationsSettingsPanel(QWidget):
 
         # Create rows for each file type
         row = 1
-        for file_type in Config.APPS:
+        for file_type in Config.Launch.APPS:
             # File type label
             layout.addWidget(QLabel(file_type.upper()), row, 0)
 
             # Application combo
             combo = QComboBox()
-            combo.addItems(list(Config.APPS.values()))
+            combo.addItems(list(Config.Launch.APPS.values()))
             combo.setEditable(True)  # Allow custom applications
             self.association_combos[file_type] = combo
             layout.addWidget(combo, row, 1)

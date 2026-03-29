@@ -93,13 +93,13 @@ class TestRowCount:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
         model.set_items(shots)
@@ -114,7 +114,7 @@ class TestRowCount:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             )
         ]
         model.set_items(shots)
@@ -138,7 +138,7 @@ class TestDataMethod:
             (BaseItemRole.FullNameRole, "seq01_0010"),
             (
                 BaseItemRole.WorkspacePathRole,
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             (BaseItemRole.LoadingStateRole, "idle"),
         ],
@@ -159,7 +159,7 @@ class TestDataMethod:
         """Test data() returns correct value for each role."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -175,7 +175,7 @@ class TestDataMethod:
         """Test SizeHintRole returns QSize."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -199,7 +199,7 @@ class TestDataMethod:
         """Test data() returns None for invalid or out-of-range index."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -216,7 +216,7 @@ class TestFlags:
         """Test flags for valid index."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -241,7 +241,7 @@ class TestSetData:
         """Test setting loading state."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -263,7 +263,7 @@ class TestVisibleRange:
                 "TEST",
                 "seq01",
                 f"{i:04d}",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_{i:04d}",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_{i:04d}",
             )
             for i in range(10, 60, 10)
         ]
@@ -282,13 +282,13 @@ class TestVisibleRange:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
         model.set_items(shots)
@@ -315,7 +315,7 @@ class TestThumbnailCache:
         """Test clearing thumbnail cache."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -332,7 +332,7 @@ class TestThumbnailCache:
         """Test getting cached thumbnail pixmap."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -350,7 +350,7 @@ class TestThumbnailCache:
         """Test getting thumbnail pixmap when not cached."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -372,13 +372,13 @@ class TestSetItems:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
         ]
         model.set_items(shots)
@@ -390,10 +390,10 @@ class TestSetItems:
         """Test setting items preserves thumbnails for items still present."""
         model = ConcreteTestModel()
         shot1 = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         shot2 = Shot(
-            "TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"
+            "TEST", "seq01", "0020", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"
         )
         model.set_items([shot1, shot2])
 
@@ -405,7 +405,7 @@ class TestSetItems:
 
         # Set new items - shot1 preserved, shot2 removed
         shot3 = Shot(
-            "TEST", "seq02", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq02/seq02_0010"
+            "TEST", "seq02", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq02/seq02_0010"
         )
         model.set_items([shot1, shot3])
 
@@ -436,19 +436,19 @@ class TestSetItems:
                 "TEST",
                 "seq01",
                 "0010",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0020",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
             ),
             Shot(
                 "TEST",
                 "seq01",
                 "0030",
-                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0030",
+                f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0030",
             ),
         ]
         model.set_items(shots)
@@ -499,7 +499,7 @@ class TestSetItems:
                     show=f"show{i}",
                     sequence=f"seq{i % 10:02d}",
                     shot=f"{i:04d}",
-                    workspace_path=f"{Config.SHOWS_ROOT}/show{i}/shots/seq{i % 10:02d}/seq{i % 10:02d}_{i:04d}",
+                    workspace_path=f"{Config.Paths.SHOWS_ROOT}/show{i}/shots/seq{i % 10:02d}/seq{i % 10:02d}_{i:04d}",
                 )
                 for i in range(106)
             ]
@@ -561,7 +561,7 @@ class TestGetItemAtIndex:
         """Test getting item at valid index."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 
@@ -583,7 +583,7 @@ class TestGetItemAtIndex:
         """Test get_item_at_index returns None for invalid or out-of-range index."""
         model = ConcreteTestModel()
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         model.set_items([shot])
 

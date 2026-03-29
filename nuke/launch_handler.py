@@ -28,24 +28,24 @@ class NukeLaunchHandler:
             String containing bash export statements for environment fixes
 
         """
-        if not Config.NUKE_FIX_OCIO_CRASH:
+        if not Config.DCC.NUKE_FIX_OCIO_CRASH:
             return ""
 
         env_exports: list[str] = []
 
         # Skip problematic plugin paths by modifying NUKE_PATH at runtime
         if (
-            Config.NUKE_SKIP_PROBLEMATIC_PLUGINS
-            and Config.NUKE_PROBLEMATIC_PLUGIN_PATHS
+            Config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS
+            and Config.DCC.NUKE_PROBLEMATIC_PLUGIN_PATHS
         ):
             logger.info(
-                f"Setting up runtime filter for {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
+                f"Setting up runtime filter for {len(Config.DCC.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
                 f"plugin paths in NUKE_PATH"
             )
 
             # Build grep patterns for all problematic paths
             grep_patterns: list[str] = []
-            for problematic_path in Config.NUKE_PROBLEMATIC_PLUGIN_PATHS:
+            for problematic_path in Config.DCC.NUKE_PROBLEMATIC_PLUGIN_PATHS:
                 # Escape special characters for grep
                 escaped_path = problematic_path.replace(".", r"\.")
                 grep_patterns.append(f'-e "{escaped_path}"')
@@ -63,9 +63,9 @@ class NukeLaunchHandler:
             logger.debug(f"Generated runtime NUKE_PATH filter: {filter_command}")
 
         # Set fallback OCIO configuration if the default one might be problematic
-        if Config.NUKE_OCIO_FALLBACK_CONFIG:
+        if Config.DCC.NUKE_OCIO_FALLBACK_CONFIG:
             # Check if a fallback config exists
-            fallback_config = Config.NUKE_OCIO_FALLBACK_CONFIG
+            fallback_config = Config.DCC.NUKE_OCIO_FALLBACK_CONFIG
             if Path(fallback_config).exists():
                 env_exports.append(f'export OCIO="{fallback_config}"')
                 logger.info(f"Using fallback OCIO config: {fallback_config}")

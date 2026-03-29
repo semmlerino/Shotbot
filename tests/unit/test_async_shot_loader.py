@@ -39,12 +39,12 @@ class TestAsyncShotLoader:
             Tuple of (pool, tmp_path) so loader fixture can use same tmp_path
 
         Note:
-            Uses tmp_path directly in outputs (not Config.SHOWS_ROOT) to ensure
+            Uses tmp_path directly in outputs (not Config.Paths.SHOWS_ROOT) to ensure
             the paths always match what the parser expects after monkeypatch.
         """
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", str(tmp_path))
         pool = TestProcessPool(allow_main_thread=True)
-        # Use tmp_path directly - don't read Config.SHOWS_ROOT which might
+        # Use tmp_path directly - don't read Config.Paths.SHOWS_ROOT which might
         # not reflect the monkeypatch in some edge cases
         pool.set_outputs(
             f"workspace {tmp_path}/TEST/shots/seq01/TEST_seq01_0010\n"
@@ -60,7 +60,7 @@ class TestAsyncShotLoader:
 
         # Ensure SHOWS_ROOT matches the test_process_pool's tmp_path
         # This is critical for path validation in _parse_ws_output
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(test_tmp_path))
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", str(test_tmp_path))
 
         # Create BaseShotModel instance to get the parse function
         # Use isolated shot_cache from fixture
@@ -125,7 +125,7 @@ class TestAsyncShotLoader:
         # Create slow process pool
         slow_pool = TestProcessPool(allow_main_thread=True)
         slow_pool.simulated_delay = 0.1  # Simulate slow operation
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         slow_pool.set_outputs(
             f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010"
         )
@@ -159,7 +159,7 @@ class TestAsyncShotLoader:
 
     def test_concurrent_loader_instances(self, qtbot, shot_cache) -> None:
         """Test multiple AsyncShotLoader instances don't interfere."""
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         pool1 = TestProcessPool(allow_main_thread=True)
         pool1.set_outputs(f"workspace {shows_root}/SHOW1/shots/seq01/SHOW1_seq01_0010")
 
@@ -216,7 +216,7 @@ class TestShotModelSignals:
 
         # Use TestProcessPool boundary mock to avoid real subprocess
         test_pool = TestProcessPool(allow_main_thread=True)
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         test_pool.set_outputs(
             f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010"
         )
@@ -259,7 +259,7 @@ class TestShotModelSignals:
 
         # Use TestProcessPool with different data (simulating workspace change)
         test_pool = TestProcessPool(allow_main_thread=True)
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         # New data is different from initial shots (NEW shot instead of OLD)
         test_pool.set_outputs(f"workspace {shows_root}/NEW/shots/seq01/NEW_seq01_0010")
         optimized_model._process_pool = test_pool
@@ -296,7 +296,7 @@ class TestShotModelSignals:
 
         # Set up test process pool with shot data
         test_pool = TestProcessPool(allow_main_thread=True)
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         test_pool.set_outputs(
             f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010\n"
             f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0020"

@@ -101,7 +101,7 @@ class TestCommandLauncher:
     def test_shot(self) -> Shot:
         """Create a test shot."""
         return Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
 
     @pytest.fixture
@@ -111,7 +111,7 @@ class TestCommandLauncher:
             show="TEST",
             sequence="seq01",
             shot="0010",
-            workspace_path=f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             user="testuser",
             plate="plate_v001",
             scene_path=Path("/path/to/scene.3de"),
@@ -186,7 +186,7 @@ class TestCommandLauncher:
             show="TEST",
             sequence="seq01",
             shot="0010",
-            workspace_path=f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             user="testuser",
             plate="FG01",
             scene_path=Path("/path/to/scene.nk"),
@@ -437,7 +437,7 @@ class TestCommandLauncherSignals:
     def test_signal_data_format(self, mocker, launcher: CommandLauncher, qtbot: QtBot) -> None:
         """Test basic launcher functionality."""
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         launcher.set_current_shot(shot)
 
@@ -482,10 +482,10 @@ class TestScriptsDirValidation:
         launcher: CommandLauncher,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Nuke launch fails when Config.SCRIPTS_DIR doesn't exist."""
-        monkeypatch.setattr(Config, "SCRIPTS_DIR", "/nonexistent/scripts")
+        """Nuke launch fails when Config.Paths.SCRIPTS_DIR doesn't exist."""
+        monkeypatch.setattr(Config.Paths, "SCRIPTS_DIR", "/nonexistent/scripts")
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         launcher.set_current_shot(shot)
 
@@ -500,7 +500,7 @@ class TestScriptsDirValidation:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Launch proceeds with warning when hook file is missing but dir exists."""
-        monkeypatch.setattr(Config, "SCRIPTS_DIR", str(tmp_path))
+        monkeypatch.setattr(Config.Paths, "SCRIPTS_DIR", str(tmp_path))
         # tmp_path exists but has no init.py
 
         result = launcher._validate_scripts_dir("nuke")
@@ -515,9 +515,9 @@ class TestScriptsDirValidation:
         qtbot: QtBot,
     ) -> None:
         """Maya launch doesn't check scripts dir (doesn't use hook scripts)."""
-        monkeypatch.setattr(Config, "SCRIPTS_DIR", "/nonexistent/scripts")
+        monkeypatch.setattr(Config.Paths, "SCRIPTS_DIR", "/nonexistent/scripts")
         shot = Shot(
-            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+            "TEST", "seq01", "0010", f"{Config.Paths.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         launcher.set_current_shot(shot)
 

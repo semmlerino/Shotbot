@@ -35,13 +35,13 @@ class MockWorkspacePool:
         self._cache: dict[str, str] = {}
         self.commands_executed: list[str] = []
         self.mock_root: Path = Path("/tmp/mock_vfx")
-        # Use Config.SHOWS_ROOT for workspace paths (what parser expects)
+        # Use Config.Paths.SHOWS_ROOT for workspace paths (what parser expects)
         # Local application imports
         from config import (
             Config,
         )
 
-        self.shows_root_for_parser: str = Config.SHOWS_ROOT
+        self.shows_root_for_parser: str = Config.Paths.SHOWS_ROOT
         # Actual filesystem location for file operations
         self.shows_root: Path = self.mock_root / "shows"
         # Demo shots path for testing flexibility
@@ -102,7 +102,7 @@ class MockWorkspacePool:
                     if not shot_name.startswith(f"{seq_name}_"):
                         continue
 
-                    # Build workspace path using Config.SHOWS_ROOT (what parser expects)
+                    # Build workspace path using Config.Paths.SHOWS_ROOT (what parser expects)
                     workspace_path = f"{self.shows_root_for_parser}/{show_name}/shots/{seq_name}/{shot_name}"
                     self.shots.append(f"workspace {workspace_path}")
 
@@ -120,7 +120,7 @@ class MockWorkspacePool:
             show = shot.get("show", "demo")
             seq = shot.get("seq", "seq01")
             shot_num = shot.get("shot", "0010")
-            # Use Config.SHOWS_ROOT for workspace paths (what parser expects)
+            # Use Config.Paths.SHOWS_ROOT for workspace paths (what parser expects)
             workspace_path = (
                 f"{self.shows_root_for_parser}/{show}/shots/{seq}/{seq}_{shot_num}"
             )

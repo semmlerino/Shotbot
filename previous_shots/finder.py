@@ -52,7 +52,7 @@ class PreviousShotsFinder(ShotFinderBase):
         """Find all shots that contain user work directories.
 
         Args:
-            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None).
+            shows_root: Root directory to search for shots (uses Config.Paths.SHOWS_ROOT if None).
 
         Returns:
             List of Shot objects where user has work directories.
@@ -110,7 +110,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Args:
             active_shots: Currently active shots from workspace.
-            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None).
+            shows_root: Root directory to search for shots (uses Config.Paths.SHOWS_ROOT if None).
 
         Returns:
             List of approved/completed shots.
@@ -345,7 +345,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         a parallel version.
 
         Args:
-            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None)
+            shows_root: Root directory to search for shots (uses Config.Paths.SHOWS_ROOT if None)
 
         Returns:
             List of Shot objects where user has work directories
@@ -378,7 +378,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         Args:
             active_shots: Currently active shots from workspace command
-            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None)
+            shows_root: Root directory to search for shots (uses Config.Paths.SHOWS_ROOT if None)
 
         Returns:
             List of approved/completed shots

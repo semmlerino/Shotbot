@@ -110,7 +110,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Args:
             target_shows: Set of show names to search in
-            shows_root: Root directory containing shows (uses Config.SHOWS_ROOT if None)
+            shows_root: Root directory containing shows (uses Config.Paths.SHOWS_ROOT if None)
 
         Yields:
             Shot objects as they are discovered
@@ -182,7 +182,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Args:
             active_shots: Currently active shots from workspace
-            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None)
+            shows_root: Root directory to search for shots (uses Config.Paths.SHOWS_ROOT if None)
 
         Returns:
             List of approved/completed shots
@@ -252,7 +252,7 @@ class TargetedShotsFinder(ShotFinderBase):
         Args:
             **kwargs: Typed keyword arguments (see FindShotsKwargs)
                 - target_shows: Set of show names to search in
-                - shows_root: Root directory for shows (uses Config.SHOWS_ROOT if None)
+                - shows_root: Root directory for shows (uses Config.Paths.SHOWS_ROOT if None)
                 - active_shots: List of active shots to extract shows from
 
         Returns:

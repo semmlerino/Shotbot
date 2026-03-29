@@ -133,7 +133,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         self.theme: DelegateTheme = self.get_theme()
 
         # Appearance settings
-        self._thumbnail_size: int = Config.DEFAULT_THUMBNAIL_SIZE
+        self._thumbnail_size: int = Config.Thumbnail.DEFAULT_SIZE
 
         # Fonts
         self._name_font: QFont = QFont()
@@ -674,7 +674,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         """
         # Calculate height based on 16:9 aspect ratio for plate images
-        thumbnail_height = int(self._thumbnail_size / Config.THUMBNAIL_ASPECT_RATIO)
+        thumbnail_height = int(self._thumbnail_size / Config.Thumbnail.ASPECT_RATIO)
         return QSize(
             self._thumbnail_size + 2 * self.theme.padding,
             thumbnail_height + self.theme.text_height + 2 * self.theme.padding,

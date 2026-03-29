@@ -36,7 +36,7 @@ def get_available_plates(workspace_path: str) -> list[str]:
         List of plate names sorted by priority (e.g., ['FG01', 'BG01', 'FG02'])
 
     """
-    base_path = Path(workspace_path, *Config.RAW_PLATE_SEGMENTS)
+    base_path = Path(workspace_path, *Config.FileDiscovery.RAW_PLATE_SEGMENTS)
     if not PathValidators.validate_path_exists(base_path, "Plate base path"):
         logger.debug(f"No plate base path found: {base_path}")
         return []
@@ -127,7 +127,7 @@ def find_main_plate(
         Path to first EXR in sequence, or None
 
     """
-    base_path = Path(workspace_path, *Config.RAW_PLATE_SEGMENTS) / plate_name
+    base_path = Path(workspace_path, *Config.FileDiscovery.RAW_PLATE_SEGMENTS) / plate_name
 
     if not PathValidators.validate_path_exists(base_path, "Plate path"):
         return None

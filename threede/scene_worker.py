@@ -90,7 +90,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         self.shots = shots
         self.user_shots = shots  # Keep track of user's shots for filtering
         self.excluded_users = excluded_users or get_excluded_users()
-        self.batch_size = batch_size or Config.PROGRESSIVE_SCAN_BATCH_SIZE
+        self.batch_size = batch_size or Config.UI.PROGRESSIVE_SCAN_BATCH_SIZE
 
         # Control flags
         self._is_paused = False  # Only pause flag needed, stop is managed by base class
@@ -121,7 +121,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             1: QThread.Priority.HighPriority,
         }
         self._desired_priority = priority_map.get(
-            Config.WORKER_THREAD_PRIORITY,
+            Config.Threading.WORKER_PRIORITY,
             QThread.Priority.NormalPriority,
         )
 

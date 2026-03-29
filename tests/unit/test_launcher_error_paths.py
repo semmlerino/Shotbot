@@ -321,7 +321,7 @@ class TestLaunchAppGuardClauses:
         test_shot: Shot,
         qtbot: QtBot,
     ) -> None:
-        """launch_app returns False for an app name not in Config.APPS."""
+        """launch_app returns False for an app name not in Config.Launch.APPS."""
         launcher.set_current_shot(test_shot)
 
         result = launcher.launch(LaunchRequest(app_name="blender_xyz_unknown"))

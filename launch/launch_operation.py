@@ -148,8 +148,8 @@ class LaunchOperation:
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        if Config.REZ_MODE != RezMode.DISABLED:
-            if app_name in Config.REZ_BYPASS_APPS:
+        if Config.Launch.REZ_MODE != RezMode.DISABLED:
+            if app_name in Config.Launch.REZ_BYPASS_APPS:
                 logger.debug(
                     "Rez bypass enabled for %s — skipping rez env wrap", app_name
                 )
@@ -302,13 +302,13 @@ class LaunchOperation:
         if app_name == "3de":
             from commands.threede_commands import build_threede_scripts_export
 
-            tde_scripts_export = build_threede_scripts_export(Config.SCRIPTS_DIR)
+            tde_scripts_export = build_threede_scripts_export(Config.Paths.SCRIPTS_DIR)
             sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
             return f"{tde_scripts_export}{sgtk_export}{command} -open {safe_scene_path}"
 
         if app_name == "maya":
             updated = maya_commands.build_maya_context_command(
-                command, safe_scene_path, skip_bootstrap=Config.MAYA_SKIP_CONTEXT_BOOTSTRAP
+                command, safe_scene_path, skip_bootstrap=Config.DCC.MAYA_SKIP_CONTEXT_BOOTSTRAP
             )
             return f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
 

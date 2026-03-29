@@ -55,17 +55,17 @@ class ImageUtils:
         Args:
             width: Image width in pixels
             height: Image height in pixels
-            max_dimension: Maximum allowed dimension (uses Config.MAX_THUMBNAIL_DIMENSION_PX if None)
-            max_memory_mb: Maximum estimated memory usage in MB (uses Config.MAX_THUMBNAIL_MEMORY_MB if None)
+            max_dimension: Maximum allowed dimension (uses Config.ImageLimits.MAX_THUMBNAIL_DIMENSION_PX if None)
+            max_memory_mb: Maximum estimated memory usage in MB (uses Config.ImageLimits.MAX_THUMBNAIL_MEMORY_MB if None)
 
         Returns:
             True if dimensions are acceptable, False otherwise
 
         """
         if max_dimension is None:
-            max_dimension = Config.MAX_THUMBNAIL_DIMENSION_PX
+            max_dimension = Config.ImageLimits.MAX_THUMBNAIL_DIMENSION_PX
         if max_memory_mb is None:
-            max_memory_mb = Config.MAX_THUMBNAIL_MEMORY_MB
+            max_memory_mb = Config.ImageLimits.MAX_THUMBNAIL_MEMORY_MB
 
         # Check individual dimensions
         if width > max_dimension or height > max_dimension:
@@ -93,14 +93,14 @@ class ImageUtils:
         """Get safe dimensions for thumbnail generation.
 
         Args:
-            max_size: Maximum dimension for thumbnail (uses Config.CACHE_THUMBNAIL_SIZE if None)
+            max_size: Maximum dimension for thumbnail (uses Config.Cache.THUMBNAIL_SIZE if None)
 
         Returns:
             (width, height) tuple for safe thumbnail dimensions
 
         """
         if max_size is None:
-            max_size = Config.CACHE_THUMBNAIL_SIZE
+            max_size = Config.Cache.THUMBNAIL_SIZE
         return (max_size, max_size)
 
     @staticmethod
@@ -126,7 +126,7 @@ class ImageUtils:
             width=width,
             height=height,
             max_dimension=max_dimension,
-            max_memory_mb=Config.MAX_THUMBNAIL_MEMORY_MB,
+            max_memory_mb=Config.ImageLimits.MAX_THUMBNAIL_MEMORY_MB,
         )
 
     @staticmethod

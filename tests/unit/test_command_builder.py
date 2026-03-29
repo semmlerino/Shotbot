@@ -33,8 +33,8 @@ from launch.command_builder import (
 def mock_config() -> MagicMock:
     """Create a mock Config object with default settings."""
     config = MagicMock(spec=Config)
-    config.NUKE_SKIP_PROBLEMATIC_PLUGINS = True
-    config.NUKE_OCIO_FALLBACK_CONFIG = "/path/to/ocio/config.ocio"
+    config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS = True
+    config.DCC.NUKE_OCIO_FALLBACK_CONFIG = "/path/to/ocio/config.ocio"
     return config
 
 
@@ -259,8 +259,8 @@ class TestNukeEnvironmentFixes:
         expected_absent: list[str],
     ) -> None:
         """Test apply_nuke_environment_fixes under different configuration combinations."""
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = skip_plugins
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ocio_config
+        mock_config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS = skip_plugins
+        mock_config.DCC.NUKE_OCIO_FALLBACK_CONFIG = ocio_config
 
         result = apply_nuke_environment_fixes("nuke", mock_config)
 
@@ -275,8 +275,8 @@ class TestNukeEnvironmentFixes:
     def test_ocio_path_with_spaces(self, mock_config: MagicMock) -> None:
         """Test OCIO path with spaces is properly quoted."""
         command = "nuke"
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = "/path/with spaces/my config.ocio"
+        mock_config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
+        mock_config.DCC.NUKE_OCIO_FALLBACK_CONFIG = "/path/with spaces/my config.ocio"
 
         result = apply_nuke_environment_fixes(command, mock_config)
 
@@ -316,8 +316,8 @@ class TestNukeEnvironmentFixes:
         expected_len: int,
     ) -> None:
         """Test fix summary under different configuration combinations."""
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = skip_plugins
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ocio_config
+        mock_config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS = skip_plugins
+        mock_config.DCC.NUKE_OCIO_FALLBACK_CONFIG = ocio_config
 
         summary = get_nuke_fix_summary(mock_config)
 
@@ -388,8 +388,8 @@ class TestLoggingRedirection:
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
         mock_config = MagicMock(spec=Config)
         mock_config.ENABLE_LAUNCH_LOGGING = True
-        mock_config.LAUNCH_LOG_MAX_SIZE_MB = 10
-        mock_config.LAUNCH_LOGGING_TEE_BYPASS_APPS = {"maya"}
+        mock_config.Launch.LOG_MAX_SIZE_MB = 10
+        mock_config.Launch.LOGGING_TEE_BYPASS_APPS = {"maya"}
 
         result = add_logging("maya", mock_config, app_name="maya")
 
@@ -404,8 +404,8 @@ class TestLoggingRedirection:
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
         mock_config = MagicMock(spec=Config)
         mock_config.ENABLE_LAUNCH_LOGGING = True
-        mock_config.LAUNCH_LOG_MAX_SIZE_MB = 10
-        mock_config.LAUNCH_LOGGING_TEE_BYPASS_APPS = {"maya"}
+        mock_config.Launch.LOG_MAX_SIZE_MB = 10
+        mock_config.Launch.LOGGING_TEE_BYPASS_APPS = {"maya"}
 
         result = add_logging("nuke", mock_config, app_name="nuke")
 

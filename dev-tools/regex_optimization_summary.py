@@ -12,7 +12,7 @@ from config import Config
 def comprehensive_regex_benchmark() -> None:
     """Benchmark all optimized regex patterns in the codebase."""
 
-    shows_root_escaped = re.escape(Config.SHOWS_ROOT)
+    shows_root_escaped = re.escape(Config.Paths.SHOWS_ROOT)
 
     # Original patterns (using \w+)
     original_patterns = {
@@ -43,22 +43,22 @@ def comprehensive_regex_benchmark() -> None:
     # Test data
     test_data = {
         "base_shot_model": [
-            f"workspace {Config.SHOWS_ROOT}/demo/shots/seq01/seq01_0010",
-            f"workspace {Config.SHOWS_ROOT}/broken_eggs/shots/BRX/BRX_166_0020",
-            f"workspace {Config.SHOWS_ROOT}/gator/shots/012/012_DC_1000",
-            f"workspace {Config.SHOWS_ROOT}/jack_ryan/shots/finale/finale_9999",
+            f"workspace {Config.Paths.SHOWS_ROOT}/demo/shots/seq01/seq01_0010",
+            f"workspace {Config.Paths.SHOWS_ROOT}/broken_eggs/shots/BRX/BRX_166_0020",
+            f"workspace {Config.Paths.SHOWS_ROOT}/gator/shots/012/012_DC_1000",
+            f"workspace {Config.Paths.SHOWS_ROOT}/jack_ryan/shots/finale/finale_9999",
         ],
         "shot_finder": [
-            f"{Config.SHOWS_ROOT}/demo/shots/seq01/seq01_0010/",
-            f"{Config.SHOWS_ROOT}/broken_eggs/shots/BRX/BRX_166_0020/",
-            f"{Config.SHOWS_ROOT}/gator/shots/012/012_DC_1000/",
-            f"{Config.SHOWS_ROOT}/project_abc/shots/finale/finale_9999/",
+            f"{Config.Paths.SHOWS_ROOT}/demo/shots/seq01/seq01_0010/",
+            f"{Config.Paths.SHOWS_ROOT}/broken_eggs/shots/BRX/BRX_166_0020/",
+            f"{Config.Paths.SHOWS_ROOT}/gator/shots/012/012_DC_1000/",
+            f"{Config.Paths.SHOWS_ROOT}/project_abc/shots/finale/finale_9999/",
         ],
         "path_parser": [
-            f"{Config.SHOWS_ROOT}/demo/shots/seq01/seq01_0010/user/",
-            f"{Config.SHOWS_ROOT}/broken_eggs/shots/BRX/BRX_166/user/",
-            f"{Config.SHOWS_ROOT}/gator/shots/012/012_DC/user/",
-            f"{Config.SHOWS_ROOT}/jack_ryan/shots/100/100_0010/user/",
+            f"{Config.Paths.SHOWS_ROOT}/demo/shots/seq01/seq01_0010/user/",
+            f"{Config.Paths.SHOWS_ROOT}/broken_eggs/shots/BRX/BRX_166/user/",
+            f"{Config.Paths.SHOWS_ROOT}/gator/shots/012/012_DC/user/",
+            f"{Config.Paths.SHOWS_ROOT}/jack_ryan/shots/100/100_0010/user/",
         ],
     }
 

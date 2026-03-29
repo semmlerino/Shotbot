@@ -62,27 +62,27 @@ def model(qtbot, tmp_path):
 @pytest.fixture
 def test_shots(tmp_path, monkeypatch):
     """Create test Shot objects for previous/approved shots."""
-    # Isolate Config.SHOWS_ROOT to tmp_path per UNIFIED_TESTING_V2.md section 2
-    monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+    # Isolate Config.Paths.SHOWS_ROOT to tmp_path per UNIFIED_TESTING_V2.md section 2
+    monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", str(tmp_path))
 
     return [
         Shot(
             show="proj1",
             sequence="010",
             shot="0010",
-            workspace_path=f"{Config.SHOWS_ROOT}/proj1/shots/010/010_0010",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj1/shots/010/010_0010",
         ),
         Shot(
             show="proj2",
             sequence="020",
             shot="0020",
-            workspace_path=f"{Config.SHOWS_ROOT}/proj2/shots/020/020_0020",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj2/shots/020/020_0020",
         ),
         Shot(
             show="proj3",
             sequence="030",
             shot="0030",
-            workspace_path=f"{Config.SHOWS_ROOT}/proj3/shots/030/030_0030",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj3/shots/030/030_0030",
         ),
     ]
 
@@ -244,28 +244,28 @@ class TestPreviousShotsSorting:
     @pytest.fixture
     def shots_with_times(self, tmp_path, monkeypatch) -> list[Shot]:
         """Create test shots with different discovered_at timestamps."""
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", str(tmp_path))
 
         return [
             Shot(
                 show="proj1",
                 sequence="010",
                 shot="0010",
-                workspace_path=f"{Config.SHOWS_ROOT}/proj1/shots/010/010_0010",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj1/shots/010/010_0010",
                 discovered_at=1000.0,
             ),
             Shot(
                 show="proj2",
                 sequence="020",
                 shot="0020",
-                workspace_path=f"{Config.SHOWS_ROOT}/proj2/shots/020/020_0020",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj2/shots/020/020_0020",
                 discovered_at=3000.0,
             ),
             Shot(
                 show="proj3",
                 sequence="030",
                 shot="0030",
-                workspace_path=f"{Config.SHOWS_ROOT}/proj3/shots/030/030_0030",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj3/shots/030/030_0030",
                 discovered_at=2000.0,
             ),
         ]

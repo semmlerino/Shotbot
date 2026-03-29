@@ -23,7 +23,7 @@ from workers.process_pool_manager import ProcessPoolManager
 def debug_environment() -> None:
     """Debug the environment setup."""
     print("=== ENVIRONMENT DEBUG ===")
-    print(f"SHOWS_ROOT from config: {Config.SHOWS_ROOT}")
+    print(f"SHOWS_ROOT from config: {Config.Paths.SHOWS_ROOT}")
     print(f"SHOWS_ROOT from env: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
     print(f"Working directory: {Path.cwd()}")
     print()
@@ -104,9 +104,9 @@ def debug_parser_matching(lines: list[str]) -> bool:
             # Try to suggest what might be wrong
             if "workspace" in line:
                 print("     💡 Line contains 'workspace' but doesn't match regex")
-                if Config.SHOWS_ROOT not in line:
+                if Config.Paths.SHOWS_ROOT not in line:
                     print(
-                        f"     💡 Line doesn't contain expected SHOWS_ROOT: {Config.SHOWS_ROOT}"
+                        f"     💡 Line doesn't contain expected SHOWS_ROOT: {Config.Paths.SHOWS_ROOT}"
                     )
 
                     # Try to extract the actual path
@@ -128,11 +128,11 @@ def suggest_fixes() -> None:
 
     # Check if SHOWS_ROOT environment variable is different
     env_shows_root = os.environ.get("SHOWS_ROOT")
-    config_shows_root = Config.SHOWS_ROOT
+    config_shows_root = Config.Paths.SHOWS_ROOT
 
     if env_shows_root and env_shows_root != config_shows_root:
         print(f"🔧 SHOWS_ROOT environment variable is set to: {env_shows_root}")
-        print(f"   But Config.SHOWS_ROOT is: {config_shows_root}")
+        print(f"   But Config.Paths.SHOWS_ROOT is: {config_shows_root}")
         print("   This mismatch could cause parsing failures!")
         print("   Try setting SHOWS_ROOT environment variable to match your VFX setup.")
 

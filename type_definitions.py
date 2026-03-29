@@ -118,11 +118,11 @@ class Shot:
         from paths import build_workspace_path
 
         return build_workspace_path(
-            Config.SHOWS_ROOT,
+            Config.Paths.SHOWS_ROOT,
             self.show,
             self.sequence,
             self.shot,
-            *Config.THUMBNAIL_SEGMENTS,
+            *Config.FileDiscovery.THUMBNAIL_SEGMENTS,
         )
 
     def get_thumbnail_path(self) -> Path | None:
@@ -154,7 +154,7 @@ class Shot:
 
             # Use the unified thumbnail discovery method
             thumbnail = find_shot_thumbnail(
-                Config.SHOWS_ROOT,
+                Config.Paths.SHOWS_ROOT,
                 self.show,
                 self.sequence,
                 self.shot,
@@ -257,11 +257,11 @@ class ThreeDEScene:
         from paths import build_workspace_path
 
         return build_workspace_path(
-            Config.SHOWS_ROOT,
+            Config.Paths.SHOWS_ROOT,
             self.show,
             self.sequence,
             self.shot,
-            *Config.THUMBNAIL_SEGMENTS,
+            *Config.FileDiscovery.THUMBNAIL_SEGMENTS,
         )
 
     def get_thumbnail_path(self) -> Path | None:
@@ -283,7 +283,7 @@ class ThreeDEScene:
 
         # Use the unified thumbnail discovery method
         thumbnail = find_shot_thumbnail(
-            Config.SHOWS_ROOT,
+            Config.Paths.SHOWS_ROOT,
             self.show,
             self.sequence,
             self.shot,

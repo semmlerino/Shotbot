@@ -53,7 +53,7 @@ def shot_number(draw):
 def shot_path(draw) -> str:
     """Generate valid shot workspace paths.
 
-    Uses hardcoded /shows prefix to avoid dependency on mutable Config.SHOWS_ROOT,
+    Uses hardcoded /shows prefix to avoid dependency on mutable Config.Paths.SHOWS_ROOT,
     which can cause FlakyStrategyDefinition errors when other tests monkeypatch it.
     """
     show = draw(show_name())
@@ -77,7 +77,7 @@ class TestShotPathProperties:
         # Local application imports
         from type_definitions import Shot
 
-        workspace = f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
+        workspace = f"{Config.Paths.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
         shot_obj = Shot(show, seq, f"{seq}_{shot}", workspace)
 
         assert shot_obj.show == show

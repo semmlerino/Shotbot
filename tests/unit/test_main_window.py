@@ -170,7 +170,7 @@ class TestShotSelection:
             assert not section._launch_btn.isEnabled()
 
         # Create a test shot
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
 
         # Simulate shot selection
@@ -191,7 +191,7 @@ class TestShotSelection:
         qtbot.addWidget(main_window)
 
         # Select a shot first
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
         main_window.shot_selection_controller.on_shot_selected(shot)
 
@@ -338,7 +338,7 @@ class TestMainWindowIntegration:
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         shot = Shot(
             "test_show",
             "seq01",
@@ -382,7 +382,7 @@ class TestCrashRecovery:
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
 
         if context_type == "shot":
             shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
@@ -450,7 +450,7 @@ class TestCrashRecovery:
         qtbot.addWidget(main_window)
 
         # Create and select a shot
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
         main_window.shot_selection_controller.on_shot_selected(shot)
 
@@ -475,7 +475,7 @@ class TestCrashRecovery:
         qtbot.addWidget(main_window)
 
         # Create and select a shot
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
         main_window.shot_selection_controller.on_shot_selected(shot)
 
@@ -507,7 +507,7 @@ class TestRightPanelFileLaunch:
         qtbot.addWidget(main_window)
 
         # Select a shot (provides workspace context)
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
         main_window.shot_selection_controller.on_shot_selected(shot)
 
@@ -544,7 +544,7 @@ class TestRightPanelFileLaunch:
         qtbot.addWidget(main_window)
 
         # Select a 3DE scene (provides workspace context via selected_scene)
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         scene = ThreeDEScene(
             show="test_show",
             sequence="seq01",
@@ -619,7 +619,7 @@ class TestRightPanelFileLaunch:
         qtbot.addWidget(main_window)
 
         # Select a shot for context
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
         main_window.shot_selection_controller.on_shot_selected(shot)
 
@@ -662,7 +662,7 @@ class TestGetCurrentWorkspacePath:
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
 
         if context == "shot":
             shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
@@ -694,7 +694,7 @@ class TestGetCurrentWorkspacePath:
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        shows_root = Config.SHOWS_ROOT
+        shows_root = Config.Paths.SHOWS_ROOT
 
         # Set both shot and scene with different workspaces
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/shot/workspace")

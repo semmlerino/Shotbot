@@ -103,15 +103,15 @@ class TestThreeDEScene:
 
         Uses xdist_group at class level to ensure isolation from Config state contamination.
         """
-        # Set Config.SHOWS_ROOT FIRST, before any other operations
+        # Set Config.Paths.SHOWS_ROOT FIRST, before any other operations
         # Patch in both locations to ensure all imports see the new value
         shows_root = tmp_path / "shows"
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+        monkeypatch.setattr("config.Config.Paths.SHOWS_ROOT", str(shows_root))
         monkeypatch.setattr(
-            "discovery.thumbnail_finders.Config.SHOWS_ROOT", str(shows_root)
+            "discovery.thumbnail_finders.Config.Paths.SHOWS_ROOT", str(shows_root)
         )
 
-        # Clear all caches to ensure they use the new Config.SHOWS_ROOT
+        # Clear all caches to ensure they use the new Config.Paths.SHOWS_ROOT
         from tests.fixtures.environment_fixtures import clear_all_caches
 
         clear_all_caches()
@@ -222,7 +222,7 @@ class TestThreeDEScene:
             "show": "test_show",
             "sequence": "seq01",
             "shot": "shot01",
-            "workspace_path": f"{Config.SHOWS_ROOT}/test_show/seq01/seq01_shot01",
+            "workspace_path": f"{Config.Paths.SHOWS_ROOT}/test_show/seq01/seq01_shot01",
             "user": "artist",
             "plate": "BG01",
             "scene_path": "/path/to/scene.3de",

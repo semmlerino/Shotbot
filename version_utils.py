@@ -19,7 +19,7 @@ from logging_mixin import get_module_logger
 from paths.validators import PathValidators
 
 
-_VERSION_CACHE_TTL = Config.PATH_CACHE_TTL_SECONDS  # 60s TTL for version cache
+_VERSION_CACHE_TTL = Config.Cache.PATH_TTL_SECONDS  # 60s TTL for version cache
 
 
 logger = get_module_logger(__name__)

@@ -43,7 +43,7 @@ class AppHandler(Protocol):
         """Build the full shell command for launch_with_file.
 
         Args:
-            base_cmd: App base command from Config.APPS (e.g. "nuke").
+            base_cmd: App base command from Config.Launch.APPS (e.g. "nuke").
             safe_file_path: Shell-safe, validated file path string.
 
         Returns:
@@ -67,7 +67,7 @@ class AppHandler(Protocol):
         file search, RV sequence path, etc.
 
         Args:
-            base_cmd: App base command from Config.APPS (e.g. "nuke").
+            base_cmd: App base command from Config.Launch.APPS (e.g. "nuke").
             context: Launch context carrying per-DCC option flags.
             current_shot: The currently selected shot (precondition: not None).
 

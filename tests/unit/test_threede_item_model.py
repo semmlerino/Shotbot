@@ -49,33 +49,33 @@ def test_scenes() -> list[ThreeDEScene]:
             show="proj1",
             sequence="010",
             shot="0010",
-            workspace_path=f"{Config.SHOWS_ROOT}/proj1/shots/010/0010",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj1/shots/010/0010",
             user="user1",
             plate="proj1_010_0010_plate",
             scene_path=Path(
-                f"{Config.SHOWS_ROOT}/proj1/shots/010/0010/.3de/proj1_010_0010_v001.3de"
+                f"{Config.Paths.SHOWS_ROOT}/proj1/shots/010/0010/.3de/proj1_010_0010_v001.3de"
             ),
         ),
         ThreeDEScene(
             show="proj2",
             sequence="020",
             shot="0020",
-            workspace_path=f"{Config.SHOWS_ROOT}/proj2/shots/020/0020",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj2/shots/020/0020",
             user="user2",
             plate="proj2_020_0020_plate",
             scene_path=Path(
-                f"{Config.SHOWS_ROOT}/proj2/shots/020/0020/.3de/proj2_020_0020_v002.3de"
+                f"{Config.Paths.SHOWS_ROOT}/proj2/shots/020/0020/.3de/proj2_020_0020_v002.3de"
             ),
         ),
         ThreeDEScene(
             show="proj3",
             sequence="030",
             shot="0030",
-            workspace_path=f"{Config.SHOWS_ROOT}/proj3/shots/030/0030",
+            workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj3/shots/030/0030",
             user="user3",
             plate="proj3_030_0030_plate",
             scene_path=Path(
-                f"{Config.SHOWS_ROOT}/proj3/shots/030/0030/.3de/proj3_030_0030_v003.3de"
+                f"{Config.Paths.SHOWS_ROOT}/proj3/shots/030/0030/.3de/proj3_030_0030_v003.3de"
             ),
         ),
     ]
@@ -119,11 +119,11 @@ class TestThreadSafety:
                 show="proj",
                 sequence=f"{i:03d}",
                 shot="0010",
-                workspace_path=f"{Config.SHOWS_ROOT}/proj/shots/{i:03d}/0010",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj/shots/{i:03d}/0010",
                 user="user",
                 plate="fg01",
                 scene_path=Path(
-                    f"{Config.SHOWS_ROOT}/proj/shots/{i:03d}/0010/.3de/scene_{i:03d}.3de"
+                    f"{Config.Paths.SHOWS_ROOT}/proj/shots/{i:03d}/0010/.3de/scene_{i:03d}.3de"
                 ),
             )
             many_scenes.append(scene)
@@ -339,7 +339,7 @@ class TestThreeDESorting:
                 show="proj1",
                 sequence="010",
                 shot="0010",
-                workspace_path=f"{Config.SHOWS_ROOT}/proj1/shots/010/0010",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj1/shots/010/0010",
                 user="user1",
                 plate="proj1_010_0010_plate",
                 scene_path=Path("/tmp/test_alpha.3de"),
@@ -349,7 +349,7 @@ class TestThreeDESorting:
                 show="proj2",
                 sequence="020",
                 shot="0020",
-                workspace_path=f"{Config.SHOWS_ROOT}/proj2/shots/020/0020",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj2/shots/020/0020",
                 user="user2",
                 plate="proj2_020_0020_plate",
                 scene_path=Path("/tmp/test_charlie.3de"),
@@ -359,7 +359,7 @@ class TestThreeDESorting:
                 show="proj3",
                 sequence="030",
                 shot="0030",
-                workspace_path=f"{Config.SHOWS_ROOT}/proj3/shots/030/0030",
+                workspace_path=f"{Config.Paths.SHOWS_ROOT}/proj3/shots/030/0030",
                 user="user3",
                 plate="proj3_030_0030_plate",
                 scene_path=Path("/tmp/test_bravo.3de"),

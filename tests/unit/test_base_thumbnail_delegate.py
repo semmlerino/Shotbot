@@ -147,7 +147,7 @@ class TestDelegateInitialization:
         delegate = ConcreteThumbnailDelegate(parent=view)
 
         assert delegate.theme is not None
-        assert delegate._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
+        assert delegate._thumbnail_size == Config.Thumbnail.DEFAULT_SIZE
         assert delegate._name_font is not None
         assert delegate._info_font is not None
 
@@ -257,7 +257,7 @@ class TestSizeHint:
         ("thumbnail_size", "padding", "text_height"),
         [
             pytest.param(
-                Config.DEFAULT_THUMBNAIL_SIZE,
+                Config.Thumbnail.DEFAULT_SIZE,
                 DelegateTheme().padding,
                 DelegateTheme().text_height,
                 id="default_size",
@@ -269,13 +269,13 @@ class TestSizeHint:
                 id="custom_thumbnail_size",
             ),
             pytest.param(
-                Config.DEFAULT_THUMBNAIL_SIZE,
+                Config.Thumbnail.DEFAULT_SIZE,
                 16,
                 DelegateTheme().text_height,
                 id="custom_padding",
             ),
             pytest.param(
-                Config.DEFAULT_THUMBNAIL_SIZE,
+                Config.Thumbnail.DEFAULT_SIZE,
                 DelegateTheme().padding,
                 60,
                 id="custom_text_height",
@@ -288,7 +288,7 @@ class TestSizeHint:
         """Test size hint calculations with varying thumbnail size, padding, and text height."""
         default = DelegateTheme()
         # Use a parentless delegate to avoid the update() bug when resizing
-        if thumbnail_size != Config.DEFAULT_THUMBNAIL_SIZE:
+        if thumbnail_size != Config.Thumbnail.DEFAULT_SIZE:
             delegate = ConcreteThumbnailDelegate()
             delegate.set_thumbnail_size(thumbnail_size)
         elif padding != default.padding or text_height != default.text_height:
@@ -304,7 +304,7 @@ class TestSizeHint:
         size = delegate.sizeHint(option, index)
 
         expected_width = thumbnail_size + 2 * padding
-        thumbnail_height = int(thumbnail_size / Config.THUMBNAIL_ASPECT_RATIO)
+        thumbnail_height = int(thumbnail_size / Config.Thumbnail.ASPECT_RATIO)
         expected_height = thumbnail_height + text_height + 2 * padding
 
         assert size.width() == expected_width

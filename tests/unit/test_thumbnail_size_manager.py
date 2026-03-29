@@ -34,7 +34,7 @@ class SliderDouble:
 
     __test__ = False
 
-    def __init__(self, initial_value: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
+    def __init__(self, initial_value: int = Config.Thumbnail.DEFAULT_SIZE) -> None:
         self._value = initial_value
         self._signals_blocked = False
         # Track calls for assertion
@@ -85,7 +85,7 @@ class GridWithSizeDouble:
 
     __test__ = False
 
-    def __init__(self, initial_value: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
+    def __init__(self, initial_value: int = Config.Thumbnail.DEFAULT_SIZE) -> None:
         self.size_slider = SliderDouble(initial_value)
         self.size_label = LabelDouble()
         # Expose a valueChanged-compatible attribute so _setup_signals can connect
@@ -207,19 +207,19 @@ class TestSyncThumbnailSizes:
         self, manager: ThumbnailSizeManager, window: ThumbnailSizeTargetDouble
     ) -> None:
         """sync_thumbnail_sizes works at the minimum allowed size."""
-        manager.sync_thumbnail_sizes(Config.MIN_THUMBNAIL_SIZE)
+        manager.sync_thumbnail_sizes(Config.Thumbnail.MIN_SIZE)
 
-        assert window.shot_grid.size_slider._value == Config.MIN_THUMBNAIL_SIZE
-        assert window.shot_grid.size_label._text == f"{Config.MIN_THUMBNAIL_SIZE}px"
+        assert window.shot_grid.size_slider._value == Config.Thumbnail.MIN_SIZE
+        assert window.shot_grid.size_label._text == f"{Config.Thumbnail.MIN_SIZE}px"
 
     def test_sync_max_value(
         self, manager: ThumbnailSizeManager, window: ThumbnailSizeTargetDouble
     ) -> None:
         """sync_thumbnail_sizes works at the maximum allowed size."""
-        manager.sync_thumbnail_sizes(Config.MAX_THUMBNAIL_SIZE)
+        manager.sync_thumbnail_sizes(Config.Thumbnail.MAX_SIZE)
 
-        assert window.shot_grid.size_slider._value == Config.MAX_THUMBNAIL_SIZE
-        assert window.shot_grid.size_label._text == f"{Config.MAX_THUMBNAIL_SIZE}px"
+        assert window.shot_grid.size_slider._value == Config.Thumbnail.MAX_SIZE
+        assert window.shot_grid.size_label._text == f"{Config.Thumbnail.MAX_SIZE}px"
 
 
 # ============================================================================
@@ -268,22 +268,22 @@ class TestIncreaseSize:
     ) -> None:
         """increase_size does not exceed MAX_THUMBNAIL_SIZE."""
         window.tab_widget.setCurrentIndex(0)
-        window.shot_grid.size_slider._value = Config.MAX_THUMBNAIL_SIZE
+        window.shot_grid.size_slider._value = Config.Thumbnail.MAX_SIZE
 
         manager.increase_size()
 
-        assert window.shot_grid.size_slider._value == Config.MAX_THUMBNAIL_SIZE
+        assert window.shot_grid.size_slider._value == Config.Thumbnail.MAX_SIZE
 
     def test_increase_size_caps_when_close_to_max(
         self, manager: ThumbnailSizeManager, window: ThumbnailSizeTargetDouble
     ) -> None:
         """increase_size caps at MAX even when adding 20 would overshoot."""
         window.tab_widget.setCurrentIndex(0)
-        window.shot_grid.size_slider._value = Config.MAX_THUMBNAIL_SIZE - 10
+        window.shot_grid.size_slider._value = Config.Thumbnail.MAX_SIZE - 10
 
         manager.increase_size()
 
-        assert window.shot_grid.size_slider._value == Config.MAX_THUMBNAIL_SIZE
+        assert window.shot_grid.size_slider._value == Config.Thumbnail.MAX_SIZE
 
     def test_increase_size_dispatches_to_active_tab_slider_only(
         self, manager: ThumbnailSizeManager, window: ThumbnailSizeTargetDouble
@@ -349,22 +349,22 @@ class TestDecreaseSize:
     ) -> None:
         """decrease_size does not go below MIN_THUMBNAIL_SIZE."""
         window.tab_widget.setCurrentIndex(0)
-        window.shot_grid.size_slider._value = Config.MIN_THUMBNAIL_SIZE
+        window.shot_grid.size_slider._value = Config.Thumbnail.MIN_SIZE
 
         manager.decrease_size()
 
-        assert window.shot_grid.size_slider._value == Config.MIN_THUMBNAIL_SIZE
+        assert window.shot_grid.size_slider._value == Config.Thumbnail.MIN_SIZE
 
     def test_decrease_size_floors_when_close_to_min(
         self, manager: ThumbnailSizeManager, window: ThumbnailSizeTargetDouble
     ) -> None:
         """decrease_size floors at MIN even when subtracting 20 would undershoot."""
         window.tab_widget.setCurrentIndex(0)
-        window.shot_grid.size_slider._value = Config.MIN_THUMBNAIL_SIZE + 10
+        window.shot_grid.size_slider._value = Config.Thumbnail.MIN_SIZE + 10
 
         manager.decrease_size()
 
-        assert window.shot_grid.size_slider._value == Config.MIN_THUMBNAIL_SIZE
+        assert window.shot_grid.size_slider._value == Config.Thumbnail.MIN_SIZE
 
     def test_decrease_size_dispatches_to_active_tab_slider_only(
         self, manager: ThumbnailSizeManager, window: ThumbnailSizeTargetDouble

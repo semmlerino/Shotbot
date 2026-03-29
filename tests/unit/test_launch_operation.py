@@ -116,7 +116,7 @@ class TestExecuteWorkspaceResolution:
         em = _make_env_manager()
         pe = _make_process_executor()
 
-        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mock_ws = mocker.patch(
             "launch.launch_operation.build_workspace_command", return_value="cmd"
         )
@@ -163,7 +163,7 @@ class TestExecuteInvalidWorkspacePath:
         emit_error = MagicMock()
         em = _make_env_manager()
 
-        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mocker.patch(
             "launch.command_builder.validate_path",
             side_effect=ValueError("dangerous chars"),
@@ -198,7 +198,7 @@ class TestExecuteCommandLengthGuard:
         pe = _make_process_executor()
         em = _make_env_manager()
 
-        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
         mocker.patch(
             "launch.launch_operation.build_workspace_command",
@@ -238,7 +238,7 @@ class TestExecuteBackgroundWrapping:
         sm = _make_settings_manager(background_gui=True)
         em = _make_env_manager()
 
-        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
         mocker.patch(
             "launch.launch_operation.build_workspace_command",
@@ -269,7 +269,7 @@ class TestExecuteBackgroundWrapping:
         sm = _make_settings_manager(background_gui=False)
         em = _make_env_manager()
 
-        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
         mocker.patch(
             "launch.launch_operation.build_workspace_command",
@@ -394,14 +394,14 @@ class TestAppendSceneToCommand:
 
 
 class TestRezBypass:
-    """Per-app Rez bypass via Config.REZ_BYPASS_APPS."""
+    """Per-app Rez bypass via Config.Launch.REZ_BYPASS_APPS."""
 
     def test_app_in_bypass_set_skips_rez_wrap(self, mocker) -> None:
         """REZ_BYPASS_APPS = {"maya"} → Maya launch skips wrap_with_rez."""
         from config import RezMode
 
-        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.AUTO)
-        mocker.patch("launch.launch_operation.Config.REZ_BYPASS_APPS", {"maya"})
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.AUTO)
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_BYPASS_APPS", {"maya"})
         mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
         mocker.patch(
             "launch.launch_operation.build_workspace_command",
@@ -429,8 +429,8 @@ class TestRezBypass:
         """Empty REZ_BYPASS_APPS → all apps still get Rez-wrapped."""
         from config import RezMode
 
-        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.AUTO)
-        mocker.patch("launch.launch_operation.Config.REZ_BYPASS_APPS", set())
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.AUTO)
+        mocker.patch("launch.launch_operation.Config.Launch.REZ_BYPASS_APPS", set())
         mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
         mocker.patch(
             "launch.launch_operation.build_workspace_command",

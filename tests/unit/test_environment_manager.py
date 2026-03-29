@@ -26,11 +26,11 @@ def env_manager() -> EnvironmentManager:
 def mock_config() -> MagicMock:
     """Create a mock Config object with default settings."""
     config = MagicMock(spec=Config)
-    config.REZ_MODE = RezMode.AUTO
-    config.REZ_NUKE_PACKAGES = ["nuke", "nuke-plugins"]
-    config.REZ_MAYA_PACKAGES = ["maya", "maya-plugins"]
-    config.REZ_3DE_PACKAGES = ["3de"]
-    config.REZ_RV_PACKAGES = ["rv"]
+    config.Launch.REZ_MODE = RezMode.AUTO
+    config.Launch.REZ_NUKE_PACKAGES = ["nuke", "nuke-plugins"]
+    config.Launch.REZ_MAYA_PACKAGES = ["maya", "maya-plugins"]
+    config.Launch.REZ_3DE_PACKAGES = ["3de"]
+    config.Launch.REZ_RV_PACKAGES = ["rv"]
     return config
 
 
@@ -41,7 +41,7 @@ class TestRezAvailability:
         self, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
         """Test that Rez is not used when disabled in config."""
-        mock_config.REZ_MODE = RezMode.DISABLED
+        mock_config.Launch.REZ_MODE = RezMode.DISABLED
 
         assert env_manager.should_wrap_with_rez(mock_config) is False
 
@@ -63,7 +63,7 @@ class TestRezAvailability:
         self, mocker, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
         """FORCE mode still depends on the rez executable being present."""
-        mock_config.REZ_MODE = RezMode.FORCE
+        mock_config.Launch.REZ_MODE = RezMode.FORCE
 
         mocker.patch("shutil.which", return_value=None)
         mocker.patch.dict("os.environ", {"REZ_USED": "1"})
@@ -76,7 +76,7 @@ class TestRezAvailability:
         mock_config: MagicMock,
     ) -> None:
         """Test Rez detection via 'rez' command availability."""
-        mock_config.REZ_MODE = RezMode.FORCE
+        mock_config.Launch.REZ_MODE = RezMode.FORCE
         mock_which = mocker.patch("shutil.which")
         mock_which.return_value = "/usr/bin/rez"
 
@@ -91,7 +91,7 @@ class TestRezAvailability:
         mock_config: MagicMock,
     ) -> None:
         """Test Rez not detected when command not found."""
-        mock_config.REZ_MODE = RezMode.FORCE
+        mock_config.Launch.REZ_MODE = RezMode.FORCE
         mock_which = mocker.patch("shutil.which")
         mock_which.return_value = None
 
@@ -106,7 +106,7 @@ class TestRezAvailability:
         mock_config: MagicMock,
     ) -> None:
         """Test that Rez availability is cached after first check."""
-        mock_config.REZ_MODE = RezMode.FORCE
+        mock_config.Launch.REZ_MODE = RezMode.FORCE
         mock_which = mocker.patch("shutil.which")
         mock_which.return_value = "/usr/bin/rez"
 
@@ -125,7 +125,7 @@ class TestRezAvailability:
         self, mocker, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
         """Test that reset_cache clears Rez availability cache."""
-        mock_config.REZ_MODE = RezMode.FORCE
+        mock_config.Launch.REZ_MODE = RezMode.FORCE
 
         mocker.patch("shutil.which", return_value="/usr/bin/rez")
         mocker.patch.dict("os.environ", {}, clear=True)

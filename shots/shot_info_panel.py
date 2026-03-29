@@ -362,7 +362,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             if not ImageUtils.validate_image_dimensions(
                 image.width(),
                 image.height(),
-                max_dimension=Config.MAX_INFO_PANEL_DIMENSION_PX,
+                max_dimension=Config.ImageLimits.MAX_INFO_PANEL_DIMENSION_PX,
             ):
                 self._set_placeholder_thumbnail()
                 return
@@ -506,7 +506,7 @@ class InfoPanelPixmapLoader(TrackedQRunnable):
                     # Use utility for memory bounds checking (smaller limits for info panel)
                     if ImageUtils.is_image_too_large_for_thumbnail(
                         QSize(pil_image.width, pil_image.height),
-                        Config.MAX_INFO_PANEL_DIMENSION_PX,
+                        Config.ImageLimits.MAX_INFO_PANEL_DIMENSION_PX,
                     ):
                         logger.warning(
                             f"Image too large for info panel: {pil_image.width}x{pil_image.height}"

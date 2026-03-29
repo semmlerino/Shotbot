@@ -18,24 +18,24 @@ from shots.shot_parser import OptimizedShotParser
 pytestmark = [pytest.mark.unit]
 
 
-# Representative production paths (all start with Config.SHOWS_ROOT)
+# Representative production paths (all start with Config.Paths.SHOWS_ROOT)
 PRODUCTION_PATHS = [
     # Standard VFX naming: {sequence}_{shot}
-    f"{Config.SHOWS_ROOT}/feature_film/shots/010_opening/010_opening_0010/user/testuser",
-    f"{Config.SHOWS_ROOT}/feature_film/shots/020_chase/020_chase_0020/user/testuser",
-    f"{Config.SHOWS_ROOT}/commercial/shots/sq010/sq010_sh020/user/testuser",
+    f"{Config.Paths.SHOWS_ROOT}/feature_film/shots/010_opening/010_opening_0010/user/testuser",
+    f"{Config.Paths.SHOWS_ROOT}/feature_film/shots/020_chase/020_chase_0020/user/testuser",
+    f"{Config.Paths.SHOWS_ROOT}/commercial/shots/sq010/sq010_sh020/user/testuser",
     # Trailing slash variants
-    f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/",
+    f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/",
     # No trailing content after shot dir
-    f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1",
+    f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1",
     # Deep nested content after shot dir
-    f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/user/artist/3de4/scenes",
+    f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/user/artist/3de4/scenes",
 ]
 
 
 def _targeted_parse(path: str) -> tuple[str, str, str, str] | None:
     """Reproduce TargetedShotsFinder._parse_shot_from_path logic."""
-    shows_root_escaped = re.escape(Config.SHOWS_ROOT)
+    shows_root_escaped = re.escape(Config.Paths.SHOWS_ROOT)
     pattern = re.compile(rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/")
     match = pattern.search(path)
     if not match:
@@ -44,7 +44,7 @@ def _targeted_parse(path: str) -> tuple[str, str, str, str] | None:
     shot = parse_shot_from_dir(sequence, shot_dir)
     if not shot:
         return None
-    workspace_path = str(build_workspace_path(Config.SHOWS_ROOT, show, sequence, shot))
+    workspace_path = str(build_workspace_path(Config.Paths.SHOWS_ROOT, show, sequence, shot))
     return (show, sequence, shot, workspace_path)
 
 

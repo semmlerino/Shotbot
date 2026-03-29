@@ -79,7 +79,7 @@ def build_workspace_path(
 
 
 def resolve_shows_root(shows_root: str | Path | None) -> Path:
-    """Normalize shows_root to Path, defaulting to Config.SHOWS_ROOT.
+    """Normalize shows_root to Path, defaulting to Config.Paths.SHOWS_ROOT.
 
     Args:
         shows_root: Root shows directory as string, Path, or None.
@@ -90,5 +90,5 @@ def resolve_shows_root(shows_root: str | Path | None) -> Path:
     if shows_root is None:
         from config import Config
 
-        return Path(Config.SHOWS_ROOT)
+        return Path(Config.Paths.SHOWS_ROOT)
     return Path(shows_root)

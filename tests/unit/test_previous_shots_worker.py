@@ -78,13 +78,13 @@ class TestPreviousShotsWorkerBasics:
                 "active_show",
                 "seq1",
                 "shot1",
-                f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1",
+                f"{Config.Paths.SHOWS_ROOT}/active_show/shots/seq1/shot1",
             ),
             Shot(
                 "active_show",
                 "seq1",
                 "shot2",
-                f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot2",
+                f"{Config.Paths.SHOWS_ROOT}/active_show/shots/seq1/shot2",
             ),
         ]
 
@@ -136,7 +136,7 @@ class TestPreviousShotsWorkerBasics:
         # Add some shots to internal list
         test_shots = [
             Shot(
-                "show1", "seq1", "shot1", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot1"
+                "show1", "seq1", "shot1", f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/shot1"
             ),
         ]
         worker._found_shots = test_shots
@@ -179,7 +179,7 @@ class TestPreviousShotsWorkerWorkflow:
                 "active_show",
                 "seq1",
                 "shot1",
-                f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1",
+                f"{Config.Paths.SHOWS_ROOT}/active_show/shots/seq1/shot1",
             ),
         ]
 
@@ -213,19 +213,19 @@ class TestPreviousShotsWorkerWorkflow:
                 "show1",
                 "seq1",
                 "seq1_shot1",
-                f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1",
+                f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1",
             ),
             Shot(
                 "show1",
                 "seq1",
                 "seq1_shot2",
-                f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot2",
+                f"{Config.Paths.SHOWS_ROOT}/show1/shots/seq1/seq1_shot2",
             ),
             Shot(
                 "show2",
                 "seq2",
                 "seq2_shot1",
-                f"{Config.SHOWS_ROOT}/show2/shots/seq2/seq2_shot1",
+                f"{Config.Paths.SHOWS_ROOT}/show2/shots/seq2/seq2_shot1",
             ),
         ]
         monkeypatch.setattr(
@@ -452,7 +452,7 @@ class TestPreviousShotsWorkerWorkflow:
             "different_show",
             "testseq",
             "testseq_testshot",
-            f"{Config.SHOWS_ROOT}/different_show/shots/testseq/testseq_testshot",
+            f"{Config.Paths.SHOWS_ROOT}/different_show/shots/testseq/testseq_testshot",
         )
         monkeypatch.setattr(
             worker._finder,
