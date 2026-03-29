@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from typing_extensions import Unpack, override
 
 # Local application imports
-from config import ThreadingConfig
+from config import Config
 from paths import resolve_shows_root
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
@@ -59,7 +59,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         # Additional initialization specific to TargetedShotsFinder
         self.max_workers: int = (
-            max_workers or ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS
+            max_workers or Config.Threading.PREVIOUS_SHOTS_PARALLEL_WORKERS
         )
 
         logger.debug(f"TargetedShotsFinder initialized for user: {self.username}")

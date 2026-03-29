@@ -11,7 +11,6 @@ Thread Safety:
 """
 
 # Standard library imports
-import multiprocessing
 import os
 from enum import Enum, auto
 from pathlib import Path
@@ -138,8 +137,9 @@ class Config:
         """Thread pool and worker configuration."""
 
         MAX_THUMBNAIL_THREADS: int = 4
-        CPU_COUNT: int = multiprocessing.cpu_count()
         WORKER_PRIORITY: int = 0  # QThread priority (0=normal, -1=low, +1=high)
+        PREVIOUS_SHOTS_PARALLEL_WORKERS: int = 4
+        PREVIOUS_SHOTS_CACHE_TTL: int = 0  # 0 = no automatic expiry, manual refresh only
 
     class ImageLimits:
         """Image dimension and memory safety caps."""
@@ -190,20 +190,3 @@ class Config:
     DEFAULT_USERNAME: str = "gabriel-h"
 
 
-class ThreadingConfig:
-    """Threading and timeout configuration constants.
-
-    This class centralizes all threading-related configuration to prevent
-    deadlocks and ensure consistent timing across the application.
-    """
-
-    # Polling configuration
-    POLL_BACKOFF_FACTOR: float = 1.5  # Exponential backoff multiplier
-
-    # Previous shots parallel scanning
-    PREVIOUS_SHOTS_PARALLEL_WORKERS: int = (
-        4  # Number of parallel workers for shot scanning
-    )
-    PREVIOUS_SHOTS_CACHE_TTL: int = (
-        0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
-    )

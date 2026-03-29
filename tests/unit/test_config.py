@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-from config import Config, ThreadingConfig
+from config import Config
 from timeout_config import TimeoutConfig
 
 
@@ -382,47 +382,23 @@ class TestThreadConfigurationValidation:
         """
         thread_counts = [
             ("MAX_THUMBNAIL_THREADS", Config.Threading.MAX_THUMBNAIL_THREADS),
-            ("CPU_COUNT", Config.Threading.CPU_COUNT),
+            ("PREVIOUS_SHOTS_PARALLEL_WORKERS", Config.Threading.PREVIOUS_SHOTS_PARALLEL_WORKERS),
         ]
 
         for name, count in thread_counts:
             assert isinstance(count, int), f"{name} must be integer"
             assert count > 0, f"{name} must be positive, got {count}"
 
-    def test_threading_config_worker_threads_are_reasonable(self) -> None:
-        """Validate ThreadingConfig worker thread counts are reasonable.
-
-        Thread counts should be positive and not exceed reasonable limits
-        (e.g., < 100 threads to prevent resource exhaustion).
-        """
-        workers = [
-            (
-                "PREVIOUS_SHOTS_PARALLEL_WORKERS",
-                ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS,
-            ),
-        ]
-
-        for name, count in workers:
-            assert isinstance(count, int), f"ThreadingConfig.{name} must be integer"
-            assert count > 0, f"ThreadingConfig.{name} must be positive, got {count}"
-            assert count <= 100, (
-                f"ThreadingConfig.{name} is {count} (> 100), likely excessive"
-            )
-
     def test_polling_intervals_are_valid(self) -> None:
         """Validate polling interval configuration is sensible.
 
-        Initial poll should be < max poll, backoff should be > 1.
+        Initial poll should be < max poll.
         """
         initial = TimeoutConfig.POLL_INITIAL_SEC
         max_poll = TimeoutConfig.POLL_MAX_SEC
-        backoff = ThreadingConfig.POLL_BACKOFF_FACTOR
 
         assert 0 < initial < max_poll, (
             f"POLL_INITIAL_SEC ({initial}) must be < POLL_MAX_SEC ({max_poll})"
-        )
-        assert backoff > 1, (
-            f"POLL_BACKOFF_FACTOR ({backoff}) must be > 1 for exponential backoff"
         )
 
 

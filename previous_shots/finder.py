@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, final
 from typing_extensions import Unpack, override
 
 # Local application imports
-from config import ThreadingConfig
+from config import Config
 from paths import resolve_shows_root
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
@@ -177,11 +177,11 @@ class ParallelShotsFinder(PreviousShotsFinder):
         """
         super().__init__(username)
         self.max_workers = (
-            max_workers or ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS
+            max_workers or Config.Threading.PREVIOUS_SHOTS_PARALLEL_WORKERS
         )
         # _stop_requested and _progress_callback are inherited from ProgressReportingMixin
         self._show_cache: dict[str, float] = {}  # Cache show list with timestamps
-        self._cache_ttl = ThreadingConfig.PREVIOUS_SHOTS_CACHE_TTL
+        self._cache_ttl = Config.Threading.PREVIOUS_SHOTS_CACHE_TTL
 
         # Use FilesystemCoordinator for shared directory caching
         from paths.filesystem_coordinator import FilesystemCoordinator
