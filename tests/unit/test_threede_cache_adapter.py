@@ -9,7 +9,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -176,11 +175,12 @@ class TestCacheOperations:
 
     def test_cache_scenes_handles_exception_gracefully(
         self,
+        mocker,
         adapter: ThreeDECacheAdapter,
         scene_disk_cache: SceneDiskCacheDouble,
     ) -> None:
         """Test that cache_scenes swallows exceptions and logs a warning."""
-        scene_disk_cache.cache_threede_scenes = MagicMock(  # type: ignore[method-assign]
+        scene_disk_cache.cache_threede_scenes = mocker.MagicMock(  # type: ignore[method-assign]
             side_effect=OSError("disk full")
         )
         # Should not raise

@@ -14,7 +14,6 @@ Tests cover:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -219,7 +218,7 @@ class TestShotSelectionController:
         assert target.right_panel._plates == []
         assert target.last_selected_shot_name is None
 
-    def test_discovery_cancellation_on_rapid_selection(self) -> None:
+    def test_discovery_cancellation_on_rapid_selection(self, mocker) -> None:
         """Verify old discovery worker is cancelled before starting new one."""
         from controllers.shot_selection_controller import ShotSelectionController
 
@@ -229,7 +228,7 @@ class TestShotSelectionController:
         )  # type: ignore[arg-type]
 
         # Create a mock worker
-        mock_worker = MagicMock()
+        mock_worker = mocker.MagicMock()
         controller._discovery_worker = mock_worker
 
         # Select a new shot
@@ -255,7 +254,7 @@ class TestShotSelectionController:
         controller.on_recover_crashes_requested()
         mock_notif.warning.assert_called_once()
 
-    def test_cleanup_cancels_active_worker(self) -> None:
+    def test_cleanup_cancels_active_worker(self, mocker) -> None:
         """Verify cleanup cancels any active discovery worker."""
         from controllers.shot_selection_controller import ShotSelectionController
 
@@ -265,7 +264,7 @@ class TestShotSelectionController:
         )  # type: ignore[arg-type]
 
         # Create a mock worker
-        mock_worker = MagicMock()
+        mock_worker = mocker.MagicMock()
         controller._discovery_worker = mock_worker
 
         controller.cleanup()

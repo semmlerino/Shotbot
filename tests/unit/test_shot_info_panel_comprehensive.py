@@ -12,7 +12,6 @@ import sys
 from collections.abc import Generator
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -21,6 +20,7 @@ from PIL import Image
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
+    from pytest_mock import MockerFixture
     from pytestqt.qtbot import QtBot
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -183,21 +183,21 @@ class TestShotInfoPanelAsyncLoading:
         )
 
     def test_cache_integration(
-        self, info_panel: ShotInfoPanel, test_shot: Shot, qtbot: QtBot
+        self, info_panel: ShotInfoPanel, test_shot: Shot, qtbot: QtBot, mocker: MockerFixture
     ) -> None:
         """Test integration with cache manager."""
         # Mock cache manager behavior
-        with patch.object(info_panel.cache_manager, "get_cached_thumbnail") as mock_get:
-            mock_get.return_value = None  # No cached thumbnail
+        mock_get = mocker.patch.object(info_panel.cache_manager, "get_cached_thumbnail")
+        mock_get.return_value = None  # No cached thumbnail
 
-            # Set shot - should try cache first
-            info_panel.set_shot(test_shot)
+        # Set shot - should try cache first
+        info_panel.set_shot(test_shot)
 
-            qtbot.wait(1)  # Minimal event processing
+        qtbot.wait(1)  # Minimal event processing
 
-            # Verify behavior: cache was accessed (not implementation detail)
-            # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
-            assert mock_get.called  # Cache was checked for thumbnail
+        # Verify behavior: cache was accessed (not implementation detail)
+        # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
+        assert mock_get.called  # Cache was checked for thumbnail
             # The thumbnail display behavior is the important outcome,
             # not the specific arguments to the mock
 

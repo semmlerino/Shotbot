@@ -1,6 +1,8 @@
 Shotbot is a PySide6 GUI for matchmove workflow execution at BlueBolt (`3DEqualizer -> Maya -> Nuke -> Publish`). Single-user tool in an isolated VFX environment.
 
-**Security posture:** Do not prioritize generic security findings (`shell=True`, path traversal, command injection, etc.). Prioritize correctness, maintainability, performance, and Qt thread safety.
+**Python version:** Target Python 3.10+. Do not use 3.11-only stdlib APIs or typing features unless the file already guards them. Use `typing_extensions` when needed.
+
+**Security posture:** Single-user internal tool. Do not generate generic web-app audit noise, but do not introduce unsafe shell or path handling when writing new code. Prioritize correctness, maintainability, performance, and Qt thread safety.
 
 ## Project Layout
 
@@ -33,7 +35,7 @@ Application modules live at the repository root (no `src/` package), organized i
 - `dev-tools/` — development-only utility scripts (profiling, thread checks, type-check helpers)
 - `encoded_releases/` — deployment artifact directory (encoded bundles for the encoded-releases branch)
 
-**Import pattern:** Lazy imports are used throughout to avoid circular dependencies. When adding new imports between modules, check for circular import risk — use `from __future__ import annotations` and `TYPE_CHECKING` guards as needed.
+**Import pattern:** Prefer normal imports. Use local imports only to break an existing cycle or defer an optional/heavy dependency. Put type-only imports under `TYPE_CHECKING`. **Caveat:** `from __future__ import annotations` makes all annotations strings at runtime, which can break PySide6 signal/slot type resolution and `get_type_hints()`. Test signal connections after adding this import to any module that defines signals.
 
 ## Development Commands
 
@@ -41,10 +43,10 @@ Application modules live at the repository root (no `src/` package), organized i
 # Run with mock data (no VFX environment needed)
 uv run python shotbot.py --mock
 
-# Lint (auto-fixes)
+# Lint check (does not auto-fix; add --fix to apply fixes)
 uv run ruff check <files>
 
-# Type check — fix all errors before committing (pre-existing warnings OK)
+# Type check — do not introduce new errors in touched files
 uv run basedpyright <files>
 
 # Primary test run (serial, main correctness gate)
@@ -62,9 +64,9 @@ uv run skylos . --table --exclude-folder tests --exclude-folder archive
 
 **Post-commit hook:** `.git/hooks/post-commit` automatically runs ruff, basedpyright, deptry, then creates a deployment bundle and pushes it to the `encoded-releases` branch in the background. Do not duplicate these checks manually after committing.
 
-## Deployment-Critical Files (DO NOT DELETE)
+## Deployment-Critical Files
 
-These form the encoded-releases deployment pipeline. Deleting any breaks automated deployment:
+These form the encoded-releases deployment pipeline. Do not delete or rename without explicit request and deployment validation:
 
 - `deploy/bundle_app.py` — bundles application files for encoding
 - `deploy/transfer_cli.py` — base64 encodes bundles (called by `bundle_app.py`)
@@ -77,26 +79,27 @@ These form the encoded-releases deployment pipeline. Deleting any breaks automat
 ### Qt Patterns
 
 1. Widget constructors must accept `parent: QWidget | None = None` and call `super().__init__(parent)`.
-2. `except Exception` that does not re-raise **must** call `logger.exception()` or `logger.error(..., exc_info=True)`. Silent swallowing hides production bugs.
+2. Broad `except Exception` for unexpected failures **must** call `logger.exception()` or `logger.error(..., exc_info=True)`. Expected recovery paths and noisy cleanup can use `logger.debug()` or `logger.warning()` without stack traces.
+3. Use signals for cross-thread UI updates. For `ThreadSafeWorker` wiring, use `safe_connect(..., Qt.QueuedConnection)`. Never emit signals while holding a mutex. Never call widget methods directly from worker threads.
 
 ### Testing
 
-3. Serial `uv run pytest tests/` is the default run. Parallel (`-n auto`) is a secondary isolation check only.
-4. New singletons must use `SingletonMixin` (from `singleton_mixin.py`) and be registered in `tests/fixtures/singleton_fixtures.py` with a `reset()` method.
-5. Use `drain_qt_events()` (from `tests.test_helpers`) for Qt event flushing — not `time.sleep()` or small real-time waits.
-6. Qt widgets added to `qtbot` must not also be manually `deleteLater()`'d in teardown. Close/hide them and let `qtbot` own destruction.
-7. Integration tests should assert on controller/orchestrator delegation — don't re-run deeper refresh or launch internals that already have dedicated unit coverage. Example: assert `controller.launch()` was called, don't re-test what `launch()` does internally.
-8. For log output assertions, use `caplog` instead of patching logger methods.
-9. For patching, prefer `monkeypatch` + `unittest.mock` over the `mocker` fixture.
+4. Serial `uv run pytest tests/` is the default run — Qt resource contention and singleton state make parallel execution unreliable as a primary gate. Parallel (`-n auto`) is a secondary check for unintended test interdependencies.
+5. New singletons should use `SingletonMixin` (from `singleton_mixin.py`) and be registered in `tests/fixtures/singleton_fixtures.py` with a `reset()` method. Exception: QObject-based singletons or classes with unusual MRO constraints may use a custom pattern — document the reason (see `ProcessPoolManager`).
+6. Use `drain_qt_events()` (from `tests.test_helpers`) for Qt event flushing — not `time.sleep()` or small real-time waits.
+7. Qt widgets added to `qtbot` must not also be manually `deleteLater()`'d in teardown. Close/hide them and let `qtbot` own destruction.
+8. Integration tests cover real multi-component workflows: cross-component coordination, shutdown lifecycle, cache recovery, process-pool behavior, and launch flows. They exercise actual interaction, not just delegation checks. Unit tests cover isolated component behavior.
+9. For log output assertions, use `caplog` instead of patching logger methods.
+10. Use `mocker` (pytest-mock) for mocks and patching. Use `monkeypatch` for simple overrides (env vars, attribute swaps). Only import `unittest.mock` directly when `mocker` is unavailable (e.g., non-test code, standalone scripts).
 
-## Canonical References
+## When to Consult Docs
 
-- Deployment and recovery: `docs/DEPLOYMENT_SYSTEM.md`
-- Caching behavior: `docs/CACHING_ARCHITECTURE.md`
-- Launcher and BlueBolt environment: `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md`
-- Threading model: `docs/THREADING_ARCHITECTURE.md`
-- MainWindow signal invariants: `docs/SIGNAL_ROUTING.md`
-- Dead-code workflow: `docs/SKYLOS_DEAD_CODE_DETECTION.md`
-- Test fixture catalog: `tests/fixtures/README.md`
-- Crash triage runbook: `segfault.md`
-- Full docs index: `docs/README.md`
+- **Changing worker lifecycle, locking, or cross-thread routing** → read `docs/THREADING_ARCHITECTURE.md`, run `pytest tests/ -k "thread or concurrent or race or zombie"`
+- **Changing signal connections in MainWindow or controllers** → read `docs/SIGNAL_ROUTING.md`, run its change checklist integration tests
+- **Changing cache or persistence behavior** → read `docs/CACHING_ARCHITECTURE.md`
+- **Changing launcher, DCC commands, or environment assumptions** → read `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md`
+- **Changing deployment pipeline** → read `docs/DEPLOYMENT_SYSTEM.md`
+- **Investigating a crash or segfault** → follow `segfault.md` triage runbook
+- **Removing dead code** → follow `docs/SKYLOS_DEAD_CODE_DETECTION.md` workflow
+- **Adding or changing test fixtures** → check `tests/fixtures/README.md` catalog
+- **Full docs index** → `docs/README.md`

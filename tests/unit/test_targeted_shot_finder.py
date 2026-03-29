@@ -7,7 +7,6 @@ import logging
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
 
 # Third-party imports
 import pytest
@@ -73,12 +72,12 @@ class TestScanShowForUser:
         user_path.mkdir(parents=True)
 
         # Mock CancellableSubprocess to return user path
-        mock_result = MagicMock()
+        mock_result = mocker.MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = str(user_path)
         mock_result.status = "ok"
 
-        mock_proc = MagicMock()
+        mock_proc = mocker.MagicMock()
         mock_proc.run.return_value = mock_result
 
         mocker.patch(
@@ -124,9 +123,9 @@ class TestScanShowForUser:
         show_path = shows_root / "test_show" / "shots"
         show_path.mkdir(parents=True)
 
-        mock_proc = MagicMock()
+        mock_proc = mocker.MagicMock()
         if proc_setup == "timeout":
-            mock_result = MagicMock()
+            mock_result = mocker.MagicMock()
             mock_result.returncode = None
             mock_result.stdout = ""
             mock_result.status = "timeout"
@@ -161,12 +160,12 @@ class TestScanShowForUser:
             f"{shows_root}/myshow/shots/020/020_0010/user/artist",
         ]
 
-        mock_result = MagicMock()
+        mock_result = mocker.MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = "\n".join(user_paths)
         mock_result.status = "ok"
 
-        mock_proc = MagicMock()
+        mock_proc = mocker.MagicMock()
         mock_proc.run.return_value = mock_result
 
         mocker.patch(
@@ -288,7 +287,7 @@ class TestFindUserShotsInShows:
         finder = TargetedShotsFinder()
 
         # Mock scan to return shots
-        mocker.patch.object(finder, "_scan_show_for_user", return_value=[Mock()])
+        mocker.patch.object(finder, "_scan_show_for_user", return_value=[mocker.Mock()])
         # Request stop during iteration
         finder._stop_requested = True
         shots = list(finder.find_user_shots_in_shows({"show1"}, Path("/")))
@@ -317,7 +316,7 @@ class TestFindUserShotsInShows:
     def test_progress_reporting(self, tmp_path: Path, mocker) -> None:
         """Test that progress is reported during search."""
         finder = TargetedShotsFinder()
-        progress_callback = MagicMock()
+        progress_callback = mocker.MagicMock()
         finder.set_progress_callback(progress_callback)
 
         target_shows = {"show1"}
@@ -366,7 +365,7 @@ class TestFindApprovedShotsTargeted:
     def test_find_approved_with_progress(self, mocker) -> None:
         """Test progress reporting during approved shot finding."""
         finder = TargetedShotsFinder()
-        progress_callback = MagicMock()
+        progress_callback = mocker.MagicMock()
         finder.set_progress_callback(progress_callback)
 
         active_shots = [
@@ -496,11 +495,11 @@ class TestEdgeCases:
         finder = TargetedShotsFinder()
 
         # Create a mock executor that sets up future_to_show properly
-        mock_future = MagicMock(spec=Future)
+        mock_future = mocker.MagicMock(spec=Future)
         mock_future.result.side_effect = FuturesTimeoutError()
 
         mock_executor_class = mocker.patch("concurrent.futures.ThreadPoolExecutor")
-        mock_executor = MagicMock()
+        mock_executor = mocker.MagicMock()
         mock_executor_class.return_value.__enter__.return_value = mock_executor
         mock_executor.submit.return_value = mock_future
         mocker.patch("concurrent.futures.as_completed", return_value=[mock_future])
@@ -513,11 +512,11 @@ class TestEdgeCases:
         """Test handling of concurrent.futures exceptions."""
         finder = TargetedShotsFinder()
 
-        mock_future = MagicMock(spec=Future)
+        mock_future = mocker.MagicMock(spec=Future)
         mock_future.result.side_effect = Exception("Future failed")
 
         mock_executor_class = mocker.patch("concurrent.futures.ThreadPoolExecutor")
-        mock_executor = MagicMock()
+        mock_executor = mocker.MagicMock()
         mock_executor_class.return_value.__enter__.return_value = mock_executor
         mock_executor.submit.return_value = mock_future
         mocker.patch("concurrent.futures.as_completed", return_value=[mock_future])

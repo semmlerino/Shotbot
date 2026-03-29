@@ -26,7 +26,6 @@ from __future__ import annotations
 import io
 import threading
 from collections.abc import Iterator
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -171,7 +170,9 @@ def mock_subprocess_popen(
     # Store in thread-local for access from mock callbacks
     _set_current_state(state)
 
-    def _create_mock_popen(*args: object, **kwargs: object) -> MagicMock:
+    from unittest.mock import MagicMock
+
+    def _create_mock_popen(*args: object, **kwargs: object) -> object:
         """Create Popen mock with STRICT MODE."""
         # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
         text_mode = (
@@ -205,7 +206,7 @@ def mock_subprocess_popen(
 
     # Also mock subprocess.run for complete coverage
     # Many production files use subprocess.run() directly (not Popen)
-    def _create_mock_run(*args: object, **kwargs: object) -> MagicMock:
+    def _create_mock_run(*args: object, **kwargs: object) -> object:
         """Create subprocess.run mock with STRICT MODE."""
         # Check if text mode requested
         text_mode = (

@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import contextlib
-import shutil
 import sys
-import tempfile
 import time
 from collections.abc import Callable, Generator, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtGui import QKeySequence
@@ -123,7 +120,7 @@ def real_cache_manager(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def main_window_with_real_components(
-    qapp: Any, qtbot: Any, real_cache_manager: Path, monkeypatch: Any
+    qapp: Any, qtbot: Any, real_cache_manager: Path, monkeypatch: Any, mocker: Any
 ) -> Generator[Any, None, None]:
     """MainWindow with real components, not mocked.
 
@@ -146,7 +143,7 @@ def main_window_with_real_components(
     from managers.progress_manager import ProgressManager
 
     # Use MagicMock for NotificationManager
-    mock_notification_manager = MagicMock()
+    mock_notification_manager = mocker.MagicMock()
 
     monkeypatch.setattr(NotificationManager, "error", mock_notification_manager.error)
     monkeypatch.setattr(
@@ -158,7 +155,7 @@ def main_window_with_real_components(
     )
 
     # Use MagicMock for ProgressManager
-    mock_progress_manager = MagicMock()
+    mock_progress_manager = mocker.MagicMock()
     monkeypatch.setattr(ProgressManager, "operation", mock_progress_manager.operation)
     monkeypatch.setattr(
         ProgressManager, "start_operation", mock_progress_manager.start_operation
@@ -589,7 +586,7 @@ class TestUserWorkflows:
 
         self.signal_events: list[tuple] = []
 
-        self.progress_operation = MagicMock()
+        self.progress_operation = mocker.MagicMock()
         self.mock_progress = mocker.patch(
             "managers.progress_manager.ProgressManager.start_operation"
         )
@@ -768,22 +765,3 @@ class TestUserWorkflows:
             index = main_window.shot_item_model.index(i, 0)
             shot_data = main_window.shot_item_model.data(index, UnifiedRole.ObjectRole)
             assert shot_data is not None
-
-
-# ---------------------------------------------------------------------------
-# Standalone helpers (preserved from test_user_workflows.py)
-# ---------------------------------------------------------------------------
-
-
-def setup_test_environment() -> Path:
-    """Set up isolated test environment for standalone testing."""
-    return Path(tempfile.mkdtemp(prefix="shotbot_workflow_test_"))
-
-
-def cleanup_test_environment(temp_dir: Path) -> None:
-    """Clean up test environment after standalone testing."""
-    try:
-        if temp_dir.exists():
-            shutil.rmtree(temp_dir, ignore_errors=True)
-    except Exception as e:  # noqa: BLE001
-        print(f"Cleanup warning: {e}")

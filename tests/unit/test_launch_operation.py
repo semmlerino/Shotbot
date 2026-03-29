@@ -9,7 +9,6 @@ it straightforward to test without Qt infrastructure.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -38,18 +37,20 @@ def _make_operation(
     command_prefix: str = "",
     log_suffix: str = "",
     error_context: str = "",
+    mocker,
 ) -> LaunchOperation:
     """Construct a LaunchOperation with sensible defaults for unit tests."""
+    mock_class = mocker.MagicMock
     if emit_error is None:
-        emit_error = MagicMock()
+        emit_error = mock_class()
     if env_manager is None:
-        env_manager = _make_env_manager()
+        env_manager = _make_env_manager(mocker=mocker)
     if process_executor is None:
-        process_executor = _make_process_executor()
+        process_executor = _make_process_executor(mocker=mocker)
     if settings_manager is None:
-        settings_manager = _make_settings_manager()
+        settings_manager = _make_settings_manager(mocker=mocker)
     if nuke_env is None:
-        nuke_env = MagicMock()
+        nuke_env = mock_class()
 
     return LaunchOperation(
         app_name=app_name,
@@ -73,8 +74,10 @@ def _make_env_manager(
     terminal: str | None = "gnome-terminal",
     rez_packages: list[str] | None = None,
     should_wrap_rez: bool = True,
-) -> MagicMock:
-    em = MagicMock()
+    mocker,
+):
+    mock_class = mocker.MagicMock
+    em = mock_class()
     em.is_ws_available.return_value = ws_available
     em.detect_terminal.return_value = terminal
     em.get_rez_packages.return_value = (
@@ -86,17 +89,22 @@ def _make_env_manager(
 
 def _make_process_executor(
     *,
-    spawn_result: object = MagicMock(),  # non-None = success
+    spawn_result: object = None,
     is_gui: bool = False,
-) -> MagicMock:
-    pe = MagicMock()
+    mocker,
+):
+    mock_class = mocker.MagicMock
+    if spawn_result is None:
+        spawn_result = mock_class()  # non-None = success
+    pe = mock_class()
     pe.execute_in_new_terminal.return_value = spawn_result
     pe.is_gui_app.return_value = is_gui
     return pe
 
 
-def _make_settings_manager(*, background_gui: bool = False) -> MagicMock:
-    sm = MagicMock()
+def _make_settings_manager(*, background_gui: bool = False, mocker):
+    mock_class = mocker.MagicMock
+    sm = mock_class()
     sm.launch.get_background_gui_apps.return_value = background_gui
     return sm
 
@@ -113,8 +121,8 @@ class TestExecuteWorkspaceResolution:
         """When workspace_path is provided it is used without touching current_shot."""
         from config import RezMode
 
-        em = _make_env_manager()
-        pe = _make_process_executor()
+        em = _make_env_manager(mocker=mocker)
+        pe = _make_process_executor(mocker=mocker)
 
         mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mock_ws = mocker.patch(
@@ -129,17 +137,18 @@ class TestExecuteWorkspaceResolution:
             workspace_path="/explicit/path",
             env_manager=em,
             process_executor=pe,
+            mocker=mocker,
         )
         op.execute()
 
         mock_ws.assert_called_once()
         assert "/explicit/path" in mock_ws.call_args[0][0]
 
-    def test_no_workspace_and_no_shot_emits_error_and_returns_false(self) -> None:
+    def test_no_workspace_and_no_shot_emits_error_and_returns_false(self, mocker) -> None:
         """execute() returns False and emits error when both workspace_path and shot are None."""
-        emit_error = MagicMock()
+        emit_error = mocker.MagicMock()
         op = _make_operation(
-            workspace_path=None, current_shot=None, emit_error=emit_error
+            workspace_path=None, current_shot=None, emit_error=emit_error, mocker=mocker
         )
 
         result = op.execute()
@@ -160,8 +169,8 @@ class TestExecuteInvalidWorkspacePath:
     def test_dangerous_workspace_path_emits_error_and_returns_false(self, mocker) -> None:
         from config import RezMode
 
-        emit_error = MagicMock()
-        em = _make_env_manager()
+        emit_error = mocker.MagicMock()
+        em = _make_env_manager(mocker=mocker)
 
         mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mocker.patch(
@@ -175,6 +184,7 @@ class TestExecuteInvalidWorkspacePath:
             workspace_path="/bad/path; evil",
             env_manager=em,
             emit_error=emit_error,
+            mocker=mocker,
         )
         result = op.execute()
 
@@ -193,10 +203,10 @@ class TestExecuteCommandLengthGuard:
     def test_oversized_command_emits_error_and_returns_false(self, mocker) -> None:
         from config import RezMode
 
-        emit_error = MagicMock()
+        emit_error = mocker.MagicMock()
         long_command = "x" * (LaunchOperation.MAX_COMMAND_LENGTH + 1)
-        pe = _make_process_executor()
-        em = _make_env_manager()
+        pe = _make_process_executor(mocker=mocker)
+        em = _make_env_manager(mocker=mocker)
 
         mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
@@ -215,6 +225,7 @@ class TestExecuteCommandLengthGuard:
             process_executor=pe,
             env_manager=em,
             emit_error=emit_error,
+            mocker=mocker,
         )
         result = op.execute()
 
@@ -234,9 +245,9 @@ class TestExecuteBackgroundWrapping:
     def test_gui_app_backgrounded_when_setting_enabled(self, mocker) -> None:
         from config import RezMode
 
-        pe = _make_process_executor(is_gui=True)
-        sm = _make_settings_manager(background_gui=True)
-        em = _make_env_manager()
+        pe = _make_process_executor(is_gui=True, mocker=mocker)
+        sm = _make_settings_manager(background_gui=True, mocker=mocker)
+        em = _make_env_manager(mocker=mocker)
 
         mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
@@ -244,7 +255,7 @@ class TestExecuteBackgroundWrapping:
             "launch.launch_operation.build_workspace_command",
             return_value="base_cmd",
         )
-        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **kw: c)
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **_kw: c)
         mocker.patch(
             "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
         )
@@ -256,6 +267,7 @@ class TestExecuteBackgroundWrapping:
             process_executor=pe,
             settings_manager=sm,
             env_manager=em,
+            mocker=mocker,
         )
         result = op.execute()
 
@@ -265,9 +277,9 @@ class TestExecuteBackgroundWrapping:
     def test_gui_app_not_backgrounded_when_setting_disabled(self, mocker) -> None:
         from config import RezMode
 
-        pe = _make_process_executor(is_gui=True)
-        sm = _make_settings_manager(background_gui=False)
-        em = _make_env_manager()
+        pe = _make_process_executor(is_gui=True, mocker=mocker)
+        sm = _make_settings_manager(background_gui=False, mocker=mocker)
+        em = _make_env_manager(mocker=mocker)
 
         mocker.patch("launch.launch_operation.Config.Launch.REZ_MODE", RezMode.DISABLED)
         mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
@@ -275,7 +287,7 @@ class TestExecuteBackgroundWrapping:
             "launch.launch_operation.build_workspace_command",
             return_value="base_cmd",
         )
-        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **kw: c)
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **_kw: c)
         mocker.patch(
             "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
         )
@@ -285,6 +297,7 @@ class TestExecuteBackgroundWrapping:
             process_executor=pe,
             settings_manager=sm,
             env_manager=em,
+            mocker=mocker,
         )
         op.execute()
 
@@ -299,15 +312,15 @@ class TestExecuteBackgroundWrapping:
 class TestApplyFileResult:
     """LaunchOperation.apply_file_result delegates to append_scene_to_command."""
 
-    def test_none_result_returns_command_unchanged(self) -> None:
-        emit_error = MagicMock()
+    def test_none_result_returns_command_unchanged(self, mocker) -> None:
+        emit_error = mocker.MagicMock()
         result = LaunchOperation.apply_file_result("3de", "base_cmd", None, emit_error)
 
         assert result == "base_cmd"
         emit_error.assert_not_called()
 
-    def test_valid_path_result_appended_for_3de(self) -> None:
-        emit_error = MagicMock()
+    def test_valid_path_result_appended_for_3de(self, mocker) -> None:
+        emit_error = mocker.MagicMock()
         scene = Path("/shows/TEST/shots/seq01/sq0010/3de/artist_plate_v001.3de")
 
         result = LaunchOperation.apply_file_result("3de", "3de_cmd", scene, emit_error)
@@ -317,8 +330,8 @@ class TestApplyFileResult:
         assert "SGTK_FILE_TO_OPEN" in result
         emit_error.assert_not_called()
 
-    def test_invalid_path_calls_emit_error_and_returns_none(self) -> None:
-        emit_error = MagicMock()
+    def test_invalid_path_calls_emit_error_and_returns_none(self, mocker) -> None:
+        emit_error = mocker.MagicMock()
         bad_scene = Path("/shows/TEST/shot; malicious")
 
         result = LaunchOperation.apply_file_result(
@@ -337,8 +350,8 @@ class TestApplyFileResult:
 class TestAppendSceneToCommand:
     """LaunchOperation.append_scene_to_command builds app-specific command fragments."""
 
-    def test_3de_command_includes_scripts_export_and_sgtk_context(self) -> None:
-        emit_error = MagicMock()
+    def test_3de_command_includes_scripts_export_and_sgtk_context(self, mocker) -> None:
+        emit_error = mocker.MagicMock()
         scene = Path("/shows/TEST/shots/seq01/sq0010/3de/artist_plate_v001.3de")
 
         result = LaunchOperation.append_scene_to_command(
@@ -352,8 +365,8 @@ class TestAppendSceneToCommand:
         assert "-open" in result
         emit_error.assert_not_called()
 
-    def test_maya_command_includes_sgtk_file_to_open(self) -> None:
-        emit_error = MagicMock()
+    def test_maya_command_includes_sgtk_file_to_open(self, mocker) -> None:
+        emit_error = mocker.MagicMock()
         scene = Path("/shows/TEST/shots/seq01/sq0010/maya/artist_plate_v001.ma")
 
         result = LaunchOperation.append_scene_to_command(
@@ -365,8 +378,8 @@ class TestAppendSceneToCommand:
         assert str(scene) in result
         emit_error.assert_not_called()
 
-    def test_invalid_path_calls_emit_error_and_returns_none(self) -> None:
-        emit_error = MagicMock()
+    def test_invalid_path_calls_emit_error_and_returns_none(self, mocker) -> None:
+        emit_error = mocker.MagicMock()
         bad_scene = Path("/shows/TEST/shots/seq01/sq0010/3de/scene; rm -rf /")
 
         result = LaunchOperation.append_scene_to_command(
@@ -376,8 +389,8 @@ class TestAppendSceneToCommand:
         assert result is None
         emit_error.assert_called_once()
 
-    def test_unsupported_app_returns_original_command(self) -> None:
-        emit_error = MagicMock()
+    def test_unsupported_app_returns_original_command(self, mocker) -> None:
+        emit_error = mocker.MagicMock()
         scene = Path("/shows/TEST/shots/seq01/sq0010/rv/output.mov")
 
         result = LaunchOperation.append_scene_to_command(
@@ -407,18 +420,19 @@ class TestRezBypass:
             "launch.launch_operation.build_workspace_command",
             return_value="ws_cmd",
         )
-        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **kw: c)
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **_kw: c)
         mocker.patch(
             "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
         )
         mock_rez = mocker.patch("launch.launch_operation.wrap_with_rez")
 
-        em = _make_env_manager()
-        pe = _make_process_executor()
+        em = _make_env_manager(mocker=mocker)
+        pe = _make_process_executor(mocker=mocker)
         op = _make_operation(
             app_name="maya",
             env_manager=em,
             process_executor=pe,
+            mocker=mocker,
         )
         result = op.execute()
 
@@ -436,7 +450,7 @@ class TestRezBypass:
             "launch.launch_operation.build_workspace_command",
             return_value="ws_cmd",
         )
-        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **kw: c)
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **_kw: c)
         mocker.patch(
             "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
         )
@@ -444,12 +458,13 @@ class TestRezBypass:
             "launch.launch_operation.wrap_with_rez", return_value="rez_cmd"
         )
 
-        em = _make_env_manager()
-        pe = _make_process_executor()
+        em = _make_env_manager(mocker=mocker)
+        pe = _make_process_executor(mocker=mocker)
         op = _make_operation(
             app_name="nuke",
             env_manager=em,
             process_executor=pe,
+            mocker=mocker,
         )
         result = op.execute()
 

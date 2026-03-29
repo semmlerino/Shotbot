@@ -14,7 +14,6 @@ from __future__ import annotations
 import queue
 import threading
 from typing import ClassVar
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -172,9 +171,9 @@ class TestSingletonReset:
         finally:
             TestSingleton.reset()
 
-    def test_reset_calls_cleanup_instance(self) -> None:
+    def test_reset_calls_cleanup_instance(self, mocker) -> None:
         """reset() invokes _cleanup_instance() hook."""
-        cleanup_called = MagicMock()
+        cleanup_called = mocker.MagicMock()
 
         class TestSingleton(SingletonMixin):
             def __init__(self) -> None:

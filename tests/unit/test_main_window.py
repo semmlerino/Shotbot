@@ -11,7 +11,6 @@ Following UNIFIED_TESTING_GUIDE principles:
 from datetime import UTC
 from pathlib import Path
 from typing import Protocol
-from unittest.mock import MagicMock
 
 # Third-party imports
 import pytest
@@ -405,7 +404,7 @@ class TestCrashRecovery:
             assert main_window.command_launcher.current_shot is None
             expected_workspace = scene.workspace_path
 
-        mock_crash_info = MagicMock()
+        mock_crash_info = mocker.MagicMock()
         mock_crash_info.crash_path.name = "test_scene.3de.crash"
 
         mock_manager_class = mocker.patch("threede.recovery.ThreeDERecoveryManager")

@@ -17,7 +17,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -93,13 +92,13 @@ class TestThreeDECommandBuilding:
         Uses cache hit path (sync) to verify command building.
         Async file search is tested separately.
         """
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
+        launcher.env_manager.is_ws_available = mocker.MagicMock(return_value=True)
 
         # Mock cache to return a cache hit (triggers sync path)
         cached_scene = Path("/shows/testshow/shots/sq010/sh0010/3de/latest_scene.3de")
         from cache.types import LatestFileCacheResult
 
-        launcher._cache_manager.get_latest_file_cache_result = MagicMock(
+        launcher._cache_manager.get_latest_file_cache_result = mocker.MagicMock(
             return_value=LatestFileCacheResult("hit", cached_scene)
         )
         launcher.set_current_shot(sample_shot)
@@ -138,7 +137,7 @@ class TestLaunchWithScene:
         mocker,
     ) -> None:
         """Test launching Maya with a scene file uses context-only launch."""
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
+        launcher.env_manager.is_ws_available = mocker.MagicMock(return_value=True)
 
         # Create a Maya scene
         maya_scene = ThreeDEScene(
@@ -185,7 +184,7 @@ class TestPathEscaping:
         mocker,
     ) -> None:
         """Test launch handles workspace paths with spaces."""
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
+        launcher.env_manager.is_ws_available = mocker.MagicMock(return_value=True)
 
         # Create workspace with spaces
         workspace = tmp_path / "shows" / "test show" / "shots" / "sq 010" / "sh 0010"
@@ -218,7 +217,7 @@ class TestPathEscaping:
         mocker,
     ) -> None:
         """Test launch handles scene paths with special characters."""
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
+        launcher.env_manager.is_ws_available = mocker.MagicMock(return_value=True)
 
         # Create workspace
         workspace = tmp_path / "shows" / "testshow" / "shots" / "sq010" / "sh0010"
@@ -259,7 +258,7 @@ class TestErrorHandling:
         mocker,
     ) -> None:
         """launch returns True for valid scene."""
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
+        launcher.env_manager.is_ws_available = mocker.MagicMock(return_value=True)
 
         mocker.patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True

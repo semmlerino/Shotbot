@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -279,7 +278,7 @@ class TestLatestFileFinderWorkerCancellation:
             return result
 
         mock_cls = mocker.patch("threede.ThreeDELatestFinder")
-        mock_instance = MagicMock()
+        mock_instance = mocker.MagicMock()
         mock_instance.find_latest_scene.side_effect = stop_after_threede
         mock_cls.return_value = mock_instance
 
@@ -319,7 +318,7 @@ class TestLatestFileFinderWorkerErrorHandling:
         mock_finder_class = mocker.patch(
             "launch.latest_file_finder_worker.MayaLatestFinder"
         )
-        mock_finder = MagicMock()
+        mock_finder = mocker.MagicMock()
         mock_finder.find_latest_scene.side_effect = RuntimeError("Test error")
         mock_finder_class.return_value = mock_finder
 
@@ -348,7 +347,7 @@ class TestLatestFileFinderWorkerErrorHandling:
         worker.search_complete.connect(lambda s: complete_results.append(s))
 
         mock_finder_class = mocker.patch("threede.ThreeDELatestFinder")
-        mock_finder = MagicMock()
+        mock_finder = mocker.MagicMock()
         mock_finder.find_latest_scene.side_effect = RuntimeError("Test error")
         mock_finder_class.return_value = mock_finder
 

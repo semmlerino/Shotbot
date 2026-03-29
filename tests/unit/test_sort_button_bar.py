@@ -15,7 +15,6 @@ Test Coverage:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtWidgets import QHBoxLayout, QWidget
@@ -44,13 +43,13 @@ def container(qtbot: QtBot) -> QWidget:
 
 
 @pytest.fixture
-def callback() -> MagicMock:
+def callback(mocker):
     """Create a mock callback for sort order changes."""
-    return MagicMock()
+    return mocker.MagicMock()
 
 
 @pytest.fixture
-def sort_bar(container: QWidget, callback: MagicMock) -> SortButtonBar:
+def sort_bar(container: QWidget, callback) -> SortButtonBar:
     """Create a SortButtonBar with mock callback."""
     return SortButtonBar(callback, container)
 
@@ -122,7 +121,7 @@ class TestClickCallbacks:
     """Test that button clicks fire the callback."""
 
     def test_click_name_fires_callback(
-        self, qtbot: QtBot, sort_bar: SortButtonBar, callback: MagicMock
+        self, qtbot: QtBot, sort_bar: SortButtonBar, callback
     ) -> None:
         """Test clicking Name button fires callback with 'name'."""
         sort_bar._name_btn.click()
@@ -130,7 +129,7 @@ class TestClickCallbacks:
         callback.assert_called_once_with("name")
 
     def test_click_date_fires_callback(
-        self, qtbot: QtBot, sort_bar: SortButtonBar, callback: MagicMock
+        self, qtbot: QtBot, sort_bar: SortButtonBar, callback
     ) -> None:
         """Test clicking Date button fires callback with 'date'."""
         # First click Name to ensure we're testing Date callback
@@ -143,7 +142,7 @@ class TestClickCallbacks:
         callback.assert_called_once_with("date")
 
     def test_callback_receives_correct_order_after_toggle(
-        self, qtbot: QtBot, sort_bar: SortButtonBar, callback: MagicMock
+        self, qtbot: QtBot, sort_bar: SortButtonBar, callback
     ) -> None:
         """Test toggling between buttons fires callback with correct order."""
         # Start with Date (default)
@@ -169,7 +168,7 @@ class TestSetOrderNoCallback:
     """Test set_order method does not fire callback."""
 
     def test_set_order_name_does_not_fire_callback(
-        self, sort_bar: SortButtonBar, callback: MagicMock
+        self, sort_bar: SortButtonBar, callback
     ) -> None:
         """Test that set_order('name') does not fire the callback."""
         sort_bar.set_order("name")
@@ -177,7 +176,7 @@ class TestSetOrderNoCallback:
         callback.assert_not_called()
 
     def test_set_order_date_does_not_fire_callback(
-        self, sort_bar: SortButtonBar, callback: MagicMock
+        self, sort_bar: SortButtonBar, callback
     ) -> None:
         """Test that set_order('date') does not fire the callback."""
         # Start with Name to ensure we're testing
@@ -190,7 +189,7 @@ class TestSetOrderNoCallback:
         callback.assert_not_called()
 
     def test_set_order_does_not_fire_even_after_user_click(
-        self, qtbot: QtBot, sort_bar: SortButtonBar, callback: MagicMock
+        self, qtbot: QtBot, sort_bar: SortButtonBar, callback
     ) -> None:
         """Test that set_order does not fire callback even after user click."""
         # User clicks Name (fires callback)
@@ -254,7 +253,7 @@ class TestInvalidOrderHandling:
     """Test handling of invalid order values."""
 
     def test_set_order_invalid_ignored(
-        self, sort_bar: SortButtonBar, callback: MagicMock
+        self, sort_bar: SortButtonBar, callback
     ) -> None:
         """Test that set_order with invalid value is silently ignored."""
         # Start with known state

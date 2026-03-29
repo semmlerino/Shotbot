@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-# Standard library imports
-from unittest.mock import MagicMock
-
 # Local application imports
 from progress_mixin import ProgressReportingMixin
 
@@ -49,18 +46,18 @@ class TestProgressReportingMixinInitialization:
 class TestProgressCallback:
     """Test progress callback management."""
 
-    def test_set_progress_callback(self) -> None:
+    def test_set_progress_callback(self, mocker) -> None:
         """Test setting a progress callback."""
         obj = ConcreteProgressClass()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         obj.set_progress_callback(callback)
         assert obj._progress_callback is callback
 
-    def test_clear_progress_callback(self) -> None:
+    def test_clear_progress_callback(self, mocker) -> None:
         """Test clearing the progress callback."""
         obj = ConcreteProgressClass()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         obj.set_progress_callback(callback)
         assert obj._progress_callback is callback
@@ -68,10 +65,10 @@ class TestProgressCallback:
         obj.clear_progress_callback()
         assert obj._progress_callback is None
 
-    def test_report_progress_with_callback(self) -> None:
+    def test_report_progress_with_callback(self, mocker) -> None:
         """Test that progress is reported to callback."""
         obj = ConcreteProgressClass()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
         obj.set_progress_callback(callback)
 
         obj._report_progress(5, 10, "Halfway")
@@ -83,10 +80,10 @@ class TestProgressCallback:
         # Should not raise any exception
         obj._report_progress(5, 10, "Halfway")
 
-    def test_callback_exception_handling(self) -> None:
+    def test_callback_exception_handling(self, mocker) -> None:
         """Test that callback exceptions are handled gracefully."""
         obj = ConcreteProgressClass()
-        callback = MagicMock(side_effect=Exception("Callback error"))
+        callback = mocker.MagicMock(side_effect=Exception("Callback error"))
         obj.set_progress_callback(callback)
 
         # Should not raise exception
@@ -94,10 +91,10 @@ class TestProgressCallback:
         # Callback is disabled after an error to prevent further failures
         assert obj._progress_callback is None
 
-    def test_duplicate_progress_filtering(self) -> None:
+    def test_duplicate_progress_filtering(self, mocker) -> None:
         """Test that duplicate progress values are filtered."""
         obj = ConcreteProgressClass()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
         obj.set_progress_callback(callback)
 
         # First call should work
@@ -143,10 +140,10 @@ class TestStopRequest:
         obj.request_stop()
         assert obj._check_stop() is True
 
-    def test_stop_during_operation(self) -> None:
+    def test_stop_during_operation(self, mocker) -> None:
         """Test that stop request interrupts operation."""
         obj = ConcreteProgressClass()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
         obj.set_progress_callback(callback)
 
         # Start operation
@@ -173,7 +170,7 @@ class TestStopRequest:
 class TestProgressReportingIntegration:
     """Test integrated progress reporting scenarios."""
 
-    def test_complete_workflow(self) -> None:
+    def test_complete_workflow(self, mocker) -> None:
         """Test complete progress reporting workflow."""
         obj = ConcreteProgressClass()
         progress_reports = []
@@ -194,10 +191,10 @@ class TestProgressReportingIntegration:
         assert len(progress_reports) == 10
         assert progress_reports[-1]["current"] == 10
 
-    def test_multiple_operations_with_reset(self) -> None:
+    def test_multiple_operations_with_reset(self, mocker) -> None:
         """Test running multiple operations with reset between."""
         obj = ConcreteProgressClass()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
         obj.set_progress_callback(callback)
 
         # First operation

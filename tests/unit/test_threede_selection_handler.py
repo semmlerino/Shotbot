@@ -9,7 +9,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -161,15 +160,15 @@ def command_launcher() -> CommandLauncherDouble:
 
 
 @pytest.fixture
-def refresh_callback() -> MagicMock:
-    return MagicMock()
+def refresh_callback(mocker):
+    return mocker.MagicMock()
 
 
 @pytest.fixture
 def handler(
     window: WindowDouble,
     command_launcher: CommandLauncherDouble,
-    refresh_callback: MagicMock,
+    refresh_callback,
 ) -> ThreeDESelectionHandler:
     return ThreeDESelectionHandler(
         window,  # type: ignore[arg-type]
@@ -335,7 +334,7 @@ class TestCrashRecovery:
         self,
         handler: ThreeDESelectionHandler,
         window: WindowDouble,
-        refresh_callback: MagicMock,
+        refresh_callback,
         mocker,
     ) -> None:
         """Test that recovery with a selected scene dispatches execute_crash_recovery."""

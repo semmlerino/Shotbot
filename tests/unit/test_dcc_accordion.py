@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import Qt
@@ -22,9 +21,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def mock_shot() -> MagicMock:
+def mock_shot(mocker) -> object:
     """Create a mock shot for testing."""
-    shot = MagicMock()
+    shot = mocker.MagicMock()
     shot.full_name = "sq010_sh0010"
     shot.show = "myshow"
     shot.sequence = "sq010"
@@ -81,7 +80,7 @@ class TestDCCAccordionShotHandling:
     """Tests for shot selection handling."""
 
     def test_set_shot_enables_sections(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot: object
     ) -> None:
         """Setting a shot enables all sections."""
         accordion = DCCAccordion()
@@ -93,7 +92,7 @@ class TestDCCAccordionShotHandling:
             assert section._launch_btn.isEnabled()
 
     def test_clear_shot_disables_sections(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot: object
     ) -> None:
         """Clearing shot disables all sections."""
         accordion = DCCAccordion()
@@ -123,7 +122,7 @@ class TestDCCAccordionLaunchSignal:
     """Tests for launch signal emission."""
 
     def test_section_launch_emits_accordion_signal(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot: object
     ) -> None:
         """Section launch request is forwarded through accordion."""
         accordion = DCCAccordion()
@@ -144,8 +143,9 @@ class TestDCCAccordionLaunchSignal:
         assert app_name == "3de"
         assert isinstance(options, dict)
 
+    @pytest.mark.parametrize("app_name", ["3de", "nuke", "maya", "rv"])
     def test_different_sections_emit_correct_app_names(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot: object, app_name: str
     ) -> None:
         """Each section emits its correct app name."""
         accordion = DCCAccordion()
@@ -154,17 +154,14 @@ class TestDCCAccordionLaunchSignal:
         accordion.show()
         qtbot.wait(1)
 
-        # Test each section
-        for app_name in ["3de", "nuke", "maya", "rv"]:
-            section = accordion._sections[app_name]
-            section.set_expanded(True)
-            qtbot.wait(1)
+        section = accordion._sections[app_name]
+        section.set_expanded(True)
+        qtbot.wait(1)
 
-            with qtbot.waitSignal(accordion.launch_requested, timeout=1000) as blocker:
-                qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
+        with qtbot.waitSignal(accordion.launch_requested, timeout=1000) as blocker:
+            qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
 
-            assert blocker.args[0] == app_name
-            section.set_expanded(False)
+        assert blocker.args[0] == app_name
 
 
 class TestDCCAccordionExpansion:

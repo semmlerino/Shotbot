@@ -20,6 +20,7 @@ from workers.thread_safe_worker import ThreadSafeWorker, WorkerState
 
 
 if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
     from pytestqt.qtbot import QtBot
 
 
@@ -400,34 +401,28 @@ class TestSafeShutdown:
     def teardown_method(self) -> None:
         ThreadSafeWorker.reset()
 
-    def test_safe_shutdown_calls_safe_stop(self) -> None:
+    def test_safe_shutdown_calls_safe_stop(self, mocker: MockerFixture) -> None:
         """safe_shutdown() calls safe_stop() with the given timeout."""
-        from unittest.mock import patch
-
         worker = InstantWorker()
 
-        with (
-            patch.object(worker, "safe_stop", return_value=True) as mock_stop,
-            patch.object(worker, "is_zombie", return_value=False),
-            patch.object(worker, "deleteLater"),
-        ):
-            worker.safe_shutdown()
+        mock_stop = mocker.patch.object(worker, "safe_stop", return_value=True)
+        mocker.patch.object(worker, "is_zombie", return_value=False)
+        mocker.patch.object(worker, "deleteLater")
+
+        worker.safe_shutdown()
 
         mock_stop.assert_called_once_with(mock_stop.call_args[0][0])
 
-    def test_safe_shutdown_skips_delete_later_when_zombie(self) -> None:
+    def test_safe_shutdown_skips_delete_later_when_zombie(self, mocker: MockerFixture) -> None:
         """safe_shutdown() skips deleteLater() and logs a warning for zombies."""
-        from unittest.mock import patch
-
         worker = InstantWorker()
 
-        with (
-            patch("workers.thread_safe_worker.logger") as mock_logger,
-            patch.object(worker, "safe_stop", return_value=False),
-            patch.object(worker, "is_zombie", return_value=True),
-            patch.object(worker, "deleteLater") as mock_delete,
-        ):
-            worker.safe_shutdown()
+        mock_logger = mocker.patch("workers.thread_safe_worker.logger")
+        mocker.patch.object(worker, "safe_stop", return_value=False)
+        mocker.patch.object(worker, "is_zombie", return_value=True)
+        mock_delete = mocker.patch.object(worker, "deleteLater")
+
+        worker.safe_shutdown()
 
         mock_delete.assert_not_called()
         mock_logger.warning.assert_called_once()

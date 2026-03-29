@@ -7,8 +7,6 @@ This test suite provides comprehensive coverage of process execution:
 - GUI app detection
 """
 
-from unittest.mock import MagicMock
-
 import pytest
 from pytestqt.qtbot import QtBot
 
@@ -21,13 +19,13 @@ from launch.process_executor import ProcessExecutor
 
 
 @pytest.fixture
-def mock_config() -> MagicMock:
+def mock_config(mocker):
     """Create a mock Config object."""
-    return MagicMock(spec=Config)
+    return mocker.MagicMock(spec=Config)
 
 
 @pytest.fixture
-def executor(mock_config: MagicMock) -> ProcessExecutor:
+def executor(mock_config) -> ProcessExecutor:
     """Create a ProcessExecutor with mocked dependencies."""
     return ProcessExecutor(mock_config)
 
@@ -122,7 +120,7 @@ class TestNewTerminalExecution:
     ) -> None:
         """Test execution in supported terminal emulators."""
         mock_timer_class = mocker.patch("launch.process_executor.QTimer")
-        mock_timer = MagicMock()
+        mock_timer = mocker.MagicMock()
         mock_timer_class.return_value = mock_timer
         fp.register(expected_popen_args)
 
@@ -139,7 +137,7 @@ class TestNewTerminalExecution:
     ) -> None:
         """Test that process verification timer is created and started on success."""
         mock_timer_class = mocker.patch("launch.process_executor.QTimer")
-        mock_timer = MagicMock()
+        mock_timer = mocker.MagicMock()
         mock_timer_class.return_value = mock_timer
         fp.register(["gnome-terminal", "--", "/bin/bash", "-ilc", "nuke"])
 
@@ -159,7 +157,7 @@ class TestNewTerminalExecution:
     ) -> None:
         """Test headless mode when terminal is None (no terminal available)."""
         mock_timer_class = mocker.patch("launch.process_executor.QTimer")
-        mock_timer = MagicMock()
+        mock_timer = mocker.MagicMock()
         mock_timer_class.return_value = mock_timer
         fp.register(["/bin/bash", "-ilc", "echo test"])
 
@@ -177,7 +175,7 @@ class TestNewTerminalExecution:
     ) -> None:
         """Test fallback to direct bash execution for unknown terminal."""
         mock_timer_class = mocker.patch("launch.process_executor.QTimer")
-        mock_timer = MagicMock()
+        mock_timer = mocker.MagicMock()
         mock_timer_class.return_value = mock_timer
         fp.register(["/bin/bash", "-ilc", "unknown"])
 
@@ -217,9 +215,10 @@ class TestProcessVerification:
         self,
         executor: ProcessExecutor,
         qtbot: QtBot,
+        mocker,
     ) -> None:
         """Test detection of immediate process crash."""
-        mock_process = MagicMock()
+        mock_process = mocker.MagicMock()
         mock_process.poll.return_value = 1  # Non-None = process exited
 
         # Use wait_signal instead of signal_blocker
@@ -232,10 +231,10 @@ class TestProcessVerification:
             executor.verify_spawn(mock_process, "nuke")
 
     def test_process_spawned_successfully(
-        self, executor: ProcessExecutor, qtbot: QtBot
+        self, executor: ProcessExecutor, qtbot: QtBot, mocker
     ) -> None:
         """Test successful process spawn detection."""
-        mock_process = MagicMock()
+        mock_process = mocker.MagicMock()
         mock_process.poll.return_value = None  # None = process still running
         mock_process.pid = 12345
 

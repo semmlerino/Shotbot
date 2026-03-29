@@ -29,8 +29,6 @@ Target coverage: 70%+ (QPainter code will remain untested)
 
 from __future__ import annotations
 
-from unittest.mock import Mock
-
 import pytest
 from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QRect, QSize, Qt
 from PySide6.QtGui import QColor, QPixmap
@@ -473,14 +471,14 @@ class TestDataExtraction:
 class TestPaintMethod:
     """Test paint() method behavior (focus on logic, not QPainter rendering)."""
 
-    def test_paint_skips_invalid_index(self, qtbot) -> None:
+    def test_paint_skips_invalid_index(self, qtbot, mocker) -> None:
         """Test paint method returns early for invalid index."""
         view = QListView()
         qtbot.addWidget(view)
         delegate = ConcreteThumbnailDelegate(parent=view)
 
         # Create mock painter
-        mock_painter = Mock()
+        mock_painter = mocker.Mock()
         option = QStyleOptionViewItem()
         invalid_index = QModelIndex()
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -73,7 +72,7 @@ class TestOpenMainPlateInRV:
     ) -> None:
         """When no plate is found, CommandLauncher.launch is never called."""
         mocker.patch("discovery.find_main_plate", return_value=None)
-        launcher = MagicMock()
+        launcher = mocker.MagicMock()
         consumer = _MixinConsumer(command_launcher=launcher)
 
         mocker.patch("managers.notification_manager.NotificationManager.error")
@@ -101,7 +100,7 @@ class TestOpenMainPlateInRV:
     ) -> None:
         """When plate found and launcher available, calls launcher.launch with app_name='rv'."""
         mocker.patch("discovery.find_main_plate", return_value="/shots/abc/plates/abc.%04d.exr")
-        launcher = MagicMock()
+        launcher = mocker.MagicMock()
         consumer = _MixinConsumer(command_launcher=launcher)
 
         consumer._open_main_plate_in_rv(_ItemDouble("/shots/abc"))
@@ -115,7 +114,7 @@ class TestOpenMainPlateInRV:
     ) -> None:
         """LaunchRequest passes the plate path as context.sequence_path."""
         mocker.patch("discovery.find_main_plate", return_value="/shots/abc/plates/abc.%04d.exr")
-        launcher = MagicMock()
+        launcher = mocker.MagicMock()
         consumer = _MixinConsumer(command_launcher=launcher)
 
         consumer._open_main_plate_in_rv(_ItemDouble("/shots/abc"))
@@ -129,7 +128,7 @@ class TestOpenMainPlateInRV:
     ) -> None:
         """LaunchRequest carries the item's workspace_path."""
         mocker.patch("discovery.find_main_plate", return_value="/shots/abc/plates/abc.%04d.exr")
-        launcher = MagicMock()
+        launcher = mocker.MagicMock()
         consumer = _MixinConsumer(command_launcher=launcher)
 
         consumer._open_main_plate_in_rv(_ItemDouble("/shots/abc"))
@@ -142,7 +141,7 @@ class TestOpenMainPlateInRV:
     ) -> None:
         """find_main_plate is called with the item's workspace_path."""
         mock_find = mocker.patch("discovery.find_main_plate", return_value="/shots/abc/plates/abc.%04d.exr")
-        launcher = MagicMock()
+        launcher = mocker.MagicMock()
         consumer = _MixinConsumer(command_launcher=launcher)
 
         consumer._open_main_plate_in_rv(_ItemDouble("/shots/abc"))
@@ -154,7 +153,7 @@ class TestOpenMainPlateInRV:
     ) -> None:
         """LaunchRequest leaves file_path and scene as None (standard launch path)."""
         mocker.patch("discovery.find_main_plate", return_value="/shots/abc/plates/abc.%04d.exr")
-        launcher = MagicMock()
+        launcher = mocker.MagicMock()
         consumer = _MixinConsumer(command_launcher=launcher)
 
         consumer._open_main_plate_in_rv(_ItemDouble("/shots/abc"))

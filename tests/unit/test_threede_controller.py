@@ -14,7 +14,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -816,6 +815,7 @@ class TestWorkerManagement:
         self,
         controller: ThreeDEController,
         reset_progress_manager: None,
+        mocker,
     ) -> None:
         """Test that cleanup_worker clears orphaned progress operations."""
         # Start a progress operation manually (simulating orphaned state)
@@ -823,7 +823,7 @@ class TestWorkerManagement:
         assert controller._current_progress_operation is not None
 
         # Simulate a worker that exists but is finished
-        mock_worker = MagicMock()
+        mock_worker = mocker.MagicMock()
         mock_worker.isFinished.return_value = True
         controller._worker_manager._host.store(mock_worker)
 
@@ -878,7 +878,7 @@ class TestRefreshGuards:
         mock_worker_class = mocker.patch(
             "controllers.threede_worker_manager.ThreeDESceneWorker"
         )
-        mock_worker = MagicMock()
+        mock_worker = mocker.MagicMock()
         mock_worker.isFinished.return_value = True
         mock_worker_class.return_value = mock_worker
 
@@ -892,7 +892,7 @@ class TestRefreshGuards:
     ) -> None:
         """Test that concurrent refresh calls are blocked."""
         # Set up a mock worker that appears to be running via the manager
-        mock_worker = MagicMock()
+        mock_worker = mocker.MagicMock()
         mock_worker.isFinished.return_value = False
         controller._worker_manager._host.store(mock_worker)
 

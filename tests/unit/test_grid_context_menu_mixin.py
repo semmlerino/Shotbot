@@ -16,7 +16,6 @@ Following project conventions:
 from __future__ import annotations
 
 import logging
-from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtGui import QIcon
@@ -123,13 +122,20 @@ class TestCopyPathToClipboard:
         test_path = "/some/test/path"
 
         consumer._copy_path_to_clipboard(test_path)
-        qtbot.waitUntil(lambda: QApplication.clipboard() is not None and QApplication.clipboard().text() == test_path)
+        qtbot.waitUntil(
+            lambda: (
+                QApplication.clipboard() is not None
+                and QApplication.clipboard().text() == test_path
+            )
+        )
 
         clipboard = QApplication.clipboard()
         assert clipboard is not None
         assert clipboard.text() == test_path
 
-    def test_copy_path_to_clipboard_multiple_times(self, qapp: QApplication, qtbot) -> None:
+    def test_copy_path_to_clipboard_multiple_times(
+        self, qapp: QApplication, qtbot
+    ) -> None:
         """_copy_path_to_clipboard updates clipboard on multiple calls."""
         consumer = _MixinConsumer()
 
@@ -148,17 +154,20 @@ class TestCopyPathToClipboard:
         with caplog.at_level(logging.DEBUG, logger="ui.grid_context_menu_mixin"):
             consumer._copy_path_to_clipboard("/test/path")
 
-        assert any("Copied path to clipboard" in r.message and "/test/path" in r.message for r in caplog.records)
+        assert any(
+            "Copied path to clipboard" in r.message and "/test/path" in r.message
+            for r in caplog.records
+        )
 
 
 class TestBuildLaunchSubmenu:
     """Tests for _build_launch_submenu method."""
 
-    def test_build_launch_submenu_creates_actions(self, qtbot) -> None:
+    def test_build_launch_submenu_creates_actions(self, qtbot, mocker) -> None:
         """_build_launch_submenu adds actions to menu."""
         consumer = _MixinConsumer()
         menu = QMenu()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         launch_apps = [
             ("Maya", "M", "maya", "rocket", "#FF6B6B"),
@@ -178,11 +187,11 @@ class TestBuildLaunchSubmenu:
         # Submenu should have the correct number of actions (one per app)
         assert len(submenu.actions()) == len(launch_apps)
 
-    def test_build_launch_submenu_action_labels(self, qtbot) -> None:
+    def test_build_launch_submenu_action_labels(self, qtbot, mocker) -> None:
         """_build_launch_submenu creates actions with correct labels."""
         consumer = _MixinConsumer()
         menu = QMenu()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         launch_apps = [
             ("Maya", "M", "maya", "rocket", "#FF6B6B"),
@@ -208,11 +217,11 @@ class TestBuildLaunchSubmenu:
         assert "Nuke" in submenu_actions[1].text()
         assert "(N)" in submenu_actions[1].text()
 
-    def test_build_launch_submenu_action_icons(self, qtbot) -> None:
+    def test_build_launch_submenu_action_icons(self, qtbot, mocker) -> None:
         """_build_launch_submenu adds icons to actions."""
         consumer = _MixinConsumer()
         menu = QMenu()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         launch_apps = [
             ("Maya", "M", "maya", "rocket", "#FF6B6B"),
@@ -229,11 +238,11 @@ class TestBuildLaunchSubmenu:
         action = submenu_actions[0]
         assert not action.icon().isNull()
 
-    def test_build_launch_submenu_callbacks_triggered(self, qtbot) -> None:
+    def test_build_launch_submenu_callbacks_triggered(self, qtbot, mocker) -> None:
         """_build_launch_submenu callbacks are called with correct app_id."""
         consumer = _MixinConsumer()
         menu = QMenu()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         launch_apps = [
             ("Maya", "M", "maya", "rocket", "#FF6B6B"),
@@ -259,11 +268,11 @@ class TestBuildLaunchSubmenu:
         callback.assert_called()
         assert callback.call_args[0][0] == "maya"
 
-    def test_build_launch_submenu_has_icon(self, qtbot) -> None:
+    def test_build_launch_submenu_has_icon(self, qtbot, mocker) -> None:
         """_build_launch_submenu adds icon to the submenu itself."""
         consumer = _MixinConsumer()
         menu = QMenu()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         launch_apps = [
             ("Maya", "M", "maya", "rocket", "#FF6B6B"),
@@ -277,11 +286,11 @@ class TestBuildLaunchSubmenu:
         assert submenu is not None
         assert not submenu.icon().isNull()
 
-    def test_build_launch_submenu_has_style(self, qtbot) -> None:
+    def test_build_launch_submenu_has_style(self, qtbot, mocker) -> None:
         """_build_launch_submenu sets stylesheet on submenu."""
         consumer = _MixinConsumer()
         menu = QMenu()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         launch_apps = [
             ("Maya", "M", "maya", "rocket", "#FF6B6B"),
@@ -296,11 +305,11 @@ class TestBuildLaunchSubmenu:
         # The stylesheet should be set to CONTEXT_MENU_STYLE
         assert "QMenu" in submenu.styleSheet()
 
-    def test_build_launch_submenu_empty_list(self, qtbot) -> None:
+    def test_build_launch_submenu_empty_list(self, qtbot, mocker) -> None:
         """_build_launch_submenu handles empty app list gracefully."""
         consumer = _MixinConsumer()
         menu = QMenu()
-        callback = MagicMock()
+        callback = mocker.MagicMock()
 
         consumer._build_launch_submenu(menu, [], callback)
         qtbot.wait(1)
@@ -317,14 +326,14 @@ class TestBuildLaunchSubmenu:
 class TestBuildStandardActions:
     """Tests for _build_standard_actions method."""
 
-    def test_build_standard_actions_adds_actions(self, qtbot) -> None:
+    def test_build_standard_actions_adds_actions(self, qtbot, mocker) -> None:
         """_build_standard_actions adds actions to menu."""
         consumer = _MixinConsumer()
         menu = QMenu()
 
         actions_config = [
-            ("Open Folder", "folder", "#FF6B6B", MagicMock()),
-            ("Copy Path", "clipboard", "#4ECDC4", MagicMock()),
+            ("Open Folder", "folder", "#FF6B6B", mocker.MagicMock()),
+            ("Copy Path", "clipboard", "#4ECDC4", mocker.MagicMock()),
         ]
 
         consumer._build_standard_actions(menu, actions_config)
@@ -333,13 +342,13 @@ class TestBuildStandardActions:
         # Menu should have the correct number of actions
         assert len(menu.actions()) == len(actions_config)
 
-    def test_build_standard_actions_labels(self, qtbot) -> None:
+    def test_build_standard_actions_labels(self, qtbot, mocker) -> None:
         """_build_standard_actions creates actions with correct labels."""
         consumer = _MixinConsumer()
         menu = QMenu()
 
-        callback1 = MagicMock()
-        callback2 = MagicMock()
+        callback1 = mocker.MagicMock()
+        callback2 = mocker.MagicMock()
 
         actions_config = [
             ("Open Folder", "folder", "#FF6B6B", callback1),
@@ -352,13 +361,13 @@ class TestBuildStandardActions:
         assert menu.actions()[0].text() == "Open Folder"
         assert menu.actions()[1].text() == "Copy Path"
 
-    def test_build_standard_actions_icons(self, qtbot) -> None:
+    def test_build_standard_actions_icons(self, qtbot, mocker) -> None:
         """_build_standard_actions adds icons to actions."""
         consumer = _MixinConsumer()
         menu = QMenu()
 
         actions_config = [
-            ("Open Folder", "folder", "#FF6B6B", MagicMock()),
+            ("Open Folder", "folder", "#FF6B6B", mocker.MagicMock()),
         ]
 
         consumer._build_standard_actions(menu, actions_config)
@@ -367,13 +376,13 @@ class TestBuildStandardActions:
         action = menu.actions()[0]
         assert not action.icon().isNull()
 
-    def test_build_standard_actions_callbacks_triggered(self, qtbot) -> None:
+    def test_build_standard_actions_callbacks_triggered(self, qtbot, mocker) -> None:
         """_build_standard_actions callbacks are called when triggered."""
         consumer = _MixinConsumer()
         menu = QMenu()
 
-        callback1 = MagicMock()
-        callback2 = MagicMock()
+        callback1 = mocker.MagicMock()
+        callback2 = mocker.MagicMock()
 
         actions_config = [
             ("Action 1", "folder", "#FF6B6B", callback1),
@@ -396,12 +405,12 @@ class TestBuildStandardActions:
 
         callback2.assert_called_once()
 
-    def test_build_standard_actions_multiple_callbacks(self, qtbot) -> None:
+    def test_build_standard_actions_multiple_callbacks(self, qtbot, mocker) -> None:
         """_build_standard_actions handles multiple callbacks independently."""
         consumer = _MixinConsumer()
         menu = QMenu()
 
-        callbacks = [MagicMock() for _ in range(3)]
+        callbacks = [mocker.MagicMock() for _ in range(3)]
 
         actions_config = [
             ("Action 1", "folder", "#FF6B6B", callbacks[0]),

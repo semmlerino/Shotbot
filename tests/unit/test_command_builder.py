@@ -13,7 +13,6 @@ import base64
 import re
 import shlex
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -30,9 +29,9 @@ from launch.command_builder import (
 
 
 @pytest.fixture
-def mock_config() -> MagicMock:
+def mock_config(mocker) -> object:
     """Create a mock Config object with default settings."""
-    config = MagicMock(spec=Config)
+    config = mocker.MagicMock(spec=Config)
     config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS = True
     config.DCC.NUKE_OCIO_FALLBACK_CONFIG = "/path/to/ocio/config.ocio"
     return config
@@ -252,7 +251,7 @@ class TestNukeEnvironmentFixes:
     )
     def test_nuke_environment_fixes(
         self,
-        mock_config: MagicMock,
+        mock_config: object,
         skip_plugins: bool,
         ocio_config: str,
         expected_present: list[str],
@@ -272,7 +271,7 @@ class TestNukeEnvironmentFixes:
             )
         assert result.endswith("&& nuke")
 
-    def test_ocio_path_with_spaces(self, mock_config: MagicMock) -> None:
+    def test_ocio_path_with_spaces(self, mock_config: object) -> None:
         """Test OCIO path with spaces is properly quoted."""
         command = "nuke"
         mock_config.DCC.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
@@ -309,7 +308,7 @@ class TestNukeEnvironmentFixes:
     )
     def test_fix_summary(
         self,
-        mock_config: MagicMock,
+        mock_config: object,
         skip_plugins: bool,
         ocio_config: str,
         expected_items: list[str],
@@ -382,11 +381,11 @@ class TestLoggingRedirection:
         )
 
     def test_tee_bypass_uses_redirect(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mocker
     ) -> None:
         """App in bypass set → uses >> redirect, no tee."""
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
-        mock_config = MagicMock(spec=Config)
+        mock_config = mocker.MagicMock(spec=Config)
         mock_config.ENABLE_LAUNCH_LOGGING = True
         mock_config.Launch.LOG_MAX_SIZE_MB = 10
         mock_config.Launch.LOGGING_TEE_BYPASS_APPS = {"maya"}
@@ -398,11 +397,11 @@ class TestLoggingRedirection:
         assert "2>&1" in result
 
     def test_tee_bypass_not_in_set_uses_tee(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mocker
     ) -> None:
         """App not in bypass set → uses tee (unchanged behavior)."""
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
-        mock_config = MagicMock(spec=Config)
+        mock_config = mocker.MagicMock(spec=Config)
         mock_config.ENABLE_LAUNCH_LOGGING = True
         mock_config.Launch.LOG_MAX_SIZE_MB = 10
         mock_config.Launch.LOGGING_TEE_BYPASS_APPS = {"maya"}
@@ -447,7 +446,7 @@ class TestMayaCommandMustSurviveBashParsing:
     The NEW implementation should PASS this test.
     """
 
-    def test_command_base64_survives_bash_layer(self) -> None:
+    def test_command_base64_survives_bash_layer(self, mocker) -> None:
         """Command's base64 payload must survive bash -ilc parsing.
 
         This is what we NEED to work:

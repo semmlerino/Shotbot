@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import Mock
 
 import pytest
 
@@ -12,9 +11,9 @@ from type_definitions import Shot
 
 
 @pytest.fixture
-def mock_shot():
+def mock_shot(mocker):
     """Create a mock shot for testing."""
-    shot = Mock(spec=Shot)
+    shot = mocker.Mock(spec=Shot)
     shot.workspace_path = "/test/workspace"
     shot.full_name = "TEST_0010"
     return shot
@@ -41,7 +40,7 @@ class TestSimpleNukeLauncher:
         mock_exists = mocker.patch("nuke.simple_launcher.Path.exists")
         mock_glob = mocker.patch("nuke.simple_launcher.Path.glob")
         mock_exists.return_value = True
-        mock_script = Mock(spec=Path)
+        mock_script = mocker.Mock(spec=Path)
         mock_script.name = "TEST_0010_mm-default_FG01_scene_v003.nk"
         mock_script.__str__ = lambda _self: (
             "/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v003.nk"
@@ -87,7 +86,7 @@ class TestSimpleNukeLauncher:
         mock_open = mocker.patch("builtins.open", create=True)
         mock_exists.return_value = False
         mock_glob.return_value = []
-        mock_file = Mock()
+        mock_file = mocker.Mock()
         mock_open.return_value.__enter__.return_value = mock_file
 
         command, messages = simple_launcher.open_latest_script(
@@ -119,7 +118,7 @@ class TestSimpleNukeLauncher:
             "/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v003.nk"
         )
         mock_glob.return_value = [mock_script_v002, mock_script_v003]
-        mock_file = Mock()
+        mock_file = mocker.Mock()
         mock_open.return_value.__enter__.return_value = mock_file
 
         command, messages = simple_launcher.create_new_version(mock_shot, "FG01")
@@ -145,7 +144,7 @@ class TestSimpleNukeLauncher:
         mock_open = mocker.patch("builtins.open", create=True)
         mock_exists.return_value = False
         mock_glob.return_value = []
-        mock_file = Mock()
+        mock_file = mocker.Mock()
         mock_open.return_value.__enter__.return_value = mock_file
 
         command, messages = simple_launcher.create_new_version(mock_shot, "FG01")
@@ -171,7 +170,7 @@ class TestSimpleNukeLauncher:
         mock_open = mocker.patch("builtins.open", create=True)
         mock_exists.return_value = False
         mock_glob.return_value = []
-        mock_file = Mock()
+        mock_file = mocker.Mock()
         mock_open.return_value.__enter__.return_value = mock_file
 
         command, _log_messages = simple_launcher.create_new_version(mock_shot, "FG01")

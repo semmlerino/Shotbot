@@ -14,7 +14,6 @@ from __future__ import annotations
 import subprocess
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -40,11 +39,11 @@ class TestSubprocessTimeoutCancellation:
     """
 
     @pytest.fixture
-    def scanner_with_parser(self) -> FileSystemScanner:
+    def scanner_with_parser(self, mocker) -> FileSystemScanner:
         """Create FileSystemScanner with a mock parser."""
         scanner = FileSystemScanner()
         # Mock parser to avoid circular import issues in tests
-        mock_parser = MagicMock()
+        mock_parser = mocker.MagicMock()
         mock_parser.parse_3de_file_path.return_value = (
             Path("/test/scene.3de"),
             "TestShow",
@@ -657,9 +656,7 @@ class TestThreeDEWorkerStopAndCancel:
         )
         cancel_was_checked = False
 
-        def short_scan(
-            shots, excluded_users, progress_callback=None, cancel_flag=None
-        ):
+        def short_scan(shots, excluded_users, progress_callback=None, cancel_flag=None):
             nonlocal cancel_was_checked
             worker.request_stop()  # Simulate stop request arriving during scan
             if cancel_flag and cancel_flag():

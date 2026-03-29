@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import Qt
@@ -23,9 +22,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def mock_shot() -> MagicMock:
+def mock_shot(mocker):
     """Create a mock shot for testing."""
-    shot = MagicMock()
+    shot = mocker.MagicMock()
     shot.full_name = "sq010_sh0010"
     shot.show = "myshow"
     shot.sequence = "sq010"
@@ -86,7 +85,7 @@ class TestRightPanelWidgetShot:
     """Tests for shot handling."""
 
     def test_set_shot_enables_dcc_sections(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot
     ) -> None:
         """Setting shot enables DCC sections."""
         panel = RightPanelWidget()
@@ -107,7 +106,7 @@ class TestRightPanelWidgetShot:
             assert section._launch_btn.isEnabled()
 
     def test_clear_shot_disables_dcc_sections(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot
     ) -> None:
         """Clearing shot disables DCC sections."""
         panel = RightPanelWidget()
@@ -121,7 +120,7 @@ class TestRightPanelWidgetShot:
             assert not section._launch_btn.isEnabled()
 
     def test_set_shot_clears_file_selections(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot, mocker
     ) -> None:
         """Setting a new shot clears file selections."""
         panel = RightPanelWidget()
@@ -131,7 +130,7 @@ class TestRightPanelWidgetShot:
         panel.set_shot(mock_shot)
 
         # Create a different shot
-        new_shot = MagicMock()
+        new_shot = mocker.MagicMock()
         new_shot.full_name = "sq020_sh0020"
 
         # Set new shot
@@ -202,7 +201,7 @@ class TestRightPanelWidgetLaunchSignals:
     """Tests for launch signal handling."""
 
     def test_accordion_launch_emits_launch_requested(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot
     ) -> None:
         """Accordion launch button emits launch_requested signal."""
         panel = RightPanelWidget()
@@ -224,7 +223,7 @@ class TestRightPanelWidgetLaunchSignals:
     def test_launch_includes_selected_file(
         self,
         qtbot: QtBot,
-        mock_shot: MagicMock,
+        mock_shot,
         sample_files: dict[FileType, list[SceneFile]],
     ) -> None:
         """Launch signal includes selected file in options."""
@@ -290,7 +289,7 @@ class TestRightPanelWidgetShortcuts:
     """Tests for keyboard shortcut handling."""
 
     def test_handle_shortcut_with_shot(
-        self, qtbot: QtBot, mock_shot: MagicMock
+        self, qtbot: QtBot, mock_shot
     ) -> None:
         """Shortcut emits launch signal when shot is set."""
         panel = RightPanelWidget()
@@ -312,7 +311,7 @@ class TestRightPanelWidgetShortcuts:
 
         assert result is False
 
-    def test_handle_unknown_shortcut(self, qtbot: QtBot, mock_shot: MagicMock) -> None:
+    def test_handle_unknown_shortcut(self, qtbot: QtBot, mock_shot) -> None:
         """Unknown shortcut returns False."""
         panel = RightPanelWidget()
         qtbot.addWidget(panel)

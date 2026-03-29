@@ -20,7 +20,6 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 # Third-party imports
 import pytest
@@ -200,11 +199,11 @@ class TestPreviousShotsView:
         # Mock ProgressManager to avoid Qt lifecycle issues with status bar
         mocker.patch(
             "previous_shots.view.ProgressManager.start_operation",
-            MagicMock(return_value={}),
+            mocker.MagicMock(return_value={}),
         )
         mocker.patch(
             "previous_shots.view.ProgressManager.finish_operation",
-            MagicMock(),
+            mocker.MagicMock(),
         )
         # Test button click
         QTest.mouseClick(grid_widget._refresh_button, Qt.MouseButton.LeftButton)
@@ -224,11 +223,11 @@ class TestPreviousShotsView:
         # Mock ProgressManager to avoid Qt lifecycle issues with status bar
         mocker.patch(
             "previous_shots.view.ProgressManager.start_operation",
-            MagicMock(return_value={}),
+            mocker.MagicMock(return_value={}),
         )
         mocker.patch(
             "previous_shots.view.ProgressManager.finish_operation",
-            MagicMock(),
+            mocker.MagicMock(),
         )
         # Test scan started signal
         test_model.scan_started.emit()
@@ -481,11 +480,11 @@ class TestPreviousShotsView:
         # Mock ProgressManager to avoid Qt lifecycle issues with status bar
         mocker.patch(
             "previous_shots.view.ProgressManager.start_operation",
-            MagicMock(return_value={}),
+            mocker.MagicMock(return_value={}),
         )
         mocker.patch(
             "previous_shots.view.ProgressManager.finish_operation",
-            MagicMock(),
+            mocker.MagicMock(),
         )
         grid_widget.refresh()
 

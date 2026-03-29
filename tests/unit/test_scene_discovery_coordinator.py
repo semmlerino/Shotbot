@@ -12,7 +12,6 @@ Following UNIFIED_TESTING_V2.md best practices:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -154,8 +153,10 @@ def coordinator(
     mocker.patch.dict(
         "sys.modules",
         {
-            "filesystem_scanner": MagicMock(FileSystemScanner=lambda: scanner_double),
-            "scene_parser": MagicMock(SceneParser=lambda: MagicMock()),
+            "filesystem_scanner": mocker.MagicMock(
+                FileSystemScanner=lambda: scanner_double
+            ),
+            "scene_parser": mocker.MagicMock(SceneParser=lambda: mocker.MagicMock()),
         },
     )
     from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator

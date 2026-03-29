@@ -88,7 +88,10 @@ def make_shot() -> Callable[[str, str, str], Shot]:
 
         # Use correct VFX path format
         return Shot(
-            show, seq, shot, f"{Config.Paths.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
+            show,
+            seq,
+            shot,
+            f"{Config.Paths.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}",
         )
 
     return _make
@@ -101,6 +104,7 @@ def make_model(
     shot_cache: object,
     mock_process_pool_manager,
     model_cleanups: list[Callable[[], None]],
+    mocker,
 ) -> Callable[
     [str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel
 ]:
@@ -139,12 +143,12 @@ def make_model(
             return item_model
 
         if model_class_name == "ThreeDEItemModel":
-            from unittest.mock import MagicMock
-
             from threede import ThreeDESceneModel
             from threede.scene_model import ThreeDEScene
 
-            scene_model = ThreeDESceneModel(cache_manager=MagicMock(), load_cache=False)
+            scene_model = ThreeDESceneModel(
+                cache_manager=mocker.MagicMock(), load_cache=False
+            )
             # Convert shots to scenes for testing
             scenes = [
                 ThreeDEScene(

@@ -2,26 +2,24 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
 
 from controllers.startup_orchestrator import StartupOrchestrator
 
 
 @pytest.fixture
-def mock_target():
-    target = MagicMock()
-    target.shot_model.shots = [MagicMock()]  # simulate cached shots present
+def mock_target(mocker):
+    target = mocker.MagicMock()
+    target.shot_model.shots = [mocker.MagicMock()]  # simulate cached shots present
     target.threede_scene_model.scenes = []
-    target.refresh_coordinator = MagicMock()
+    target.refresh_coordinator = mocker.MagicMock()
     return target
 
 
 @pytest.fixture
-def non_pool():
+def non_pool(mocker):
     """A process pool that is NOT a ProcessPoolManager (skips session warming)."""
-    return MagicMock(spec=[])
+    return mocker.MagicMock(spec=[])
 
 
 def test_startup_orchestrator_starts_background_refresh(mock_target, non_pool):

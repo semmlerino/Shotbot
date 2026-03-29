@@ -39,30 +39,61 @@ Category markers (`unit`, `integration`, `qt`, `slow`, `fast`, `concurrency`, `r
 
 ## Subprocess Mocking Strategy
 
-`mock_subprocess_popen` (strict mode) is auto-injected for all Qt tests via `_qt_auto_fixtures`.
-Non-Qt tests that call subprocess must use `fp` (pytest-subprocess) or request `mock_subprocess_popen` explicitly.
+Shotbot uses a three-layer subprocess mocking architecture:
 
-### Unit Tests: `fp` (pytest-subprocess)
+### Layer 1: Global Safety Net — `mock_subprocess_popen`
 
-**`fp`** (pytest-subprocess) — registers fake process invocations per-command.
+**`mock_subprocess_popen`** (process_fixtures.py) is auto-injected for all Qt tests via `_qt_auto_fixtures`.
+Non-Qt tests that call subprocess must request it explicitly.
 
-- Strict-by-default: unregistered commands raise `ProcessNotRegisteredError`
-- Preferred for new tests; use `fp.register(cmd, stdout=..., returncode=...)`, check calls via `fp.calls`
+- **Purpose:** Prevent accidental real subprocess calls in the test environment.
+- **Behavior:** Returns a benign `MagicMock` that does not simulate any specific command behavior.
+- **NOT a test API:** This fixture is a safety guard, not a mocking framework for asserting subprocess behavior. Use Layer 2 or 3 when you need to test specific subprocess interactions.
+
+```python
+# mock_subprocess_popen prevents real subprocess calls, that's all
+def test_something_that_calls_subprocess(mock_subprocess_popen):
+    code_under_test()  # safe; any subprocess.Popen call is caught
+```
+
+### Layer 2: Application-Level Mocking — `ProcessPoolManager` Mocks
+
+Mock `ProcessPoolManager` (or other application-level executors) when testing scheduling, callbacks, and lifecycle.
+
+- Mocks at the application boundary, not at `subprocess.Popen`.
+- `TestProcessPool` is a test double for `ProcessPoolManager` that enforces threading contracts.
+- Use this when your code goes through application-level abstractions (e.g., `controller.launch()`).
+
+```python
+def test_controller_delegates_to_pool(mock_process_pool_manager):
+    controller = MyController(pool=mock_process_pool_manager)
+    controller.launch("command")
+    assert mock_process_pool_manager.submit.called
+```
+
+### Layer 3: Per-Command Testing — `fp` (pytest-subprocess)
+
+**`fp`** (pytest-subprocess) — registers fake process invocations per-command for fine-grained testing.
+
+- Strict-by-default: unregistered commands raise `ProcessNotRegisteredError`.
+- **Preferred for new tests** that need per-command control.
+- Use `fp.register(cmd, stdout=..., returncode=...)` to define expected commands and their outputs.
+- Check calls via `fp.calls`.
 
 ```python
 def test_launches_correct_command(fp):
-    fp.register(["my-tool", "--flag"])
+    fp.register(["my-tool", "--flag"], stdout="success")
     code_under_test()
     assert list(fp.calls[0]) == ["my-tool", "--flag"]
 ```
 
-### Integration Tests: `TestSubprocess` / `PopenDouble` (injection)
+### Test Doubles: `TestSubprocess`, `TestCompletedProcess`, `PopenDouble`
 
-Use test doubles from `process_fixtures.py` when the component accepts a subprocess executor via constructor/parameter.
+Use test doubles from `process_fixtures.py` when the component accepts a subprocess executor via constructor/parameter (dependency injection).
 
-- Explicit test doubles — no monkeypatching
-- `TestSubprocess` wraps `TestCompletedProcess` for `subprocess.run()`-style interfaces
-- `PopenDouble` provides a mock `Popen` interface for streaming output
+- `TestCompletedProcess` — mock return value for `subprocess.run()`-style interfaces.
+- `PopenDouble` — mock `Popen` for streaming output tests.
+- No monkeypatching; explicit injection.
 
 ```python
 def test_executor_handles_failure():
@@ -76,7 +107,15 @@ def test_executor_handles_failure():
 
 | Scenario | Use |
 |----------|-----|
-| Unit test, fine-grained per-command faking | `fp` (pytest-subprocess) |
-| Integration test, DI available | `TestCompletedProcess` / `PopenDouble` |
+| Prevent accidental real subprocess calls (Qt tests) | `mock_subprocess_popen` (auto-injected) |
+| Test scheduler/pool delegation and lifecycle | Mock `ProcessPoolManager` or use `TestProcessPool` |
+| Unit test, fine-grained per-command behavior | `fp` (pytest-subprocess) |
+| Integration test with DI available | `TestCompletedProcess` / `PopenDouble` |
 | Need streaming Popen behavior | `PopenDouble` |
 | Test needs real subprocess | Request nothing (non-Qt) or don't use `mock_subprocess_popen` |
+
+### Migration Notes
+
+- **Existing tests** using `mock_subprocess_popen` do NOT need migration — the fixture serves as a safety net, not a test API.
+- **New tests** needing subprocess behavior should use `fp` (pytest-subprocess) for precise per-command control.
+- **Tests mocking `ProcessPoolManager`** should continue mocking at the application level — `fp` cannot replace these.

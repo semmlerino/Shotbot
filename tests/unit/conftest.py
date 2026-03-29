@@ -19,6 +19,7 @@ from tests.fixtures.process_fixtures import TestProcessPool
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
+    from pytest_mock import MockerFixture
     from pytestqt.qtbot import QtBot
 
 
@@ -43,7 +44,7 @@ def mock_shows_root(monkeypatch: pytest.MonkeyPatch) -> str:
 
 @pytest.fixture
 def mock_main_window(
-    tmp_path: Path, qtbot: QtBot, monkeypatch: MonkeyPatch
+    tmp_path: Path, qtbot: QtBot, monkeypatch: MonkeyPatch, mocker: MockerFixture
 ) -> Any:
     """Create a mock MainWindow setup for testing filter handlers.
 
@@ -57,8 +58,6 @@ def mock_main_window(
     - status_bar (Mock), _contextual_logger (Mock)
     - shot_proxy, previous_shots_proxy (_ProxyDouble instances)
     """
-    from unittest.mock import Mock
-
     from controllers.filter_coordinator import FilterCoordinator
     from controllers.refresh_coordinator import RefreshCoordinator
     from main_window import MainWindow
@@ -100,8 +99,8 @@ def mock_main_window(
     window.refresh_coordinator = RefreshCoordinator(window)
 
     # Add mock status bar for filter feedback
-    window.status_bar = Mock()
-    window._contextual_logger = Mock()
+    window.status_bar = mocker.Mock()
+    window._contextual_logger = mocker.Mock()
 
     # Add proxy model doubles (filtering moved to proxy in Phase 3)
     class _ProxyDouble:
@@ -132,13 +131,13 @@ def mock_main_window(
     window.filter_coordinator = FilterCoordinator(
         shot_proxy=window.shot_proxy,  # type: ignore[arg-type]
         previous_shots_proxy=window.previous_shots_proxy,  # type: ignore[arg-type]
-        threede_proxy=Mock(),  # type: ignore[arg-type]
-        threede_item_model=Mock(),  # type: ignore[arg-type]
-        previous_shots_item_model=Mock(),  # type: ignore[arg-type]
-        threede_shot_grid=Mock(),  # type: ignore[arg-type]
+        threede_proxy=mocker.Mock(),  # type: ignore[arg-type]
+        threede_item_model=mocker.Mock(),  # type: ignore[arg-type]
+        previous_shots_item_model=mocker.Mock(),  # type: ignore[arg-type]
+        threede_shot_grid=mocker.Mock(),  # type: ignore[arg-type]
         previous_shots_grid=window.previous_shots_grid,
         previous_shots_model=window.previous_shots_model,
-        settings_manager=Mock(),  # type: ignore[arg-type]
+        settings_manager=mocker.Mock(),  # type: ignore[arg-type]
         status_bar=window.status_bar,  # type: ignore[arg-type]
     )
 

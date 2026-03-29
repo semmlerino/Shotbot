@@ -25,7 +25,6 @@ import logging
 import os
 import time as _time
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import Qt
@@ -682,7 +681,7 @@ def make_mock_index(
     column: int = 0,
     data: Any = None,
     is_valid: bool = True,
-) -> MagicMock:
+) -> Any:
     """Factory for QModelIndex mocks with common defaults.
 
     Args:
@@ -694,6 +693,8 @@ def make_mock_index(
     Returns:
         Configured MagicMock with QModelIndex spec
     """
+    from unittest.mock import MagicMock
+
     from PySide6.QtCore import QModelIndex
 
     index = MagicMock(spec=QModelIndex)
@@ -708,7 +709,7 @@ def make_mock_index(
 def make_mock_wheel_event(
     delta: int = 120,
     modifiers: Qt.KeyboardModifier | None = None,
-) -> MagicMock:
+) -> Any:
     """Factory for QWheelEvent mocks.
 
     Args:
@@ -719,6 +720,8 @@ def make_mock_wheel_event(
     Returns:
         Configured MagicMock with QWheelEvent spec configured for angleDelta().y()
     """
+    from unittest.mock import MagicMock
+
     from PySide6.QtGui import QWheelEvent
 
     if modifiers is None:

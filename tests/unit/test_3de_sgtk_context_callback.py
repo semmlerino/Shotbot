@@ -8,7 +8,6 @@ import types
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -63,13 +62,13 @@ class TestThreeDESgtkContextCallback:
     """Test 3DE startup context promotion logic."""
 
     def test_attempt_updates_context_from_shotbot_file_path(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, monkeypatch: pytest.MonkeyPatch, mocker
     ) -> None:
         """The callback upgrades Shot context to task context when engine is ready."""
         monkeypatch.delenv("SGTK_FILE_TO_OPEN", raising=False)
         tde4 = SimpleNamespace(
             getProjectPath=lambda: "",
-            setOpenProjectCallbackFunction=MagicMock(),
+            setOpenProjectCallbackFunction=mocker.MagicMock(),
         )
         module = _load_callback_module(tde4)
 
@@ -82,7 +81,7 @@ class TestThreeDESgtkContextCallback:
             context=current_context,
             sgtk=SimpleNamespace(context_from_path=lambda _path: new_context),
         )
-        change_context = MagicMock(
+        change_context = mocker.MagicMock(
             side_effect=lambda ctx: setattr(engine, "context", ctx)
         )
         sys.modules["sgtk"] = types.SimpleNamespace(
@@ -104,7 +103,7 @@ class TestThreeDESgtkContextCallback:
         assert engine.context is new_context
 
     def test_attempt_returns_done_when_context_already_matches(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, monkeypatch: pytest.MonkeyPatch, mocker
     ) -> None:
         """The callback is a no-op when the full task context is already active."""
         monkeypatch.delenv("SGTK_FILE_TO_OPEN", raising=False)
@@ -116,7 +115,7 @@ class TestThreeDESgtkContextCallback:
             getProjectPath=lambda: (
                 "/shows/bob2/shots/BOB_205_017/BOB_205_017_430/mm/scene_v001.3de"
             ),
-            setOpenProjectCallbackFunction=MagicMock(),
+            setOpenProjectCallbackFunction=mocker.MagicMock(),
         )
         module = _load_callback_module(tde4)
 
@@ -124,7 +123,7 @@ class TestThreeDESgtkContextCallback:
             context=target_context,
             sgtk=SimpleNamespace(context_from_path=lambda _path: target_context),
         )
-        change_context = MagicMock()
+        change_context = mocker.MagicMock()
         sys.modules["sgtk"] = types.SimpleNamespace(
             platform=SimpleNamespace(
                 current_engine=lambda: engine,
@@ -138,11 +137,11 @@ class TestThreeDESgtkContextCallback:
         change_context.assert_not_called()
 
     def test_register_callback_starts_retry_when_engine_not_ready(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, monkeypatch: pytest.MonkeyPatch, mocker
     ) -> None:
         """Startup registers the open callback and starts retries for late engines."""
         monkeypatch.delenv("SGTK_FILE_TO_OPEN", raising=False)
-        set_callback = MagicMock()
+        set_callback = mocker.MagicMock()
         tde4 = SimpleNamespace(
             getProjectPath=lambda: "",
             setOpenProjectCallbackFunction=set_callback,
@@ -177,13 +176,13 @@ class TestThreeDESgtkContextCallback:
         assert started == [(module._retry_context_update, True)]
 
     def test_get_target_project_path_prefers_open_project_then_env_fallback(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, monkeypatch: pytest.MonkeyPatch, mocker
     ) -> None:
         """The callback uses the actual project path when available."""
         monkeypatch.delenv("SGTK_FILE_TO_OPEN", raising=False)
         tde4 = SimpleNamespace(
             getProjectPath=lambda: "/actual/project.3de",
-            setOpenProjectCallbackFunction=MagicMock(),
+            setOpenProjectCallbackFunction=mocker.MagicMock(),
         )
         module = _load_callback_module(tde4)
 
@@ -192,6 +191,6 @@ class TestThreeDESgtkContextCallback:
 
         module.tde4 = SimpleNamespace(
             getProjectPath=lambda: "",
-            setOpenProjectCallbackFunction=MagicMock(),
+            setOpenProjectCallbackFunction=mocker.MagicMock(),
         )
         assert module._get_target_project_path() == "/from/env.3de"

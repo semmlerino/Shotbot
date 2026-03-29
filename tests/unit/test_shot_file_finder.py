@@ -5,9 +5,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from typing import TYPE_CHECKING
 
 import pytest
+
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 from dcc.scene_file import FileType, SceneFile
 from shots.shot_file_finder import ShotFileFinder
@@ -100,18 +104,14 @@ class TestShotFileFinder:
         path = Path("/tmp/test/scene.3de")
         assert finder._extract_user_from_path(path) == "unknown"
 
-    @patch.object(ShotFileFinder, "_find_threede_files")
-    @patch.object(ShotFileFinder, "_find_maya_files")
-    @patch.object(ShotFileFinder, "_find_nuke_files")
-    def test_find_all_files_returns_grouped_results(
-        self,
-        mock_nuke: MagicMock,
-        mock_maya: MagicMock,
-        mock_threede: MagicMock,
-    ) -> None:
+    def test_find_all_files_returns_grouped_results(self, mocker: MockerFixture) -> None:
         """Test that find_all_files returns properly grouped results."""
+        mock_nuke = mocker.patch.object(ShotFileFinder, "_find_nuke_files")
+        mock_maya = mocker.patch.object(ShotFileFinder, "_find_maya_files")
+        mock_threede = mocker.patch.object(ShotFileFinder, "_find_threede_files")
+
         # Create mock shot
-        mock_shot = MagicMock()
+        mock_shot = mocker.MagicMock()
         mock_shot.workspace_path = "/shows/test/shots/sq010/sq010_sh0010"
 
         # Set up mock returns
@@ -136,10 +136,10 @@ class TestShotFileFinder:
         assert len(result[FileType.MAYA]) == 0
         assert len(result[FileType.NUKE]) == 0
 
-    def test_find_all_files_empty_workspace(self, tmp_path: Path) -> None:
+    def test_find_all_files_empty_workspace(self, tmp_path: Path, mocker: MockerFixture) -> None:
         """Test find_all_files with empty workspace."""
         # Create mock shot with empty workspace
-        mock_shot = MagicMock()
+        mock_shot = mocker.MagicMock()
         mock_shot.workspace_path = str(tmp_path)
 
         finder = ShotFileFinder()
@@ -150,9 +150,9 @@ class TestShotFileFinder:
         assert len(result[FileType.MAYA]) == 0
         assert len(result[FileType.NUKE]) == 0
 
-    def test_find_all_files_nonexistent_workspace(self) -> None:
+    def test_find_all_files_nonexistent_workspace(self, mocker: MockerFixture) -> None:
         """Test find_all_files with non-existent workspace."""
-        mock_shot = MagicMock()
+        mock_shot = mocker.MagicMock()
         mock_shot.workspace_path = "/nonexistent/path"
 
         finder = ShotFileFinder()

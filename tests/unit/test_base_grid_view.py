@@ -24,7 +24,6 @@ Test Coverage:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import QModelIndex, QSize, Qt
@@ -670,11 +669,11 @@ class TestVisibilityTracking:
         assert not grid_view._visibility_timer.isActive()
 
     def test_update_visible_range_called(
-        self, qtbot: QtBot, grid_view: ConcreteGridView
+        self, qtbot: QtBot, grid_view: ConcreteGridView, mocker
     ) -> None:
         """Test that _handle_visible_range_update is called when model exists."""
         # Create a mock model
-        mock_model = MagicMock()
+        mock_model = mocker.MagicMock()
         mock_model.rowCount.return_value = 10
         mock_model.index.return_value.isValid.return_value = True
         mock_model.index.return_value.row.return_value = 0

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QObject
@@ -26,40 +25,40 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def mock_main_window() -> Mock:
+def mock_main_window(mocker):
     """Create mock MainWindow with necessary attributes."""
-    main_window = Mock()
+    main_window = mocker.Mock()
 
     # Tab widget
-    main_window.tab_widget = Mock()
-    main_window.tab_widget.currentIndex = Mock(return_value=0)
+    main_window.tab_widget = mocker.Mock()
+    main_window.tab_widget.currentIndex = mocker.Mock(return_value=0)
 
     # Shot model
-    main_window.shot_model = Mock()
-    main_window.shot_model.refresh_shots = Mock(return_value=(True, True))
+    main_window.shot_model = mocker.Mock()
+    main_window.shot_model.refresh_shots = mocker.Mock(return_value=(True, True))
     main_window.shot_model.shots = []
-    main_window.shot_model.find_shot_by_name = Mock(return_value=None)
-    main_window.shot_model.get_available_shows = Mock(return_value=set())
+    main_window.shot_model.find_shot_by_name = mocker.Mock(return_value=None)
+    main_window.shot_model.get_available_shows = mocker.Mock(return_value=set())
 
     # Shot item model
-    main_window.shot_item_model = Mock()
-    main_window.shot_item_model.set_shots = Mock()
+    main_window.shot_item_model = mocker.Mock()
+    main_window.shot_item_model.set_shots = mocker.Mock()
 
     # Shot grid
-    main_window.shot_grid = Mock()
-    main_window.shot_grid.populate_show_filter = Mock()
-    main_window.shot_grid.select_shot_by_name = Mock()
+    main_window.shot_grid = mocker.Mock()
+    main_window.shot_grid.populate_show_filter = mocker.Mock()
+    main_window.shot_grid.select_shot_by_name = mocker.Mock()
 
     # 3DE controller
-    main_window.threede_controller = Mock()
-    main_window.threede_controller.refresh_threede_scenes = Mock()
+    main_window.threede_controller = mocker.Mock()
+    main_window.threede_controller.refresh_threede_scenes = mocker.Mock()
 
     # Previous shots model
-    main_window.previous_shots_model = Mock()
-    main_window.previous_shots_model.refresh_shots = Mock()
+    main_window.previous_shots_model = mocker.Mock()
+    main_window.previous_shots_model.refresh_shots = mocker.Mock()
 
     # Status update (method name without underscore - matches main_window.py)
-    main_window.update_status = Mock()
+    main_window.update_status = mocker.Mock()
 
     # Last selected shot (property name without underscore - matches main_window.py)
     main_window.last_selected_shot_name = None
@@ -68,34 +67,34 @@ def mock_main_window() -> Mock:
 
 
 @pytest.fixture
-def mock_progress_manager(mocker) -> Mock:
+def mock_progress_manager(mocker):
     """Mock ProgressManager at system boundary."""
     mock = mocker.patch("controllers.refresh_coordinator.ProgressManager")
-    progress_op = Mock()
-    progress_op.set_indeterminate = Mock()
+    progress_op = mocker.Mock()
+    progress_op.set_indeterminate = mocker.Mock()
 
     # Support both old context manager pattern and new manual pattern
-    mock.start_operation = Mock(return_value=progress_op)
-    mock.finish_operation = Mock()
+    mock.start_operation = mocker.Mock(return_value=progress_op)
+    mock.finish_operation = mocker.Mock()
     # Legacy support for any remaining context manager tests
-    progress_op.__enter__ = Mock(return_value=progress_op)
-    progress_op.__exit__ = Mock(return_value=False)
-    mock.operation = Mock(return_value=progress_op)
+    progress_op.__enter__ = mocker.Mock(return_value=progress_op)
+    progress_op.__exit__ = mocker.Mock(return_value=False)
+    mock.operation = mocker.Mock(return_value=progress_op)
     return mock
 
 
 @pytest.fixture
-def mock_notification_manager(mocker) -> Mock:
+def mock_notification_manager(mocker):
     """Mock NotificationManager at system boundary."""
     mock = mocker.patch("controllers.refresh_coordinator.NotificationManager")
-    mock.info = Mock()
-    mock.success = Mock()
-    mock.error = Mock()
+    mock.info = mocker.Mock()
+    mock.success = mocker.Mock()
+    mock.error = mocker.Mock()
     return mock
 
 
 @pytest.fixture
-def orchestrator(qapp: QApplication, mock_main_window: Mock) -> RefreshCoordinator:
+def orchestrator(qapp: QApplication, mock_main_window) -> RefreshCoordinator:
     """Create RefreshCoordinator instance."""
     return RefreshCoordinator(mock_main_window)
 
@@ -105,7 +104,7 @@ def orchestrator(qapp: QApplication, mock_main_window: Mock) -> RefreshCoordinat
 # ============================================================================
 
 
-def test_initialization(qapp: QApplication, mock_main_window: Mock) -> None:
+def test_initialization(qapp: QApplication, mock_main_window) -> None:
     """Test RefreshCoordinator initialization."""
     orchestrator = RefreshCoordinator(mock_main_window)
 
@@ -119,7 +118,7 @@ def test_initialization(qapp: QApplication, mock_main_window: Mock) -> None:
 
 
 def test_refresh_current_tab_gets_current_index(
-    orchestrator: RefreshCoordinator, mock_main_window: Mock, mocker
+    orchestrator: RefreshCoordinator, mock_main_window, mocker
 ) -> None:
     """Test refresh_current_tab routes to refresh_tab with the current tab index."""
     mock_main_window.tab_widget.currentIndex.return_value = 1
@@ -159,8 +158,8 @@ def test_refresh_tab_ignores_invalid_index(
 
 def test_handle_refresh_finished_with_success_and_changes(
     orchestrator: RefreshCoordinator,
-    mock_main_window: Mock,
-    mock_notification_manager: Mock,
+    mock_main_window,
+    mock_notification_manager,
 ) -> None:
     """Test handle_refresh_finished with success and changes."""
     orchestrator.handle_refresh_finished(success=True, has_changes=True)
@@ -173,11 +172,12 @@ def test_handle_refresh_finished_with_success_and_changes(
 
 def test_handle_refresh_finished_with_success_no_changes(
     orchestrator: RefreshCoordinator,
-    mock_main_window: Mock,
-    mock_notification_manager: Mock,
+    mock_main_window,
+    mock_notification_manager,
+    mocker,
 ) -> None:
     """Test handle_refresh_finished with success but no changes."""
-    mock_main_window.shot_model.shots = [Mock(), Mock()]
+    mock_main_window.shot_model.shots = [mocker.Mock(), mocker.Mock()]
 
     orchestrator.handle_refresh_finished(success=True, has_changes=False)
 
@@ -187,13 +187,14 @@ def test_handle_refresh_finished_with_success_no_changes(
 
 def test_handle_refresh_finished_restores_last_selected_shot(
     orchestrator: RefreshCoordinator,
-    mock_main_window: Mock,
-    mock_notification_manager: Mock,
+    mock_main_window,
+    mock_notification_manager,
+    mocker,
 ) -> None:
     """Test handle_refresh_finished selects the previously selected shot in the grid."""
     mock_main_window.last_selected_shot_name = "test_shot_001"
 
-    mock_shot = Mock()
+    mock_shot = mocker.Mock()
     mock_shot.full_name = "show_test_shot_001"
     mock_main_window.shot_model.find_shot_by_name.return_value = mock_shot
 
@@ -206,8 +207,8 @@ def test_handle_refresh_finished_restores_last_selected_shot(
 
 def test_handle_refresh_finished_shows_error_on_failure(
     orchestrator: RefreshCoordinator,
-    mock_main_window: Mock,
-    mock_notification_manager: Mock,
+    mock_main_window,
+    mock_notification_manager,
 ) -> None:
     """Test handle_refresh_finished shows error notification on failure."""
     orchestrator.handle_refresh_finished(success=False, has_changes=False)
@@ -226,10 +227,10 @@ def test_handle_refresh_finished_shows_error_on_failure(
 
 
 def test_trigger_previous_shots_refresh_when_shots_exist(
-    orchestrator: RefreshCoordinator, mock_main_window: Mock
+    orchestrator: RefreshCoordinator, mock_main_window, mocker
 ) -> None:
     """Test trigger_previous_shots_refresh triggers refresh when shots exist."""
-    shots = [Mock(), Mock()]
+    shots = [mocker.Mock(), mocker.Mock()]
 
     orchestrator.trigger_previous_shots_refresh(shots)
 
@@ -237,7 +238,7 @@ def test_trigger_previous_shots_refresh_when_shots_exist(
 
 
 def test_trigger_previous_shots_refresh_skips_when_no_shots(
-    orchestrator: RefreshCoordinator, mock_main_window: Mock
+    orchestrator: RefreshCoordinator, mock_main_window
 ) -> None:
     """Test trigger_previous_shots_refresh skips when no shots."""
     orchestrator.trigger_previous_shots_refresh([])
@@ -251,7 +252,7 @@ def test_trigger_previous_shots_refresh_skips_when_no_shots(
 
 
 def test_refresh_shot_display_debounces_rapid_calls(
-    qapp: QApplication, orchestrator: RefreshCoordinator, mock_main_window: Mock
+    qapp: QApplication, orchestrator: RefreshCoordinator, mock_main_window
 ) -> None:
     """Test that rapid refresh_shot_display calls are debounced.
 

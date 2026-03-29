@@ -8,7 +8,6 @@ This test suite provides comprehensive coverage of environment detection:
 """
 
 import os
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,9 +22,9 @@ def env_manager() -> EnvironmentManager:
 
 
 @pytest.fixture
-def mock_config() -> MagicMock:
+def mock_config(mocker) -> object:
     """Create a mock Config object with default settings."""
-    config = MagicMock(spec=Config)
+    config = mocker.MagicMock(spec=Config)
     config.Launch.REZ_MODE = RezMode.AUTO
     config.Launch.REZ_NUKE_PACKAGES = ["nuke", "nuke-plugins"]
     config.Launch.REZ_MAYA_PACKAGES = ["maya", "maya-plugins"]
@@ -38,7 +37,7 @@ class TestRezAvailability:
     """Tests for Rez availability detection."""
 
     def test_rez_disabled_in_config(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, env_manager: EnvironmentManager, mock_config: object
     ) -> None:
         """Test that Rez is not used when disabled in config."""
         mock_config.Launch.REZ_MODE = RezMode.DISABLED
@@ -49,7 +48,7 @@ class TestRezAvailability:
         self,
         mocker,
         env_manager: EnvironmentManager,
-        mock_config: MagicMock,
+        mock_config: object,
     ) -> None:
         """AUTO mode still resolves app packages even from a base Rez shell."""
         mock_which = mocker.patch("shutil.which")
@@ -60,7 +59,7 @@ class TestRezAvailability:
         mock_which.assert_called_once_with("rez")
 
     def test_rez_force_mode_checks_rez_command(
-        self, mocker, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, mocker, env_manager: EnvironmentManager, mock_config: object
     ) -> None:
         """FORCE mode still depends on the rez executable being present."""
         mock_config.Launch.REZ_MODE = RezMode.FORCE
@@ -73,7 +72,7 @@ class TestRezAvailability:
         self,
         mocker,
         env_manager: EnvironmentManager,
-        mock_config: MagicMock,
+        mock_config: object,
     ) -> None:
         """Test Rez detection via 'rez' command availability."""
         mock_config.Launch.REZ_MODE = RezMode.FORCE
@@ -88,7 +87,7 @@ class TestRezAvailability:
         self,
         mocker,
         env_manager: EnvironmentManager,
-        mock_config: MagicMock,
+        mock_config: object,
     ) -> None:
         """Test Rez not detected when command not found."""
         mock_config.Launch.REZ_MODE = RezMode.FORCE
@@ -103,7 +102,7 @@ class TestRezAvailability:
         self,
         mocker,
         env_manager: EnvironmentManager,
-        mock_config: MagicMock,
+        mock_config: object,
     ) -> None:
         """Test that Rez availability is cached after first check."""
         mock_config.Launch.REZ_MODE = RezMode.FORCE
@@ -122,7 +121,7 @@ class TestRezAvailability:
         assert mock_which.call_count == 1  # Not called again
 
     def test_cache_reset_clears_rez_availability(
-        self, mocker, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, mocker, env_manager: EnvironmentManager, mock_config: object
     ) -> None:
         """Test that reset_cache clears Rez availability cache."""
         mock_config.Launch.REZ_MODE = RezMode.FORCE
@@ -142,35 +141,35 @@ class TestRezPackages:
     """Tests for Rez package mapping."""
 
     def test_nuke_packages(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, env_manager: EnvironmentManager, mock_config: object
     ) -> None:
         """Test Rez packages for Nuke."""
         packages = env_manager.get_rez_packages("nuke", mock_config)
         assert packages == ["nuke", "nuke-plugins"]
 
     def test_maya_packages(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, env_manager: EnvironmentManager, mock_config: object
     ) -> None:
         """Test Rez packages for Maya."""
         packages = env_manager.get_rez_packages("maya", mock_config)
         assert packages == ["maya", "maya-plugins"]
 
     def test_3de_packages(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, env_manager: EnvironmentManager, mock_config: object
     ) -> None:
         """Test Rez packages for 3DEqualizer."""
         packages = env_manager.get_rez_packages("3de", mock_config)
         assert packages == ["3de"]
 
     def test_unknown_app_returns_empty_list(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, env_manager: EnvironmentManager, mock_config: object
     ) -> None:
         """Test that unknown apps return empty package list."""
         packages = env_manager.get_rez_packages("unknown_app", mock_config)
         assert packages == []
 
     def test_rv_packages(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, env_manager: EnvironmentManager, mock_config: object
     ) -> None:
         """Test Rez packages for RV."""
         packages = env_manager.get_rez_packages("rv", mock_config)
@@ -214,14 +213,14 @@ class TestTerminalDetection:
     ) -> None:
         """Test that each supported terminal is detected when only it is available."""
         mock_which = mocker.patch("shutil.which")
-        mock_which.side_effect = lambda cmd: binary_path if cmd == terminal_name else None
+        mock_which.side_effect = lambda cmd: (
+            binary_path if cmd == terminal_name else None
+        )
 
         terminal = env_manager.detect_terminal()
         assert terminal == terminal_name
 
-    def test_preference_order(
-        self, mocker, env_manager: EnvironmentManager
-    ) -> None:
+    def test_preference_order(self, mocker, env_manager: EnvironmentManager) -> None:
         """Test that terminals are checked in preference order."""
         mock_which = mocker.patch("shutil.which")
         # All terminals available - should return gnome-terminal
@@ -230,9 +229,7 @@ class TestTerminalDetection:
         terminal = env_manager.detect_terminal()
         assert terminal == "gnome-terminal"
 
-    def test_no_terminal_found(
-        self, mocker, env_manager: EnvironmentManager
-    ) -> None:
+    def test_no_terminal_found(self, mocker, env_manager: EnvironmentManager) -> None:
         """Test behavior when no terminal is found."""
         mock_which = mocker.patch("shutil.which")
         mock_which.return_value = None
@@ -280,7 +277,7 @@ class TestCacheManagement:
         self,
         mocker,
         env_manager: EnvironmentManager,
-        mock_config: MagicMock,
+        mock_config: object,
     ) -> None:
         """Test that reset_cache clears all cached values."""
         mock_config.REZ_AUTO_DETECT = False
@@ -340,7 +337,7 @@ class TestWsProbeDeduplication:
         mocker.patch.object(env_manager, "_probe_ws", side_effect=counting_probe)
         mocker.patch(
             "launch.environment_manager.subprocess.run",
-            return_value=MagicMock(returncode=0),
+            return_value=mocker.MagicMock(returncode=0),
         )
 
         env_manager.warm_cache_async()
@@ -362,7 +359,7 @@ class TestWsProbeDeduplication:
         """When no warmup was started, is_ws_available runs its own probe."""
         mocker.patch(
             "launch.environment_manager.subprocess.run",
-            return_value=MagicMock(returncode=0),
+            return_value=mocker.MagicMock(returncode=0),
         )
         # Don't call warm_cache_async — no future exists
         result = env_manager.is_ws_available()
