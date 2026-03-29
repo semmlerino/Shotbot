@@ -127,9 +127,6 @@ class ProgressCalculator:
             Human-readable ETA string
 
         """
-        if not Config.PROGRESS_ENABLE_ETA:
-            return ""
-
         if (
             self.total_files_estimate <= 0
             or self.files_processed >= self.total_files_estimate

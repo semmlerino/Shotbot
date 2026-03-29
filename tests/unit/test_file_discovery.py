@@ -1,7 +1,6 @@
 """Tests for file discovery utilities.
 
 Tests cover:
-- safe_mkdir(): Directory creation with error handling
 - find_mov_file_for_path(): MOV file discovery in version directories
 - discover_plate_directories(): Plate directory pattern matching
 """
@@ -15,30 +14,7 @@ import pytest
 from discovery.file_discovery import (
     discover_plate_directories,
     find_mov_file_for_path,
-    safe_mkdir,
 )
-
-
-class TestSafeMkdir:
-    """Tests for safe_mkdir()."""
-
-    def test_creates_nested_directories(self, tmp_path: Path) -> None:
-        """Creates nested directories with parents=True."""
-        nested = tmp_path / "a" / "b" / "c" / "d"
-
-        result = safe_mkdir(nested)
-
-        assert result is True
-        assert nested.exists()
-
-    def test_accepts_string_path(self, tmp_path: Path) -> None:
-        """Accepts string path argument."""
-        new_dir = str(tmp_path / "string_path_dir")
-
-        result = safe_mkdir(new_dir)
-
-        assert result is True
-        assert Path(new_dir).exists()
 
 
 class TestFindMovFileForPath:

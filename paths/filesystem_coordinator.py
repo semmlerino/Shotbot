@@ -101,41 +101,6 @@ class FilesystemCoordinator(SingletonMixin):
                 logger.debug(f"Failed to list directory {path}: {e}")
                 return []
 
-    def find_files_with_extension(
-        self, path: Path, extension: str, recursive: bool = False
-    ) -> list[Path]:
-        """Find all files with given extension in directory.
-
-        This method uses cached listings when possible and provides
-        optimized filtering for specific file types.
-
-        Args:
-            path: Directory to search
-            extension: File extension to match (e.g., '.3de')
-            recursive: Whether to search subdirectories
-
-        Returns:
-            List of matching file paths
-
-        """
-        results: list[Path] = []
-
-        # Get cached listing (tuples of name, is_dir, is_file)
-        contents = self.get_directory_listing(path)
-
-        for name, is_dir, is_file in contents:
-            if is_file and Path(name).suffix == extension:
-                results.append(path / name)
-            elif recursive and is_dir:
-                # Recursive search
-                results.extend(
-                    self.find_files_with_extension(
-                        path / name, extension, recursive=True
-                    )
-                )
-
-        return results
-
     def invalidate_path(self, path: Path) -> None:
         """Invalidate cache for specific path.
 

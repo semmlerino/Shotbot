@@ -152,17 +152,7 @@ class WorkerHost(Generic[W]):
         self._worker = None
         return worker
 
-    def peek_unlocked(self) -> W | None:
-        """Return the reference without acquiring the mutex.
 
-        The caller **must** already hold ``_mutex`` (or the shared mutex
-        passed at construction time).
-
-        Returns:
-            The current worker, or ``None`` if there is none.
-
-        """
-        return self._worker
 
     # ------------------------------------------------------------------
     # Convenience helpers

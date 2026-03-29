@@ -99,16 +99,6 @@ class RVSection(BaseDCCSection):
         """
         self._dcc_sequence_table.set_render_sequences(sequences)
 
-    def get_selected_sequence(self) -> ImageSequence | None:
-        """Get currently selected sequence for RV launch.
-
-        Returns:
-            Selected ImageSequence or None.
-
-        """
-        return self._dcc_sequence_table.get_selected_sequence()
-
-
 def create_dcc_section(
     config: DCCConfig,
     *,

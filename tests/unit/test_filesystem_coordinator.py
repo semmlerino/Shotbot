@@ -409,46 +409,6 @@ class TestCacheInvalidation:
 class TestAdditionalMethods:
     """Test additional coordinator methods."""
 
-    def test_find_files_with_extension(
-        self,
-        coordinator: FilesystemCoordinator,
-        make_test_directory: Callable[[str, int, int], Path],
-    ) -> None:
-        """Test finding files with specific extension."""
-        test_dir = make_test_directory()
-
-        # Add some .txt and .py files
-        (test_dir / "script.py").touch()
-        (test_dir / "module.py").touch()
-        (test_dir / "data.json").touch()
-
-        # Find .py files
-        py_files = coordinator.find_files_with_extension(test_dir, ".py")
-
-        assert len(py_files) == 2
-        assert all(f.suffix == ".py" for f in py_files)
-
-    def test_find_files_recursive(
-        self, coordinator: FilesystemCoordinator, tmp_path: Path
-    ) -> None:
-        """Test recursive file finding."""
-        # Create nested structure
-        root = tmp_path / "root"
-        root.mkdir()
-        (root / "file1.3de").touch()
-
-        subdir = root / "subdir"
-        subdir.mkdir()
-        (subdir / "file2.3de").touch()
-        (subdir / "other.txt").touch()
-
-        # Find .3de files recursively
-        files = coordinator.find_files_with_extension(root, ".3de", recursive=True)
-
-        assert len(files) == 2
-        assert any("file1.3de" in str(f) for f in files)
-        assert any("file2.3de" in str(f) for f in files)
-
     def test_get_cache_stats(
         self,
         coordinator: FilesystemCoordinator,

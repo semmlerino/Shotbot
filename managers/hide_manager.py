@@ -94,9 +94,3 @@ class HideManager:
 
         """
         return self._store.count()
-
-    def clear_hidden(self) -> None:
-        """Clear all hidden shots."""
-        self._store.clear()
-        self._store.save()
-        logger.info("Cleared all hidden shots")

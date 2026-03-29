@@ -216,15 +216,12 @@ class PreviousShotsModel(BaseShotModel):
         logger.debug("Worker thread cleanup completed")
 
     @override
-    def refresh_shots(self, force_fresh: bool = False) -> bool:  # type: ignore[override]
+    def refresh_shots(self) -> bool:  # type: ignore[override]
         """Refresh the list of previous shots using a background worker thread.
 
         Overrides BaseShotModel.refresh_shots() with background-scan semantics.
         Uses incremental caching strategy: new shots are merged with existing cache.
         The cache is never cleared unless explicitly requested via clear_cache().
-
-        Args:
-            force_fresh: Ignored for previous shots (no ws command cache to bypass).
 
         Returns:
             True if refresh was started, False if already scanning.

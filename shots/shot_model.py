@@ -52,7 +52,6 @@ from workers.worker_host import WorkerHost
 logger = logging.getLogger(__name__)
 
 
-# Re-export Shot for backward compatibility with existing imports
 __all__ = ["AsyncShotLoader", "ShotModel"]
 
 
@@ -609,22 +608,6 @@ class ShotModel(BaseShotModel):
 
         # Note: parent ShotModel doesn't have cleanup method
 
-    # Additional methods for backward compatibility
-
-    def get_shot_by_index(self, index: int) -> Shot | None:
-        """Get shot by index position.
-
-        Args:
-            index: Index of shot in list
-
-        Returns:
-            Shot at index or None if index is out of bounds
-
-        """
-        if 0 <= index < len(self.shots):
-            return self.shots[index]
-        return None
-
     @override
     def invalidate_workspace_cache(self) -> None:
         """Manually invalidate the workspace command cache.
@@ -701,25 +684,3 @@ class ShotModel(BaseShotModel):
     def try_load_from_cache(self) -> bool:
         """Load from cache; used by startup orchestrator and tests."""
         return self._load_from_cache()
-
-    def _wait_for_async_load(self, timeout_ms: int = 5000) -> bool:  # pyright: ignore[reportUnusedFunction]
-        """Wait for async loading to complete.
-
-        Args:
-            timeout_ms: Maximum time to wait in milliseconds
-
-        Returns:
-            True if loading completed (or not loading), False if timed out
-
-        """
-        # Check both the loading flag AND loader state under lock
-        with QMutexLocker(self._loader_lock):
-            loading = self._loading_in_progress
-            loader = self._loader_host.peek_unlocked() if loading else None
-
-        if loader and loader.isRunning():
-            return loader.wait(timeout_ms)
-
-        # If flag says loading but no loader, that's a desync - return False
-        # If not loading, return True (already complete)
-        return not loading

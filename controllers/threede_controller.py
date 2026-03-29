@@ -527,13 +527,3 @@ class ThreeDEController:
     # ============================================================================
     # Properties and State Access
     # ============================================================================
-
-    @property
-    def current_scene(self) -> ThreeDEScene | None:
-        """Get the currently selected 3DE scene."""
-        return self.window.threede_shot_grid.selected_scene
-
-    @property
-    def has_active_worker(self) -> bool:
-        """Check if there's an active worker thread."""
-        return self._worker_manager.has_active_worker

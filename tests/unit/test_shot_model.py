@@ -206,44 +206,6 @@ class TestShotModel:
         assert len(shots) == 3
         assert all(isinstance(shot, Shot) for shot in shots)
 
-    def test_get_shot_by_index_valid(
-        self, real_shot_model, make_test_shot: TestShotFactory
-    ) -> None:
-        """Test get_shot_by_index with valid index."""
-        real_shot_model.shots = [
-            make_test_shot("show1", "seq1", "0010"),
-            make_test_shot("show1", "seq1", "0020"),
-            make_test_shot("show2", "seq2", "0030"),
-        ]
-
-        shot = real_shot_model.get_shot_by_index(0)
-        assert shot is not None
-        assert shot.shot == "0010"
-
-        shot = real_shot_model.get_shot_by_index(2)
-        assert shot is not None
-        assert shot.show == "show2"
-
-    def test_get_shot_by_index_invalid(
-        self, real_shot_model, make_test_shot: TestShotFactory
-    ) -> None:
-        """Test get_shot_by_index with invalid indices."""
-        real_shot_model.shots = [
-            make_test_shot("show1", "seq1", "0010"),
-        ]
-
-        # Negative index
-        shot = real_shot_model.get_shot_by_index(-1)
-        assert shot is None
-
-        # Index too large
-        shot = real_shot_model.get_shot_by_index(10)
-        assert shot is None
-
-        # Boundary case - exactly at length
-        shot = real_shot_model.get_shot_by_index(1)
-        assert shot is None
-
     def test_load_from_cache_success(self, real_shot_model, shot_cache) -> None:
         """Test successful cache loading with real cache."""
         # Prepare real cache data

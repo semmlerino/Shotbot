@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Protocol, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from PySide6.QtCore import (
     QAbstractItemModel,
@@ -35,18 +35,6 @@ if TYPE_CHECKING:
 
     from managers.shot_pin_manager import ShotPinManager
     from type_definitions import Shot
-
-
-class HasRefreshPinOrder(Protocol):
-    """Protocol for item models that support pin-order refresh.
-
-    Both ShotItemModel and PreviousShotsItemModel implement this method.
-    Used by _refresh_with_pins() in BaseShotGridView to avoid importing
-    concrete model types into the base class.
-    """
-
-    def refresh_pin_order(self) -> None:
-        """Re-sort the model to reflect current pin state."""
 
 
 class BaseShotGridView(BaseGridView):
@@ -306,14 +294,14 @@ class BaseShotGridView(BaseGridView):
     # ------------------------------------------------------------------
 
     @property
-    def _item_model(self) -> HasRefreshPinOrder | None:
-        """Return the underlying item model for pin-order refresh.
+    def _item_model(self) -> object | None:
+        """Return the underlying item model.
 
         Subclasses that support pin operations must override this property
         to return their specific model instance.
 
         Returns:
-            Model implementing refresh_pin_order(), or None
+            The item model, or None
 
         """
         msg = (
@@ -352,10 +340,6 @@ class BaseShotGridView(BaseGridView):
         proxy = self.list_view.model()
         if isinstance(proxy, QSortFilterProxyModel):
             proxy.invalidate()
-        else:
-            item_model = self._item_model
-            if item_model:
-                item_model.refresh_pin_order()
         self.list_view.viewport().update()
 
     def _edit_shot_note(self, shot: Shot) -> None:

@@ -174,15 +174,6 @@ class LatestFileCache:
             logger.exception("Failed to write latest files cache")
             return False
 
-    def cache_files(self) -> list[Path]:
-        """Return list of cache file paths managed by this cache.
-
-        Returns:
-            List of cache file Path objects
-
-        """
-        return [self.latest_files_cache_file]
-
 
 def make_default_latest_file_cache(base_dir: Path | None = None) -> LatestFileCache:
     """Create a LatestFileCache using the env-resolved default directory."""

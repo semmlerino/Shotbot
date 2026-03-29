@@ -10,6 +10,7 @@ Following UNIFIED_TESTING_GUIDE best practices:
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,6 +19,7 @@ from PySide6.QtTest import QSignalSpy
 
 from config import Config
 from shots.shot_item_model import ShotItemModel
+from tests.test_helpers import drain_qt_events
 from type_definitions import Shot
 from ui.base_item_model import BaseItemRole
 
@@ -71,9 +73,16 @@ def test_shots() -> list[Shot]:
 
 
 @pytest.fixture
-def shot_item_model(qapp: QApplication, cache_manager: object) -> ShotItemModel:
+def shot_item_model(
+    qapp: QApplication, cache_manager: object
+) -> Generator[ShotItemModel, None, None]:
     """Create a ShotItemModel instance for testing."""
-    return ShotItemModel(cache_manager=cache_manager)
+    model = ShotItemModel(cache_manager=cache_manager)
+    yield model
+    if hasattr(model, "cleanup"):
+        model.cleanup()
+    model.deleteLater()
+    drain_qt_events()
 
 
 
@@ -443,23 +452,6 @@ class TestEdgeCases:
 
         assert shot_item_model.rowCount() == 0
         assert len(shot_item_model.shots) == 0
-
-    def test_find_shot_by_full_name(
-        self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]
-    ) -> None:
-        """Test _find_shot_by_full_name helper."""
-        shot_item_model.set_shots(test_shots)
-
-        # Find existing shot
-        result = shot_item_model._find_shot_by_full_name("seq01_0010")
-        assert result is not None
-        shot, row = result
-        assert shot.full_name == "seq01_0010"
-        assert row == 0
-
-        # Find non-existent shot
-        result = shot_item_model._find_shot_by_full_name("nonexistent")
-        assert result is None
 
     def test_properties_access(
         self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]

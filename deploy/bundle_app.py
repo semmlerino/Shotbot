@@ -33,10 +33,6 @@ class BundleConfig(TypedDict, total=False):
     output_dir: str
 
 
-# Type alias for config values (avoids explicit Any)
-ConfigValue = list[str] | int | str
-
-
 class GitIgnoreParser:
     """Parse and apply .gitignore patterns."""
 

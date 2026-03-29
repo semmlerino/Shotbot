@@ -296,16 +296,7 @@ class ThreadSafeWorker(QThread):
             f"Worker {id(self)}: Connected signal to {slot.__name__} with {connection_type}"
         )
 
-    @property
-    def connection_count(self) -> int:
-        """Return the number of tracked signal connections.
 
-        Returns:
-            Number of active signal connections tracked by this worker.
-
-        """
-        with QMutexLocker(self._state_mutex):
-            return len(self._connections)
 
     @Slot()  # type: ignore[reportAny]
     def disconnect_all(self) -> None:
@@ -492,32 +483,7 @@ class ThreadSafeWorker(QThread):
             # Wake any threads waiting on state changes (e.g. safe_wait via wait condition)
             self._state_condition.wakeAll()
 
-    def safe_wait(
-        self,
-        timeout_ms: int = TimeoutConfig.WORKER_GRACEFUL_STOP_MS,
-    ) -> bool:
-        """Safely wait for worker to finish with timeout.
 
-        Args:
-            timeout_ms: Maximum time to wait in milliseconds
-
-        Returns:
-            True if worker finished, False if timeout
-
-        Thread-Safe:
-            Prevents self-join deadlock by detecting if called from worker's own thread.
-        """
-        if self.get_state() in [WorkerState.STOPPED, WorkerState.DELETED]:
-            return True
-
-        # Prevent self-join deadlock: cannot wait on self from worker thread
-        if QThread.currentThread() is self:
-            logger.warning(
-                "Cannot wait on self from worker thread - returning False"
-            )
-            return False
-
-        return self.wait(timeout_ms)
 
     def safe_stop(
         self,
@@ -656,14 +622,7 @@ class ThreadSafeWorker(QThread):
         """
         zombie_registry.start_zombie_cleanup_timer()
 
-    @classmethod
-    def _create_zombie_timer_impl(cls) -> None:
-        """Internal: Create the zombie cleanup timer (must be called on main thread).
 
-        Uses mutex to prevent race conditions when multiple threads attempt
-        to start the timer simultaneously.
-        """
-        zombie_registry.create_zombie_timer_impl()
 
     @classmethod
     def stop_zombie_cleanup_timer(cls) -> None:

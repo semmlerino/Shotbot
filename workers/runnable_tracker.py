@@ -242,16 +242,10 @@ def get_tracker() -> QRunnableTracker:
     return QRunnableTracker()
 
 
-def register_runnable(
-    runnable: QRunnable, metadata: Mapping[str, object] | None = None
-) -> None:
-    """Convenience function to register a runnable with the global tracker."""
-    QRunnableTracker().register(runnable, metadata)
 
 
-def unregister_runnable(runnable: QRunnable) -> None:
-    """Convenience function to unregister a runnable from the global tracker."""
-    QRunnableTracker().unregister(runnable)
+
+
 
 
 def cleanup_all_runnables() -> None:

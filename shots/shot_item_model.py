@@ -118,15 +118,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         return RefreshResult(success=True, has_changes=has_changes)
 
-    def set_hide_manager(self, hide_manager: HideManager) -> None:
-        """Set the hide manager.
-
-        Args:
-            hide_manager: Hide manager for tracking hidden shots
-
-        """
-        self._hide_manager = hide_manager
-
     # ============= Cleanup =============
 
     @override

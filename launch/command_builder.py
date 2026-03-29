@@ -228,11 +228,6 @@ def add_logging(command: str, config: "type[Config] | None" = None, *, app_name:
         - Gracefully degrades if logging setup fails
 
     """
-    # Check if logging is enabled (default to True for backward compatibility)
-    if config is not None and not config.ENABLE_LAUNCH_LOGGING:
-        logger.debug("Launch logging disabled via config")
-        return command
-
     log_dir = Path.home() / ".shotbot" / "logs"
 
     try:

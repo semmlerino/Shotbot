@@ -107,16 +107,7 @@ class ThreeDEWorkerManager:
         worker.start()
         return worker
 
-    def stop_worker(self) -> None:
-        """Stop the current worker if one is running.
 
-        Reads the worker reference under mutex, then stops it outside the
-        mutex to prevent deadlocks.
-        """
-        worker_to_stop = self._host.peek()
-
-        if worker_to_stop is not None and not worker_to_stop.isFinished():
-            self._stop_existing_worker(worker_to_stop)
 
     def cleanup(self) -> None:
         """Stop the current worker and release all resources.
@@ -149,26 +140,7 @@ class ThreeDEWorkerManager:
     # Private Helpers
     # ============================================================================
 
-    def _stop_existing_worker(self, worker_to_stop: ThreeDESceneWorker) -> None:
-        """Stop a running worker thread and release its resources.
 
-        Requests a graceful stop, waits up to the configured timeout, falls
-        back to safe termination if the worker does not respond in time, then
-        schedules the worker for deletion (unless it is a zombie thread) and
-        clears the internal worker reference under mutex protection.
-
-        Args:
-            worker_to_stop: The worker thread to stop.  Must not be ``None``.
-
-        """
-        # Disconnect signals before shutdown to prevent stale deliveries
-        self._disconnect_worker_signals(worker_to_stop)
-
-        worker_to_stop.safe_shutdown(TimeoutConfig.WORKER_COORDINATION_STOP_MS)
-
-        # Clear reference after worker is stopped; only clear if it's still the same worker
-        if self._host.peek() is worker_to_stop:
-            _ = self._host.take()
 
     def _setup_worker_signals(self, worker: ThreeDESceneWorker) -> None:
         """Connect all worker signals to the stored callbacks.

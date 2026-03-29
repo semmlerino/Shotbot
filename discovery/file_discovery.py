@@ -59,30 +59,6 @@ def sanitize_username(raw_username: str) -> str:
     return username
 
 
-def safe_mkdir(path: str | Path, description: str = "Directory") -> bool:
-    """Safely create directory with error handling.
-
-    Args:
-        path: Directory path to create
-        description: Description for logging
-
-    Returns:
-        True if successful, False otherwise
-
-    """
-    if not path:
-        logger.error(f"Cannot create {description}: empty path")
-        return False
-
-    path_obj = Path(path) if isinstance(path, str) else path
-    try:
-        path_obj.mkdir(parents=True, exist_ok=True)
-        return True
-    except (OSError, PermissionError):
-        logger.exception(f"Failed to create {description} {path_obj}")
-        return False
-
-
 def _find_mov_in_dir(directory: Path) -> Path | None:
     """Return the first MOV file found in directory, or None.
 

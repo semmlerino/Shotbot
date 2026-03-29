@@ -64,9 +64,6 @@ class EnvironmentManager:
     # Cache TTL for terminal detection (5 minutes)
     TERMINAL_CACHE_TTL_SEC: Final[float] = 300.0
 
-    # Brief wait for cache warming to complete (avoids 2s subprocess block on fast launch)
-    _CACHE_WARM_WAIT_SEC: float = 0.15
-
     # Timeout for ws availability check (reduced from 5.0s to improve UI responsiveness)
     # VFX facility shells may take longer due to NFS mounts, AD/LDAP auth, rez init
     # 2s is sufficient for most environments; if it times out, we use optimistic fallback

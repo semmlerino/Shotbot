@@ -305,23 +305,9 @@ class SceneParser:
         except (OSError, PermissionError):
             return False
 
-    def get_plate_patterns(self) -> list[re.Pattern[str]]:
-        """Get the compiled regex patterns used for plate detection.
 
-        Returns:
-            List of compiled regex patterns
 
-        """
-        return self._PLATE_PATTERNS.copy()
 
-    def get_generic_directories(self) -> set[str]:
-        """Get the set of generic directory names that are deprioritized in plate extraction.
-
-        Returns:
-            Set of generic directory names
-
-        """
-        return self._GENERIC_DIRS.copy()
 
     def is_bg_fg_plate(self, plate_name: str) -> bool:
         """Check if a plate name matches the BG/FG pattern.

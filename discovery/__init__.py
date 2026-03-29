@@ -4,7 +4,7 @@ Re-exports all public types and functions for convenient imports::
 
     from discovery import BaseLatestFinder, MayaLatestFinder
     from discovery import find_plate_mov_proxy, find_plate_exr_sequence
-    from discovery import discover_plate_directories, safe_mkdir, find_mov_file_for_path
+    from discovery import discover_plate_directories, find_mov_file_for_path
     from discovery import get_available_plates, get_highest_resolution_dir
     from discovery import UserSequenceFinder
     from discovery import extract_frame_range, find_main_plate
@@ -22,7 +22,6 @@ from discovery.file_discovery import (
     find_mov_file_for_path,
     find_plate_exr_sequence,
     find_plate_mov_proxy,
-    safe_mkdir,
     sanitize_username,
 )
 from discovery.frame_range_extractor import extract_frame_range
@@ -67,7 +66,6 @@ __all__ = [
     "find_user_workspace_jpeg_thumbnail",
     "get_available_plates",
     "get_highest_resolution_dir",
-    "safe_mkdir",
     "sanitize_username",
     "substitute_frame",
     "to_hash_pattern",

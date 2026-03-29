@@ -41,14 +41,6 @@ def clear_path_cache() -> None:
     logger.info("Cleared path cache")
 
 
-def disable_path_caching() -> None:
-    """Disable path caching completely - useful for testing."""
-    global _cache_disabled  # noqa: PLW0603
-    _cache_disabled = True
-    clear_path_cache()
-    logger.debug("Path caching disabled for testing")
-
-
 def enable_path_caching() -> None:
     """Re-enable path caching after testing."""
     global _cache_disabled  # noqa: PLW0603

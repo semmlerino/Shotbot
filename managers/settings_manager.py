@@ -14,10 +14,10 @@ Key Features:
 
 Architecture:
     The SettingsManager acts as a facade over QSettings, providing a strongly-typed
-    interface while maintaining backward compatibility. Settings are organized into
+    interface with automatic persistence. Settings are organized into
     categories (window, preferences, performance, etc.) with validation and defaults.
-    Domain sub-objects (``self.window``, ``self.refresh``, etc.) group related methods;
-    the existing flat methods delegate to them for full backward compatibility.
+    Domain sub-objects (``self.window``, ``self.refresh``, etc.) group related settings methods
+    by logical category.
 
 Settings Categories:
     - Window: Geometry, splitter positions, tab selection, dock states

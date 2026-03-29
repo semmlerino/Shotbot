@@ -249,17 +249,6 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         # Update files panel
         self._files_panel.set_shot(shot)
 
-    def set_empty_message(self, message: str) -> None:
-        """Set the message shown when no shot/scene is selected.
-
-        Args:
-            message: The empty state message (e.g., "No Shot Selected" or "No Scene Selected")
-
-        """
-        self._empty_message = message
-        if self._current_shot is None:
-            self.shot_name_label.setText(self._empty_message)
-
     def _copy_path_to_clipboard(self) -> None:
         """Copy current shot workspace path to clipboard."""
         if self._current_shot and self._current_shot.workspace_path:

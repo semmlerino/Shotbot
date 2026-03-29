@@ -3,8 +3,7 @@
 Each class groups related settings methods and delegates storage to the
 ``_get``/``_set`` callables (and raw ``QSettings`` for keys not in the
 registry) provided at construction time.  SettingsManager instantiates one of
-each and exposes them as sub-objects while keeping the existing flat methods as
-thin one-line delegates for backward compatibility.
+each and exposes them as sub-objects for logical organization of settings.
 """
 
 from __future__ import annotations

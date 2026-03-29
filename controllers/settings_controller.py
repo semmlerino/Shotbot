@@ -1,9 +1,8 @@
-"""Settings controller for MainWindow refactoring.
+"""Settings controller for application configuration management.
 
 This module provides the SettingsController class which handles all settings-related
-functionality that was previously embedded in the MainWindow class. This is the first
-step in the MainWindow refactoring plan, focusing on extracting the safest,
-lowest-coupling functionality.
+functionality for the application. The controller manages the application's user
+preferences and configuration state.
 
 The SettingsController manages:
 - Loading and saving application settings

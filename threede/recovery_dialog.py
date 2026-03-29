@@ -284,14 +284,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin):  # pyright: ignore[reportIn
         # Accept dialog
         self.accept()
 
-    def get_selected_crash(self) -> CrashFileInfo | None:
-        """Get the selected crash file info.
 
-        Returns:
-            Selected crash file info, or None if no selection
-
-        """
-        return self.selected_crash
 
 
 @final

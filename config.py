@@ -55,7 +55,7 @@ import multiprocessing
 import os
 from enum import Enum, auto
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 
 def is_mock_mode() -> bool:
@@ -154,9 +154,6 @@ class Config:
     REZ_BYPASS_APPS: ClassVar[set[str]] = set()
 
     # Launch logging
-    ENABLE_LAUNCH_LOGGING: bool = (
-        True  # Log launch output via tee to ~/.shotbot/logs/dispatcher.out
-    )
     LAUNCH_LOG_MAX_SIZE_MB: int = (
         10  # Max log file size in MB before rotation (0 = no limit)
     )
@@ -172,10 +169,6 @@ class Config:
     # Threading
     MAX_THUMBNAIL_THREADS: int = 4
     CPU_COUNT: int = multiprocessing.cpu_count()  # Number of CPU cores available
-
-    # Process and command settings
-    WS_COMMAND_TIMEOUT_SECONDS: int = 10  # Timeout for ws -sg command specifically
-    WS_CACHE_TTL: int = int(os.getenv("SHOTBOT_WS_CACHE_TTL", "1800"))  # 30 minutes
 
     # Image and memory limits
     MAX_THUMBNAIL_DIMENSION_PX: int = 4096  # Maximum dimension for thumbnail images
@@ -216,11 +209,6 @@ class Config:
     DIR_CACHE_MAX_MEMORY_MB: float = 5.0
     SCENE_CACHE_MAX_MEMORY_MB: float = 5.0
     THUMB_CACHE_MAX_MEMORY_MB: float = 2.0
-
-    # Memory pressure thresholds (percentage)
-    MEMORY_PRESSURE_NORMAL: float = 70.0  # Below this is normal
-    MEMORY_PRESSURE_MODERATE: float = 85.0  # Start considering eviction
-    MEMORY_PRESSURE_HIGH: float = 95.0  # Aggressive eviction needed
 
     # (Notification timeouts moved to TimeoutConfig.NOTIFICATION_SUCCESS_MS / NOTIFICATION_ERROR_MS)
 
@@ -300,113 +288,14 @@ class Config:
         "*": 12,  # All others lowest priority
     }
 
-    # Common color space patterns in plate names
-    COLOR_SPACE_PATTERNS: ClassVar[list[str]] = [
-        "aces",
-        "lin_sgamut3cine",
-        "lin_rec709",
-        "rec709",
-        "srgb",
-        "film_lin",
-    ]
-
-    THREEDE_SCENE_SEGMENTS: ClassVar[list[str]] = [
-        "mm",
-        "3de",
-        "mm-default",
-        "scenes",
-        "scene",
-    ]
-
-    # Environment variables that may contain 3DE path information
-    THREEDE_ENV_VARS: ClassVar[list[str]] = [
-        "THREEDE_SCENE_PATH",
-        "3DE_SCENE_PATH",
-        "TDE_SCENE_PATH",
-        "MM_SCENE_PATH",
-        "MATCHMOVE_SCENE_PATH",
-    ]
-
-    # Common VFX plate name patterns for intelligent grouping
-    PLATE_NAME_PATTERNS: ClassVar[list[str]] = [
-        r"^[bf]g\d{2}$",  # bg01, fg01, bg02, fg02, etc.
-        r"^plate_?\d+$",  # plate01, plate_01, plate02
-        r"^comp_?\d+$",  # comp01, comp_01, comp02
-        r"^shot_?\d+$",  # shot01, shot_01, shot010
-        r"^sc\d+$",  # sc01, sc02, sc10
-        r"^[\w]+_v\d{3}$",  # anything_v001, test_v002
-        r"^elem_?\d+$",  # elem01, elem_01
-        r"^cam_?\d+$",  # cam01, cam_01, cam1
-        r"^tk\d+$",  # tk01, tk02 (take numbers)
-        r"^roto_?\d+$",  # roto01, roto_01
-    ]
-
-    # Show-wide search configuration
-    SHOW_ROOT_PATHS: ClassVar[list[str]] = [
-        SHOWS_ROOT
-    ]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
-    MAX_SHOTS_PER_SHOW: int = 1000  # Limit to prevent excessive searching in huge shows
-    SKIP_SEQUENCE_PATTERNS: ClassVar[list[str]] = [
-        "tmp",
-        "temp",
-        "test",
-        "old",
-        "archive",
-        "_dev",
-    ]
-    SKIP_SHOT_PATTERNS: ClassVar[list[str]] = [
-        "tmp",
-        "temp",
-        "test",
-        "old",
-        "archive",
-        "_dev",
-    ]
-
     # Progressive file scanning configuration
-    PROGRESSIVE_SCAN_ENABLED: bool = True  # Enable progressive/batched file scanning
     PROGRESSIVE_SCAN_BATCH_SIZE: int = 20  # Number of files to process per batch
 
     # Progress reporting configuration
-    PROGRESS_FILES_PER_UPDATE: int = 10  # Update progress every N files processed
-    PROGRESS_ENABLE_ETA: bool = True  # Enable ETA calculation and display
     PROGRESS_ETA_SMOOTHING_WINDOW: int = 5  # Number of samples for ETA smoothing
 
     # Worker thread configuration
-    WORKER_CANCELLATION_CHECK_INTERVAL: int = 50  # Check for cancellation every N files
     WORKER_THREAD_PRIORITY: int = 0  # QThread priority (0=normal, -1=low, +1=high)
-    # (WORKER_PAUSE_CHECK_INTERVAL_MS, WORKER_SHUTDOWN_TIMEOUT_MS moved to TimeoutConfig)
-
-    # Performance tuning for progressive scanning
-    PROGRESSIVE_IO_YIELD_INTERVAL: int = 25  # Yield to other threads every N files
-    PROGRESSIVE_MEMORY_CHECK_INTERVAL: int = 100  # Check memory usage every N files
-    PROGRESSIVE_MAX_MEMORY_MB: int = 512  # Maximum memory usage during scanning
-
-    # 3DE Scene Discovery Configuration (NEW - Efficient scanning)
-    THREEDE_SCAN_MODE: Literal["full_show", "user_sequences", "smart"] = "full_show"
-    # - "full_show": Scan entire show (old behavior, can be slow)
-    # - "user_sequences": Only scan sequences where user has shots
-    # - "smart": Only scan shots that actually have .3de files (most efficient)
-
-    THREEDE_MAX_SHOTS_TO_SCAN: int = 1000  # Increased: scan more shots
-    THREEDE_SCAN_RELATED_SEQUENCES: bool = (
-        True  # Only scan user's sequences (when in user_sequences mode)
-    )
-    THREEDE_FILE_FIRST_DISCOVERY: bool = True  # Use new efficient file-first discovery
-    THREEDE_SCAN_MAX_DEPTH: int = (
-        15  # Max directory depth for find command (increased for deeply nested files)
-    )
-    THREEDE_SCAN_PARALLEL_SEQUENCES: int = (
-        4  # Number of sequences to search in parallel
-    )
-    THREEDE_SCAN_MAX_FILES_PER_SHOT: int = (
-        1  # Stop after finding ONE .3de file per shot
-    )
-    THREEDE_STOP_AFTER_FIRST: bool = (
-        True  # New: stop searching shot after first .3de found
-    )
-    THREEDE_CACHE_DISCOVERED_SHOTS: bool = True  # Cache which shots have .3de files
-    THREEDE_INCREMENTAL_SCAN: bool = False  # Only scan for changes (future feature)
 
 
 class ThreadingConfig:
@@ -416,22 +305,8 @@ class ThreadingConfig:
     deadlocks and ensure consistent timing across the application.
     """
 
-    # Cleanup timings
-    CLEANUP_RETRY_DELAY_MS: int = 500  # Delay between cleanup retry attempts
-    CLEANUP_INITIAL_DELAY_MS: int = 1000  # Initial delay before cleanup starts
-
-    # Session / process pool configuration
-    SESSION_MAX_RETRIES: int = 5  # Maximum retry attempts for session operations
-
     # Polling configuration
     POLL_BACKOFF_FACTOR: float = 1.5  # Exponential backoff multiplier
-
-    # Cache configuration
-    CACHE_MAX_MEMORY_MB: int = 100  # Maximum memory for caching
-    CACHE_CLEANUP_INTERVAL: int = 30  # Cache cleanup interval in minutes
-
-    # Thread pool settings
-    MAX_WORKER_THREADS: int = 4  # Maximum number of worker threads
 
     # Previous shots parallel scanning
     PREVIOUS_SHOTS_PARALLEL_WORKERS: int = (
@@ -440,13 +315,3 @@ class ThreadingConfig:
     PREVIOUS_SHOTS_CACHE_TTL: int = (
         0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
     )
-
-    # 3DE scene discovery parallel scanning
-    THREEDE_PARALLEL_WORKERS: int = (
-        4  # Number of parallel workers for 3DE file discovery
-    )
-    THREEDE_PROGRESS_INTERVAL: int = 10  # Number of files between progress updates
-    THREEDE_SCAN_CHUNK_SIZE: int = 100  # Files per batch for processing
-    # (Timeout constants moved to TimeoutConfig: WORKER_GRACEFUL_STOP_MS, WORKER_TERMINATE_MS,
-    #  WORKER_POLL_INTERVAL_SEC, SESSION_INIT_SEC, SUBPROCESS_SEC, POLL_INITIAL_SEC,
-    #  POLL_MAX_SEC, THREAD_POOL_SHUTDOWN_SEC, PREVIOUS_SHOTS_SCAN_SEC, THREEDE_SCAN_SEC)

@@ -113,18 +113,3 @@ def get_module_logger(module_name: str) -> ContextualLogger:
     base_logger = logging.getLogger(module_name)
     return ContextualLogger(base_logger)
 
-
-# Convenience context manager for temporary logging context
-@contextmanager
-def log_context(**kwargs: str) -> Generator[None, None, None]:
-    """Global context manager for adding structured context to log messages.
-
-    Args:
-        **kwargs: Context key-value pairs
-
-    Usage:
-        with log_context(shot="shot_001", operation="scan"):
-            logger.info("Processing")  # Will include context
-
-    """
-    yield from _manage_log_context(**kwargs)

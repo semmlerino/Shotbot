@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
-from typing_extensions import ParamSpec, TypeVar
+from typing_extensions import TypeVar
 
 # Local application imports
 from logging_mixin import get_module_logger
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 logger = get_module_logger(__name__)
 
 # Type variables for proper generic typing
-P = ParamSpec("P")
 T = TypeVar("T")
 
 

@@ -179,7 +179,6 @@ class TestPathConfigurationValidation:
         segment_lists = [
             ("THUMBNAIL_SEGMENTS", Config.THUMBNAIL_SEGMENTS),
             ("RAW_PLATE_SEGMENTS", Config.RAW_PLATE_SEGMENTS),
-            ("THREEDE_SCENE_SEGMENTS", Config.THREEDE_SCENE_SEGMENTS),
         ]
 
         for name, segments in segment_lists:
@@ -201,7 +200,6 @@ class TestTimeoutConfigurationValidation:
         or infinite waits depending on implementation.
         """
         timeouts = [
-            ("WS_COMMAND_TIMEOUT_SECONDS", Config.WS_COMMAND_TIMEOUT_SECONDS),
             ("NOTIFICATION_SUCCESS_MS", TimeoutConfig.NOTIFICATION_SUCCESS_MS),
             ("NOTIFICATION_ERROR_MS", TimeoutConfig.NOTIFICATION_ERROR_MS),
             ("THUMBNAIL_UNLOAD_DELAY_MS", TimeoutConfig.THUMBNAIL_UNLOAD_DELAY_MS),
@@ -222,7 +220,6 @@ class TestTimeoutConfigurationValidation:
         """
         # Check second-based timeouts (should be < 600 seconds = 10 minutes)
         second_timeouts = [
-            ("WS_COMMAND_TIMEOUT_SECONDS", Config.WS_COMMAND_TIMEOUT_SECONDS),
             ("SUBPROCESS_SEC", TimeoutConfig.SUBPROCESS_SEC),
         ]
 
@@ -253,8 +250,6 @@ class TestTimeoutConfigurationValidation:
             ("WORKER_TERMINATE_MS", TimeoutConfig.WORKER_TERMINATE_MS),
             ("SESSION_INIT_SEC", TimeoutConfig.SESSION_INIT_SEC),
             ("SUBPROCESS_SEC", TimeoutConfig.SUBPROCESS_SEC),
-            ("CLEANUP_RETRY_DELAY_MS", ThreadingConfig.CLEANUP_RETRY_DELAY_MS),
-            ("CLEANUP_INITIAL_DELAY_MS", ThreadingConfig.CLEANUP_INITIAL_DELAY_MS),
         ]
 
         for name, timeout in timeouts:
@@ -355,33 +350,11 @@ class TestMemoryConfigurationValidation:
             ("DIR_CACHE_MAX_MEMORY_MB", Config.DIR_CACHE_MAX_MEMORY_MB),
             ("SCENE_CACHE_MAX_MEMORY_MB", Config.SCENE_CACHE_MAX_MEMORY_MB),
             ("THUMB_CACHE_MAX_MEMORY_MB", Config.THUMB_CACHE_MAX_MEMORY_MB),
-            ("PROGRESSIVE_MAX_MEMORY_MB", Config.PROGRESSIVE_MAX_MEMORY_MB),
         ]
 
         for name, limit in memory_limits:
             assert isinstance(limit, (int, float)), f"{name} must be numeric"
             assert limit > 0, f"{name} must be positive, got {limit}"
-
-    def test_memory_pressure_thresholds_are_ordered(self) -> None:
-        """Validate memory pressure thresholds maintain correct ordering.
-
-        Thresholds must increase: NORMAL < MODERATE < HIGH
-        """
-        normal = Config.MEMORY_PRESSURE_NORMAL
-        moderate = Config.MEMORY_PRESSURE_MODERATE
-        high = Config.MEMORY_PRESSURE_HIGH
-
-        assert normal < moderate, (
-            f"MEMORY_PRESSURE_NORMAL ({normal}) >= MODERATE ({moderate})"
-        )
-        assert moderate < high, (
-            f"MEMORY_PRESSURE_MODERATE ({moderate}) >= HIGH ({high})"
-        )
-        assert 0 < normal < 100, f"MEMORY_PRESSURE_NORMAL ({normal}) not in (0, 100)"
-        assert 0 < moderate < 100, (
-            f"MEMORY_PRESSURE_MODERATE ({moderate}) not in (0, 100)"
-        )
-        assert 0 < high <= 100, f"MEMORY_PRESSURE_HIGH ({high}) not in (0, 100]"
 
     def test_cache_size_limits_are_positive(self) -> None:
         """Validate cache size limits are positive integers.
@@ -410,7 +383,6 @@ class TestThreadConfigurationValidation:
         thread_counts = [
             ("MAX_THUMBNAIL_THREADS", Config.MAX_THUMBNAIL_THREADS),
             ("CPU_COUNT", Config.CPU_COUNT),
-            ("THREEDE_SCAN_PARALLEL_SEQUENCES", Config.THREEDE_SCAN_PARALLEL_SEQUENCES),
         ]
 
         for name, count in thread_counts:
@@ -424,12 +396,10 @@ class TestThreadConfigurationValidation:
         (e.g., < 100 threads to prevent resource exhaustion).
         """
         workers = [
-            ("MAX_WORKER_THREADS", ThreadingConfig.MAX_WORKER_THREADS),
             (
                 "PREVIOUS_SHOTS_PARALLEL_WORKERS",
                 ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS,
             ),
-            ("THREEDE_PARALLEL_WORKERS", ThreadingConfig.THREEDE_PARALLEL_WORKERS),
         ]
 
         for name, count in workers:
@@ -517,7 +487,6 @@ class TestProgressConfigurationValidation:
         """
         intervals = [
             ("PROGRESS_UPDATE_INTERVAL_MS", TimeoutConfig.PROGRESS_UPDATE_INTERVAL_MS),
-            ("PROGRESS_FILES_PER_UPDATE", Config.PROGRESS_FILES_PER_UPDATE),
             ("PROGRESS_ETA_SMOOTHING_WINDOW", Config.PROGRESS_ETA_SMOOTHING_WINDOW),
         ]
 

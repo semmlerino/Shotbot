@@ -18,7 +18,6 @@ from cache.shot_cache import ShotDataCache, make_default_shot_cache
 from cache.thumbnail_cache import (
     ThumbnailCache,
     ThumbnailCacheLoader,
-    ThumbnailCacheLoaderSignals,
     make_default_thumbnail_cache,
 )
 from cache.thumbnail_loader import ThumbnailLoader
@@ -35,7 +34,6 @@ __all__ = [
     "ShotMergeResult",
     "ThumbnailCache",
     "ThumbnailCacheLoader",
-    "ThumbnailCacheLoaderSignals",
     "ThumbnailLoader",
     "atomic_json_write",
     "load_validated_json",

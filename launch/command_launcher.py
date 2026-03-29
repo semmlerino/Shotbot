@@ -29,7 +29,6 @@ from __future__ import annotations
 import enum
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
@@ -100,12 +99,6 @@ class PendingLaunch:
     app_name: str
     context: LaunchContext
     command: str
-
-
-# Named sentinels for _build_app_command return values.
-# Using named constants avoids magic (None, bool) tuples at each return site.
-ASYNC_IN_PROGRESS: tuple[None, bool] = (None, True)
-LAUNCH_ERROR: tuple[None, bool] = (None, False)
 
 
 class LaunchPhase(enum.Enum):
@@ -245,15 +238,7 @@ class CommandLauncher(QObject):
             )
         )
 
-    @property
-    def timestamp(self) -> str:
-        """Current UTC timestamp in HH:MM:SS format for logging.
 
-        Returns:
-            Formatted timestamp string suitable for log messages and UI display
-
-        """
-        return datetime.now(tz=UTC).strftime("%H:%M:%S")
 
     def cleanup(self) -> None:
         """Disconnect signals and cleanup resources.
@@ -468,16 +453,9 @@ class CommandLauncher(QObject):
             error_context=error_context,
         ).execute()
 
-    def cancel_pending_search(self) -> None:
-        """Cancel any pending async file search."""
-        if self._file_search_coordinator.is_search_pending:
-            self._set_phase(LaunchPhase.IDLE)
-            self._file_search_coordinator.cancel_pending_search()
 
-    @property
-    def is_search_pending(self) -> bool:
-        """Check if an async file search is in progress."""
-        return self._file_search_coordinator.is_search_pending
+
+
 
     def _build_app_command(
         self,

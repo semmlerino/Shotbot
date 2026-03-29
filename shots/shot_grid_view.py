@@ -297,18 +297,6 @@ class ShotGridView(BaseShotGridView):
                 self._on_item_clicked(index)  # pyright: ignore[reportAny]
                 break
 
-    def clear_selection(self) -> None:
-        """Clear the current selection."""
-        if self.list_view.selectionModel():
-            self.list_view.selectionModel().clear()
-
-        self._selected_shot = None
-
-    def refresh_view(self) -> None:
-        """Force a complete view refresh."""
-        self.list_view.viewport().update()
-        self._update_visible_range()
-
     @property
     @override
     def _item_model(self) -> ShotItemModel | None:
@@ -319,15 +307,6 @@ class ShotGridView(BaseShotGridView):
 
         """
         return cast("ShotItemModel | None", self._model)
-
-    def set_hide_manager(self, hide_manager: HideManager) -> None:
-        """Set the hide manager.
-
-        Args:
-            hide_manager: Hide manager for hiding shots
-
-        """
-        self._hide_manager = hide_manager
 
     def _hide_shot(self, shot: Shot) -> None:
         """Hide a shot.

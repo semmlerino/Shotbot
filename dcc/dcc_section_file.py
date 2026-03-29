@@ -149,16 +149,3 @@ class FileDCCSection(BaseDCCSection):
         self._dcc_file_table.set_default_file(file)
         if file is not None:
             self._update_launch_button_from_file(file)
-
-    def set_files_expanded(self, expanded: bool) -> None:
-        """Set the files sub-section expanded state.
-
-        Args:
-            expanded: True to expand, False to collapse.
-
-        """
-        self._dcc_file_table.set_files_expanded(expanded)
-
-    def is_files_expanded(self) -> bool:
-        """Return files sub-section expanded state."""
-        return self._dcc_file_table.is_files_expanded()

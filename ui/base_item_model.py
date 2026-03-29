@@ -82,7 +82,7 @@ class BaseItemRole(IntEnum):
     IsPinnedRole = Qt.ItemDataRole.UserRole + 11
     FrameRangeRole = Qt.ItemDataRole.UserRole + 12  # Frame range display string
 
-    # Item-specific roles (for backward compatibility with old tests)
+    # Item-specific roles used by ShotItemModel and ThreeDEItemModel
     ItemSpecificRole1 = (
         Qt.ItemDataRole.UserRole + 20
     )  # shot.shot for Shot items, scene.shot for ThreeDEScene
@@ -510,21 +510,6 @@ class BaseItemModel(
         """Alias for set_items(). See set_items() for full semantics."""
         self.set_items(shots)
 
-    def _find_shot_by_full_name(self, full_name: str) -> tuple[T, int] | None:
-        """Find a shot by its full name.
-
-        Args:
-            full_name: The full name to search for
-
-        Returns:
-            Tuple of (item, row_index) if found, None otherwise
-
-        """
-        for row, item in enumerate(self._items):
-            if item.full_name == full_name:
-                return (item, row)
-        return None
-
     def set_pin_manager(self, pin_manager: ShotPinManager) -> None:
         """Set the pin manager.
 
@@ -533,12 +518,6 @@ class BaseItemModel(
 
         """
         self._pin_manager = pin_manager
-
-    def refresh_pin_order(self) -> None:
-        """No-op stub for backward compatibility with tests.
-
-        Sorting is handled by proxy models, not by the item model.
-        """
 
     @property
     def shots(self) -> list[T]:
